@@ -11,6 +11,8 @@ La navaja suiza para sobrevivir la oficina. Herramientas para resolver los probl
 - **Recuperacion de Archivos** - Busqueda automatica de archivos temporales (.asd, .tmp, .xlb) de Word, Excel y PowerPoint tras cierres inesperados
 - **Limpiador de Celdas** - Eliminacion de espacios dobles o invisibles que rompen las formulas de Excel
 - **Consolidador de Libros** - Unir varias hojas o archivos de Excel en uno solo de forma automatica
+- **Comparador de Excel** - Comparar dos versiones de un archivo y marcar las diferencias celda por celda
+- **Desbloquear Archivos en Uso** - Detectar que proceso tiene abierto un archivo y ofrecer cerrarlo
 
 ### Impresoras (El Doctor)
 
@@ -31,10 +33,19 @@ La navaja suiza para sobrevivir la oficina. Herramientas para resolver los probl
 - **Verificador de USB** - Diagnostico de estado: filesystem corrupto, deteccion de USBs falsas, errores de lectura/escritura
 - **Info del Sistema** - Muestra rapida del nombre del equipo y la direccion IP (datos que siempre pide el area de Sistemas)
 - **Expulsion Segura Forzada** - Cerrar procesos que impiden retirar la USB
+- **Recuperador de Contrasena WiFi** - Mostrar las claves WiFi guardadas en el equipo
+- **Mapeo de Unidades de Red** - Asistente para conectar carpetas compartidas de red facilmente
+- **Respaldo Rapido a USB** - Copiar carpetas importantes (Escritorio, Documentos) a USB con un clic
+- **Generador de Contrasenas** - Crear contrasenas seguras y copiarlas al portapapeles
+
+### Mantenimiento (El Conserje)
+
+- **Liberador de Espacio** - Limpiar temporales, cache de Windows Update y descargas viejas para liberar disco
 
 ### PDF (El Editor)
 
 - **Unir y Dividir** - Combinar varios documentos en uno solo o separar paginas especificas
+- **Conversor de Imagenes** - Cambiar formato (PNG a JPG) y redimensionar imagenes para correo
 
 ## Estado actual
 
@@ -87,18 +98,26 @@ powershell -ExecutionPolicy Bypass -File BuscadorExcel.ps1
 - [ ] Info del Sistema
 - [ ] Desinfectante de USB
 - [ ] Unir/Dividir PDFs
+- [ ] Recuperador de Contrasena WiFi
+- [ ] Generador de Contrasenas
 
 ### Fase 2 - Alto valor
 - [ ] Limpiador de Celdas
 - [ ] Consolidador de Libros
+- [ ] Comparador de Excel
+- [ ] Desbloquear Archivos en Uso
 - [ ] Limpiador de Impresoras Fantasma
 - [ ] Verificador de Conexion (Ping)
 - [ ] Verificador de USB
+- [ ] Respaldo Rapido a USB
+- [ ] Liberador de Espacio
 - [ ] Simulador de Prestaciones
 
 ### Fase 3 - Evaluar
 - [ ] Compartir Impresora en Red
 - [ ] Expulsion Segura USB
+- [ ] Mapeo de Unidades de Red
+- [ ] Conversor de Imagenes
 - [ ] Calculadora de Sueldo Neto (ISR/IMSS)
 - [ ] Calculadora de Retenciones (Honorarios/RESICO)
 
