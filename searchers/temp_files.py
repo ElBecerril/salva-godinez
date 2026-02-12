@@ -1,9 +1,9 @@
-"""Busqueda de archivos temporales y de autorecuperacion de Excel."""
+"""Busqueda de archivos temporales y de autorecuperacion de Office."""
 
 import os
 from datetime import datetime
 
-from config import EXCEL_EXTENSIONS, RECOVERY_PATHS, TEMP_PREFIXES
+from config import OFFICE_EXTENSIONS, RECOVERY_PATHS, TEMP_PREFIXES
 
 
 def _format_size(size_bytes: int) -> str:
@@ -14,26 +14,26 @@ def _format_size(size_bytes: int) -> str:
     return f"{size_bytes:.1f} TB"
 
 
-def _is_excel_temp(filename: str) -> bool:
-    """Determina si un archivo es un temporal de Excel."""
+def _is_office_temp(filename: str) -> bool:
+    """Determina si un archivo es un temporal de Office."""
     lower = filename.lower()
-    # Archivos temporales de Excel: ~$libro.xlsx, ~libro.tmp
+    # Archivos temporales de Office: ~$libro.xlsx, ~doc.tmp, etc.
     if any(lower.startswith(p) for p in TEMP_PREFIXES):
         ext = os.path.splitext(lower)[1]
-        if ext in EXCEL_EXTENSIONS or ext in (".tmp", ".xlk"):
+        if ext in OFFICE_EXTENSIONS or ext in (".tmp", ".xlk", ".wbk"):
             return True
     # Archivos de autorecuperacion
-    if lower.endswith(".xar") or lower.endswith(".asd"):
+    if lower.endswith((".xar", ".asd", ".wbk")):
         return True
-    # Archivos Excel normales en carpetas de recuperacion
+    # Archivos Office normales en carpetas de recuperacion
     ext = os.path.splitext(lower)[1]
-    if ext in EXCEL_EXTENSIONS:
+    if ext in OFFICE_EXTENSIONS:
         return True
     return False
 
 
 def search_temp_files(name_filter: str = "") -> list[dict]:
-    """Busca archivos temporales y de autorecuperacion de Excel.
+    """Busca archivos temporales y de autorecuperacion de Office.
 
     Args:
         name_filter: Texto parcial opcional para filtrar por nombre.
@@ -50,7 +50,7 @@ def search_temp_files(name_filter: str = "") -> list[dict]:
         try:
             for dirpath, _, filenames in os.walk(base_path):
                 for fname in filenames:
-                    if not _is_excel_temp(fname):
+                    if not _is_office_temp(fname):
                         continue
                     if name_lower and name_lower not in fname.lower():
                         continue

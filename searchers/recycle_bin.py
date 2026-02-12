@@ -1,12 +1,12 @@
-"""Busqueda de archivos Excel en la papelera de reciclaje via PowerShell."""
+"""Busqueda de archivos Office en la papelera de reciclaje via PowerShell."""
 
 import json
 import subprocess
-from config import EXCEL_EXTENSIONS
+from config import OFFICE_EXTENSIONS
 
 
 def search_recycle_bin(name_filter: str = "") -> list[dict]:
-    """Busca archivos Excel en la papelera de reciclaje.
+    """Busca archivos Office en la papelera de reciclaje.
 
     Args:
         name_filter: Texto parcial para filtrar por nombre (sin extension).
@@ -58,7 +58,7 @@ $results | ConvertTo-Json -Compress
         for item in data:
             item_name = item.get("Name", "")
             ext = _get_extension(item_name)
-            if ext not in EXCEL_EXTENSIONS:
+            if ext not in OFFICE_EXTENSIONS:
                 continue
             if name_lower and name_lower not in item_name.lower():
                 continue

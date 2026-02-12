@@ -1,11 +1,11 @@
-"""Busqueda de archivos Excel por nombre en todos los discos."""
+"""Busqueda de archivos Office por nombre en todos los discos."""
 
 import os
 import string
 import time
 from datetime import datetime, timedelta
 
-from config import EXCEL_EXTENSIONS, RECENT_DAYS
+from config import OFFICE_EXTENSIONS, RECENT_DAYS
 
 
 def _get_drives() -> list[str]:
@@ -42,7 +42,7 @@ def _file_info(filepath: str) -> dict | None:
 
 
 def search_by_name(name_filter: str, progress_callback=None) -> list[dict]:
-    """Busca archivos Excel por nombre parcial en todos los discos.
+    """Busca archivos Office por nombre parcial en todos los discos.
 
     Args:
         name_filter: Texto parcial del nombre del archivo (sin extension).
@@ -68,7 +68,7 @@ def search_by_name(name_filter: str, progress_callback=None) -> list[dict]:
 
             for fname in filenames:
                 ext = os.path.splitext(fname)[1].lower()
-                if ext not in EXCEL_EXTENSIONS:
+                if ext not in OFFICE_EXTENSIONS:
                     continue
                 if name_lower and name_lower not in fname.lower():
                     continue
@@ -82,7 +82,7 @@ def search_by_name(name_filter: str, progress_callback=None) -> list[dict]:
 
 
 def search_recent_excel(days: int = RECENT_DAYS, progress_callback=None) -> list[dict]:
-    """Busca todos los archivos Excel modificados en los ultimos N dias.
+    """Busca todos los archivos Office modificados en los ultimos N dias.
 
     Args:
         days: Numero de dias hacia atras para buscar.
@@ -107,7 +107,7 @@ def search_recent_excel(days: int = RECENT_DAYS, progress_callback=None) -> list
 
             for fname in filenames:
                 ext = os.path.splitext(fname)[1].lower()
-                if ext not in EXCEL_EXTENSIONS:
+                if ext not in OFFICE_EXTENSIONS:
                     continue
                 filepath = os.path.join(dirpath, fname)
                 info = _file_info(filepath)
