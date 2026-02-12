@@ -1,10 +1,10 @@
-"""Busqueda de archivos Excel en el historial reciente de Windows (.lnk)."""
+"""Busqueda de archivos Office en el historial reciente de Windows (.lnk)."""
 
 import os
 import struct
 from datetime import datetime
 
-from config import EXCEL_EXTENSIONS, RECENT_PATH
+from config import OFFICE_EXTENSIONS, RECENT_PATH
 
 
 def _read_lnk_target(lnk_path: str) -> str | None:
@@ -67,7 +67,7 @@ def _read_lnk_target(lnk_path: str) -> str | None:
 
 
 def search_recent_files(name_filter: str = "") -> list[dict]:
-    """Busca archivos Excel en el historial reciente de Windows.
+    """Busca archivos Office en el historial reciente de Windows.
 
     Args:
         name_filter: Texto parcial opcional para filtrar por nombre.
@@ -92,7 +92,7 @@ def search_recent_files(name_filter: str = "") -> list[dict]:
                 continue
 
             ext = os.path.splitext(target)[1].lower()
-            if ext not in EXCEL_EXTENSIONS:
+            if ext not in OFFICE_EXTENSIONS:
                 continue
 
             target_name = os.path.basename(target)

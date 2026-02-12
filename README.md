@@ -1,6 +1,21 @@
-# Salva Godinez
+```
+              ( (
+               ) )
+            .-------.
+            |       |]
+            \       /
+             `-----'
 
-La navaja suiza para sobrevivir la oficina. Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
+  ____        _              ____          _ _
+ / ___|  __ _| |_   ____ _  / ___| ___   __| (_)_ __   ___ ____
+ \___ \ / _` | \ \ / / _` || |  _ / _ \ / _` | | '_ \ / _ \_  /
+  ___) | (_| | |\ V / (_| || |_| | (_) | (_| | | | | |  __// /
+ |____/ \__,_|_| \_/ \__,_| \____|\___/ \__,_|_|_| |_|\___/___|
+
+  La navaja suiza para sobrevivir la oficina
+```
+
+Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
 **by El_Becerril**
 
@@ -49,57 +64,68 @@ La navaja suiza para sobrevivir la oficina. Herramientas para resolver los probl
 
 ## Estado actual
 
-La Recuperacion de Archivos Excel ya esta funcional. El resto de modulos estan en desarrollo.
+Fase 1 completada. El menu principal ofrece 7 herramientas funcionales.
 
-### Recuperador de archivos - Uso rapido
+### Uso rapido
 
 ```bash
-pip install rich
-python BuscadorExcel.py
+pip install -r requirements.txt
+python main.py
 ```
 
-O ejecuta la version PowerShell sin dependencias:
+### Menu principal
 
-```powershell
-powershell -ExecutionPolicy Bypass -File BuscadorExcel.ps1
-```
+| # | Herramienta | Descripcion |
+|---|-------------|-------------|
+| 1 | Rescatista de Archivos Office | Busqueda y recuperacion de Excel, Word y PowerPoint |
+| 2 | Reset de Spooler | Limpia la cola de impresion trabada (requiere admin) |
+| 3 | Info del Sistema | Hostname, IP, MAC, Windows, usuario |
+| 4 | Desinfectante de USB | Detecta y elimina amenazas comunes en USBs |
+| 5 | Editor de PDF | Unir y dividir archivos PDF |
+| 6 | Recuperador de WiFi | Muestra contrasenas WiFi guardadas en Windows |
+| 7 | Generador de Contrasenas | Genera contrasenas seguras y las copia al portapapeles |
 
-#### Estrategias de busqueda disponibles
+### Rescatista de Archivos - Estrategias de busqueda
 
 | # | Estrategia | Que busca |
 |---|-----------|-----------|
 | 1 | Buscar por nombre | Ejecuta todas las estrategias filtrando por el nombre que ingreses |
-| 2 | Excel recientes (30 dias) | Archivos Excel modificados en el ultimo mes en todos los discos |
-| 3 | Papelera de reciclaje | Archivos Excel que fueron eliminados |
-| 4 | Temporales / autorecuperacion | Archivos que Excel guarda automaticamente en carpetas de respaldo |
-| 5 | Archivos recientes de Windows | Historial de archivos Excel abiertos recientemente |
+| 2 | Office recientes (30 dias) | Archivos Office modificados en el ultimo mes en todos los discos |
+| 3 | Papelera de reciclaje | Archivos Office que fueron eliminados |
+| 4 | Temporales / autorecuperacion | Archivos que Office guarda automaticamente en carpetas de respaldo |
+| 5 | Archivos recientes de Windows | Historial de archivos Office abiertos recientemente |
 | 6 | Busqueda completa | Todas las estrategias anteriores combinadas |
 
 #### Donde busca
 
 - Papelera de reciclaje (via PowerShell COM object)
 - Todos los discos (C:\, D:\, etc.)
-- Autorecuperacion de Excel (`%APPDATA%\Microsoft\Excel\`, `%LOCALAPPDATA%\Microsoft\Office\UnsavedFiles\`, `%TEMP%\`)
+- Autorecuperacion de Office (`%APPDATA%\Microsoft\{Excel,Word,PowerPoint}\`, `%LOCALAPPDATA%\Microsoft\Office\UnsavedFiles\`, `%TEMP%\`)
 - Archivos recientes de Windows (shortcuts `.lnk`)
 - Shadow Copies VSS (requiere ejecutar como administrador)
 
 ## Requisitos
 
 - Windows 10 / 11
-- Python 3.10+ (para desarrollo)
-- Para shadow copies: ejecutar como administrador
+- Python 3.10+
+- Dependencias: `rich>=13.7.0`, `pypdf>=4.0.0`
+- Para shadow copies y reset de spooler: ejecutar como administrador
+
+## Licencia
+
+Este proyecto esta bajo la licencia GPL v3. Ver [LICENSE](LICENSE) para mas detalles.
 
 ## Roadmap
 
 ### Fase 1 - Quick wins
 - [x] Recuperacion de Archivos Excel
-- [ ] Ampliar recuperacion a Word y PowerPoint
-- [ ] Reset de Spooler
-- [ ] Info del Sistema
-- [ ] Desinfectante de USB
-- [ ] Unir/Dividir PDFs
-- [ ] Recuperador de Contrasena WiFi
-- [ ] Generador de Contrasenas
+- [x] Ampliar recuperacion a Word y PowerPoint
+- [x] Reset de Spooler
+- [x] Info del Sistema
+- [x] Desinfectante de USB
+- [x] Unir/Dividir PDFs
+- [x] Recuperador de Contrasena WiFi
+- [x] Generador de Contrasenas
 
 ### Fase 2 - Alto valor
 - [ ] Limpiador de Celdas
