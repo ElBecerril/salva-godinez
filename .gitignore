@@ -6,3 +6,4 @@ dist/
 *.spec
 *.egg-info/
 .env
+*.exe
