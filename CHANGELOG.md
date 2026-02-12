@@ -2,6 +2,26 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [1.2.0] - 2026-02-12
+
+### Agregado
+- Limpiador de Celdas Excel (espacios dobles, NBSP, caracteres invisibles)
+- Consolidador de Libros Excel (unir archivos o unir hojas)
+- Comparador de Excel (diferencias celda por celda con reporte)
+- Desbloquear Archivo en Uso (detecta procesos via Restart Manager API)
+- Limpiador de Impresoras Fantasma (detecta y elimina copias duplicadas)
+- Verificador de Conexion (ping + prueba de puertos de impresora)
+- Verificador de USB (info, velocidad, autenticidad, chkdsk)
+- Respaldo Rapido a USB (copia Desktop/Documents con barra de progreso)
+- Liberador de Espacio (temporales, cache Windows Update, descargas antiguas, papelera)
+- Simulador de Prestaciones Mexico (aguinaldo, vacaciones, finiquito, liquidacion)
+- Dependencia openpyxl para herramientas Excel
+- Utilidades compartidas: format_size, get_drives, get_removable_drives
+
+### Cambiado
+- Menu principal reorganizado en 5 categorias con sub-menus
+- 17 herramientas totales distribuidas en: Office, Impresoras, USB y Red, Sistema, Utilidades
+
 ## [1.1.0] - 2026-02-12
 
 ### Agregado
