@@ -1,89 +1,111 @@
-# Buscador de Archivos Excel Perdidos
+# Salva Godinez
 
-Herramienta para buscar y recuperar archivos Excel que desaparecieron de tu disco duro. Escanea multiples ubicaciones donde Windows y Excel guardan copias, temporales y referencias.
+La navaja suiza para sobrevivir la oficina. Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-## Descarga
+**by El_Becerril**
 
-Ve a [Releases](../../releases) y descarga `BuscadorExcel.exe`. Doble clic y listo, no necesitas instalar nada.
+## Modulos
 
-## Estrategias de busqueda
+### Office (El Rescatista)
 
-| # | Estrategia | Que busca |
-|---|-----------|-----------|
-| 1 | **Buscar por nombre** | Ejecuta todas las estrategias filtrando por el nombre que ingreses |
-| 2 | **Excel recientes (30 dias)** | Todos los archivos Excel modificados en el ultimo mes en todos los discos |
-| 3 | **Papelera de reciclaje** | Archivos Excel que fueron eliminados |
-| 4 | **Temporales / autorecuperacion** | Archivos que Excel guarda automaticamente en carpetas de respaldo |
-| 5 | **Archivos recientes de Windows** | Historial de archivos Excel abiertos recientemente (detecta si aun existen) |
-| 6 | **Busqueda completa** | Ejecuta todas las estrategias anteriores combinadas |
+- **Recuperacion de Archivos** - Busqueda automatica de archivos temporales (.asd, .tmp, .xlb) de Word, Excel y PowerPoint tras cierres inesperados
+- **Limpiador de Celdas** - Eliminacion de espacios dobles o invisibles que rompen las formulas de Excel
+- **Consolidador de Libros** - Unir varias hojas o archivos de Excel en uno solo de forma automatica
 
-## Uso
+### Impresoras (El Doctor)
 
-### Ejecutable (recomendado)
+- **Limpiador de Fantasmas** - Identificacion y eliminacion de impresoras duplicadas o inactivas (Copia 1, Copia 2, etc.)
+- **Compartir en Red** - Configuracion automatica para compartir la impresora usando el nombre de la maquina
+- **Reset de Cola (Spooler)** - Boton de panico para limpiar documentos trabados y reiniciar el servicio de impresion
+- **Verificador de Conexion** - Prueba de comunicacion (Ping) para saber si la impresora de red responde
 
-Doble clic en `BuscadorExcel.exe`. Selecciona una opcion del menu:
+### Finanzas (Calculadora Fiscal)
 
-```
-  ____                           _
- | __ ) _   _ ___  ___ __ _ ___| | ___  _ __
- |  _ \| | | / __|/ __/ _` / __| |/ _ \| '__|
- | |_) | |_| \__ \ (_| (_| \__ \ | (_) | |
- |____/ \__,_|___/\___\__,_|___/_|\___/|_|
+- **Calculadora de Sueldo Neto** - Desglose de retenciones de ISR e IMSS para saber cuanto llega libre realmente
+- **Calculadora de Retenciones (Honorarios/RESICO)** - Calculo automatico de IVA e ISR para facturacion profesional
+- **Simulador de Prestaciones** - Estimacion de aguinaldo, vacaciones y finiquitos segun los dias laborados
 
-  Buscador de Archivos Excel Perdidos
-  by El_Becerril
+### Red y USB (El Escudo)
 
-  1 - Buscar por nombre de archivo
-  2 - Buscar todos los Excel recientes (30 dias)
-  3 - Revisar papelera de reciclaje
-  4 - Revisar archivos temporales / autorecup.
-  5 - Revisar archivos recientes de Windows
-  6 - Busqueda completa (todas las opciones)
-  0 - Salir
-```
+- **Desinfectante de USB** - Eliminacion de virus de "acceso directo" y recuperacion de carpetas ocultas por malware
+- **Verificador de USB** - Diagnostico de estado: filesystem corrupto, deteccion de USBs falsas, errores de lectura/escritura
+- **Info del Sistema** - Muestra rapida del nombre del equipo y la direccion IP (datos que siempre pide el area de Sistemas)
+- **Expulsion Segura Forzada** - Cerrar procesos que impiden retirar la USB
 
-Cuando encuentre resultados, te muestra una tabla con nombre, ruta, tamano, fecha y origen. Despues te ofrece copiar el archivo a la ubicacion que elijas.
+### PDF (El Editor)
 
-### PowerShell (alternativa ligera)
+- **Unir y Dividir** - Combinar varios documentos en uno solo o separar paginas especificas
 
-Si prefieres no usar el .exe, puedes ejecutar el script de PowerShell directamente:
+## Estado actual
 
-```powershell
-powershell -ExecutionPolicy Bypass -File BuscadorExcel.ps1
-```
+La Recuperacion de Archivos Excel ya esta funcional. El resto de modulos estan en desarrollo.
 
-### Python (desarrollo)
+### Recuperador de archivos - Uso rapido
 
 ```bash
 pip install rich
 python BuscadorExcel.py
 ```
 
-## Donde busca
+O ejecuta la version PowerShell sin dependencias:
 
-- **Papelera de reciclaje** - Via PowerShell COM object
-- **Todos los discos** (C:\, D:\, etc.) - Escaneo recursivo filtrando por extensiones Excel
-- **Autorecuperacion de Excel:**
-  - `%APPDATA%\Microsoft\Excel\`
-  - `%LOCALAPPDATA%\Microsoft\Office\UnsavedFiles\`
-  - `%TEMP%\` (archivos temporales `~$*.xlsx`)
-- **Archivos recientes de Windows** - Lee shortcuts `.lnk` en `%APPDATA%\Microsoft\Windows\Recent\`
-- **Shadow Copies (VSS)** - Versiones anteriores del sistema (requiere ejecutar como administrador)
+```powershell
+powershell -ExecutionPolicy Bypass -File BuscadorExcel.ps1
+```
 
-## Extensiones soportadas
+#### Estrategias de busqueda disponibles
 
-`.xlsx` `.xls` `.xlsm` `.xlsb` `.csv`
+| # | Estrategia | Que busca |
+|---|-----------|-----------|
+| 1 | Buscar por nombre | Ejecuta todas las estrategias filtrando por el nombre que ingreses |
+| 2 | Excel recientes (30 dias) | Archivos Excel modificados en el ultimo mes en todos los discos |
+| 3 | Papelera de reciclaje | Archivos Excel que fueron eliminados |
+| 4 | Temporales / autorecuperacion | Archivos que Excel guarda automaticamente en carpetas de respaldo |
+| 5 | Archivos recientes de Windows | Historial de archivos Excel abiertos recientemente |
+| 6 | Busqueda completa | Todas las estrategias anteriores combinadas |
+
+#### Donde busca
+
+- Papelera de reciclaje (via PowerShell COM object)
+- Todos los discos (C:\, D:\, etc.)
+- Autorecuperacion de Excel (`%APPDATA%\Microsoft\Excel\`, `%LOCALAPPDATA%\Microsoft\Office\UnsavedFiles\`, `%TEMP%\`)
+- Archivos recientes de Windows (shortcuts `.lnk`)
+- Shadow Copies VSS (requiere ejecutar como administrador)
 
 ## Requisitos
 
 - Windows 10 / 11
+- Python 3.10+ (para desarrollo)
 - Para shadow copies: ejecutar como administrador
 
-## Notas
+## Roadmap
 
-- La busqueda en disco completo puede tardar varios minutos dependiendo del tamano del disco
-- Los archivos encontrados en "Recientes" que ya no existen se marcan como "NO encontrado" - esto indica que el archivo estuvo ahi pero fue movido o eliminado
-- Para la papelera: el archivo se muestra con su ruta original, desde ahi puedes restaurarlo manualmente o usar la opcion de copiar
+### Fase 1 - Quick wins
+- [x] Recuperacion de Archivos Excel
+- [ ] Ampliar recuperacion a Word y PowerPoint
+- [ ] Reset de Spooler
+- [ ] Info del Sistema
+- [ ] Desinfectante de USB
+- [ ] Unir/Dividir PDFs
+
+### Fase 2 - Alto valor
+- [ ] Limpiador de Celdas
+- [ ] Consolidador de Libros
+- [ ] Limpiador de Impresoras Fantasma
+- [ ] Verificador de Conexion (Ping)
+- [ ] Verificador de USB
+- [ ] Simulador de Prestaciones
+
+### Fase 3 - Evaluar
+- [ ] Compartir Impresora en Red
+- [ ] Expulsion Segura USB
+- [ ] Calculadora de Sueldo Neto (ISR/IMSS)
+- [ ] Calculadora de Retenciones (Honorarios/RESICO)
+
+### En veremos
+- Transformador de Texto (cuando haya GUI)
+- Compresor PDF (dependencia Ghostscript)
+- OCR Basico (dependencia Tesseract)
 
 ## Autor
 
