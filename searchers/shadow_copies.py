@@ -1,11 +1,11 @@
-"""Busqueda de archivos Excel en Shadow Copies (VSS) de Windows."""
+"""Busqueda de archivos Office en Shadow Copies (VSS) de Windows."""
 
 import os
 import re
 import subprocess
 from datetime import datetime
 
-from config import EXCEL_EXTENSIONS
+from config import OFFICE_EXTENSIONS
 
 
 def _list_shadow_copies() -> list[dict]:
@@ -58,7 +58,7 @@ def _format_size(size_bytes: int) -> str:
 
 
 def search_shadow_copies(name_filter: str, original_path: str = "") -> list[dict]:
-    """Busca un archivo Excel en las shadow copies disponibles.
+    """Busca un archivo Office en las shadow copies disponibles.
 
     Requiere permisos de administrador para acceder a VSS.
 
@@ -120,7 +120,7 @@ def search_shadow_copies(name_filter: str, original_path: str = "") -> list[dict
                             continue
                         for fname in filenames:
                             ext = os.path.splitext(fname)[1].lower()
-                            if ext not in EXCEL_EXTENSIONS:
+                            if ext not in OFFICE_EXTENSIONS:
                                 continue
                             if name_lower not in fname.lower():
                                 continue
