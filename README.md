@@ -31,40 +31,31 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 
 ### Impresoras (El Doctor)
 
-- **Limpiador de Fantasmas** - Identificacion y eliminacion de impresoras duplicadas o inactivas (Copia 1, Copia 2, etc.)
-- **Compartir en Red** - Configuracion automatica para compartir la impresora usando el nombre de la maquina
 - **Reset de Cola (Spooler)** - Boton de panico para limpiar documentos trabados y reiniciar el servicio de impresion
+- **Limpiador de Fantasmas** - Identificacion y eliminacion de impresoras duplicadas o inactivas (Copia 1, Copia 2, etc.)
 - **Verificador de Conexion** - Prueba de comunicacion (Ping) para saber si la impresora de red responde
 
-### Finanzas (Calculadora Fiscal)
-
-- **Calculadora de Sueldo Neto** - Desglose de retenciones de ISR e IMSS para saber cuanto llega libre realmente
-- **Calculadora de Retenciones (Honorarios/RESICO)** - Calculo automatico de IVA e ISR para facturacion profesional
-- **Simulador de Prestaciones** - Estimacion de aguinaldo, vacaciones y finiquitos segun los dias laborados
-
-### Red y USB (El Escudo)
+### USB y Red (El Escudo)
 
 - **Desinfectante de USB** - Eliminacion de virus de "acceso directo" y recuperacion de carpetas ocultas por malware
 - **Verificador de USB** - Diagnostico de estado: filesystem corrupto, deteccion de USBs falsas, errores de lectura/escritura
-- **Info del Sistema** - Muestra rapida del nombre del equipo y la direccion IP (datos que siempre pide el area de Sistemas)
-- **Expulsion Segura Forzada** - Cerrar procesos que impiden retirar la USB
+- **Respaldo Rapido a USB** - Copiar carpetas importantes (Escritorio, Documentos) a USB con barra de progreso
 - **Recuperador de Contrasena WiFi** - Mostrar las claves WiFi guardadas en el equipo
-- **Mapeo de Unidades de Red** - Asistente para conectar carpetas compartidas de red facilmente
-- **Respaldo Rapido a USB** - Copiar carpetas importantes (Escritorio, Documentos) a USB con un clic
-- **Generador de Contrasenas** - Crear contrasenas seguras y copiarlas al portapapeles
 
-### Mantenimiento (El Conserje)
+### Sistema (El Conserje)
 
+- **Info del Sistema** - Muestra rapida del nombre del equipo y la direccion IP (datos que siempre pide el area de Sistemas)
 - **Liberador de Espacio** - Limpiar temporales, cache de Windows Update y descargas viejas para liberar disco
 
-### PDF (El Editor)
+### Utilidades
 
-- **Unir y Dividir** - Combinar varios documentos en uno solo o separar paginas especificas
-- **Conversor de Imagenes** - Cambiar formato (PNG a JPG) y redimensionar imagenes para correo
+- **Editor de PDF** - Combinar varios documentos en uno solo o separar paginas especificas
+- **Generador de Contrasenas** - Crear contrasenas seguras y copiarlas al portapapeles
+- **Simulador de Prestaciones** - Estimacion de aguinaldo, vacaciones, finiquito y liquidacion segun la LFT
 
 ## Estado actual
 
-Fase 1 completada. El menu principal ofrece 7 herramientas funcionales.
+Fase 2 completada. 17 herramientas funcionales organizadas en 5 categorias.
 
 ### Uso rapido
 
@@ -75,15 +66,13 @@ python main.py
 
 ### Menu principal
 
-| # | Herramienta | Descripcion |
-|---|-------------|-------------|
-| 1 | Rescatista de Archivos Office | Busqueda y recuperacion de Excel, Word y PowerPoint |
-| 2 | Reset de Spooler | Limpia la cola de impresion trabada (requiere admin) |
-| 3 | Info del Sistema | Hostname, IP, MAC, Windows, usuario |
-| 4 | Desinfectante de USB | Detecta y elimina amenazas comunes en USBs |
-| 5 | Editor de PDF | Unir y dividir archivos PDF |
-| 6 | Recuperador de WiFi | Muestra contrasenas WiFi guardadas en Windows |
-| 7 | Generador de Contrasenas | Genera contrasenas seguras y las copia al portapapeles |
+| # | Categoria | Herramientas |
+|---|-----------|--------------|
+| 1 | Office (El Rescatista) | Rescate de Archivos, Limpiador de Celdas, Consolidador, Comparador, Desbloquear |
+| 2 | Impresoras (El Doctor) | Reset de Spooler, Limpiador de Fantasmas, Verificador de Conexion |
+| 3 | USB y Red (El Escudo) | Desinfectante USB, Verificador USB, Respaldo Rapido, Recuperador WiFi |
+| 4 | Sistema (El Conserje) | Info del Sistema, Liberador de Espacio |
+| 5 | Utilidades | Editor de PDF, Generador de Contrasenas, Simulador de Prestaciones |
 
 ### Rescatista de Archivos - Estrategias de busqueda
 
@@ -108,8 +97,8 @@ python main.py
 
 - Windows 10 / 11
 - Python 3.10+
-- Dependencias: `rich>=13.7.0`, `pypdf>=4.0.0`
-- Para shadow copies y reset de spooler: ejecutar como administrador
+- Dependencias: `rich>=13.7.0`, `pypdf>=4.0.0`, `openpyxl>=3.1.0`
+- Para shadow copies, reset de spooler y limpieza de impresoras: ejecutar como administrador
 
 ## Licencia
 
@@ -128,16 +117,16 @@ Este proyecto esta bajo la licencia GPL v3. Ver [LICENSE](LICENSE) para mas deta
 - [x] Generador de Contrasenas
 
 ### Fase 2 - Alto valor
-- [ ] Limpiador de Celdas
-- [ ] Consolidador de Libros
-- [ ] Comparador de Excel
-- [ ] Desbloquear Archivos en Uso
-- [ ] Limpiador de Impresoras Fantasma
-- [ ] Verificador de Conexion (Ping)
-- [ ] Verificador de USB
-- [ ] Respaldo Rapido a USB
-- [ ] Liberador de Espacio
-- [ ] Simulador de Prestaciones
+- [x] Limpiador de Celdas
+- [x] Consolidador de Libros
+- [x] Comparador de Excel
+- [x] Desbloquear Archivos en Uso
+- [x] Limpiador de Impresoras Fantasma
+- [x] Verificador de Conexion (Ping)
+- [x] Verificador de USB
+- [x] Respaldo Rapido a USB
+- [x] Liberador de Espacio
+- [x] Simulador de Prestaciones
 
 ### Fase 3 - Evaluar
 - [ ] Compartir Impresora en Red

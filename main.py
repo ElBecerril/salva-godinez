@@ -25,13 +25,25 @@ from searchers.recent_files import search_recent_files
 from searchers.shadow_copies import search_shadow_copies
 from reporting.console_report import show_results, offer_restore
 
-# Tools
+# Tools — Fase 1
 from tools.spooler import reset_spooler
 from tools.system_info import show_system_info
 from tools.usb_disinfect import usb_disinfect_menu
 from tools.pdf_tools import pdf_menu
 from tools.wifi_passwords import show_wifi_passwords
 from tools.password_generator import password_generator_menu
+
+# Tools — Fase 2
+from tools.excel_cell_cleaner import cell_cleaner_menu
+from tools.excel_consolidator import consolidator_menu
+from tools.excel_comparator import comparator_menu
+from tools.file_unlocker import file_unlocker_menu
+from tools.ghost_printers import ghost_printers_menu
+from tools.ping_checker import ping_checker_menu
+from tools.usb_health import usb_health_menu
+from tools.usb_backup import usb_backup_menu
+from tools.disk_cleaner import disk_cleaner_menu
+from tools.prestaciones_sim import prestaciones_menu
 
 console = Console()
 
@@ -60,13 +72,11 @@ def show_main_menu() -> str:
     console.print(BANNER)
     console.print(
         Panel(
-            "[bold]1[/bold] - Rescatista de Archivos Office\n"
-            "[bold]2[/bold] - Reset de Spooler (cola de impresion)\n"
-            "[bold]3[/bold] - Info del Sistema\n"
-            "[bold]4[/bold] - Desinfectante de USB\n"
-            "[bold]5[/bold] - Editor de PDF\n"
-            "[bold]6[/bold] - Recuperador de WiFi\n"
-            "[bold]7[/bold] - Generador de Contrasenas\n"
+            "[bold]1[/bold] - Office (El Rescatista)\n"
+            "[bold]2[/bold] - Impresoras (El Doctor)\n"
+            "[bold]3[/bold] - USB y Red (El Escudo)\n"
+            "[bold]4[/bold] - Sistema (El Conserje)\n"
+            "[bold]5[/bold] - Utilidades\n"
             "[bold]0[/bold] - Salir",
             title="[bold yellow]Menu Principal[/bold yellow]",
             box=box.ROUNDED,
@@ -75,9 +85,190 @@ def show_main_menu() -> str:
     return Prompt.ask("\n[bold cyan]Selecciona una opcion[/bold cyan]", default="0")
 
 
+# ─── Sub-menu 1: Office (El Rescatista) ──────────────────────
+
+def show_office_submenu() -> str:
+    console.print(
+        Panel(
+            "[bold]1[/bold] - Rescate de Archivos Office\n"
+            "[bold]2[/bold] - Limpiador de Celdas\n"
+            "[bold]3[/bold] - Consolidador de Libros\n"
+            "[bold]4[/bold] - Comparador de Excel\n"
+            "[bold]5[/bold] - Desbloquear Archivo\n"
+            "[bold]0[/bold] - Volver",
+            title="[bold yellow]Office (El Rescatista)[/bold yellow]",
+            box=box.ROUNDED,
+        )
+    )
+    return Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
+
+
+def office_menu() -> None:
+    while True:
+        choice = show_office_submenu()
+
+        if choice == "1":
+            office_rescue_menu()
+        elif choice == "2":
+            cell_cleaner_menu()
+        elif choice == "3":
+            consolidator_menu()
+        elif choice == "4":
+            comparator_menu()
+        elif choice == "5":
+            file_unlocker_menu()
+        elif choice == "0":
+            break
+        else:
+            console.print("[red]Opcion no valida.[/red]")
+
+        if choice in ("2", "3", "4", "5"):
+            Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
+
+
+# ─── Sub-menu 2: Impresoras (El Doctor) ──────────────────────
+
+def show_printers_submenu() -> str:
+    console.print(
+        Panel(
+            "[bold]1[/bold] - Reset de Spooler\n"
+            "[bold]2[/bold] - Limpiador de Fantasmas\n"
+            "[bold]3[/bold] - Verificador de Conexion\n"
+            "[bold]0[/bold] - Volver",
+            title="[bold yellow]Impresoras (El Doctor)[/bold yellow]",
+            box=box.ROUNDED,
+        )
+    )
+    return Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
+
+
+def printers_menu() -> None:
+    while True:
+        choice = show_printers_submenu()
+
+        if choice == "1":
+            reset_spooler()
+        elif choice == "2":
+            ghost_printers_menu()
+        elif choice == "3":
+            ping_checker_menu()
+        elif choice == "0":
+            break
+        else:
+            console.print("[red]Opcion no valida.[/red]")
+
+        if choice in ("1", "2", "3"):
+            Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
+
+
+# ─── Sub-menu 3: USB y Red (El Escudo) ───────────────────────
+
+def show_usb_net_submenu() -> str:
+    console.print(
+        Panel(
+            "[bold]1[/bold] - Desinfectante de USB\n"
+            "[bold]2[/bold] - Verificador de USB\n"
+            "[bold]3[/bold] - Respaldo Rapido a USB\n"
+            "[bold]4[/bold] - Recuperador de WiFi\n"
+            "[bold]0[/bold] - Volver",
+            title="[bold yellow]USB y Red (El Escudo)[/bold yellow]",
+            box=box.ROUNDED,
+        )
+    )
+    return Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
+
+
+def usb_net_menu() -> None:
+    while True:
+        choice = show_usb_net_submenu()
+
+        if choice == "1":
+            usb_disinfect_menu()
+        elif choice == "2":
+            usb_health_menu()
+        elif choice == "3":
+            usb_backup_menu()
+        elif choice == "4":
+            show_wifi_passwords()
+        elif choice == "0":
+            break
+        else:
+            console.print("[red]Opcion no valida.[/red]")
+
+        if choice in ("1", "2", "3", "4"):
+            Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
+
+
+# ─── Sub-menu 4: Sistema (El Conserje) ───────────────────────
+
+def show_system_submenu() -> str:
+    console.print(
+        Panel(
+            "[bold]1[/bold] - Info del Sistema\n"
+            "[bold]2[/bold] - Liberador de Espacio\n"
+            "[bold]0[/bold] - Volver",
+            title="[bold yellow]Sistema (El Conserje)[/bold yellow]",
+            box=box.ROUNDED,
+        )
+    )
+    return Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
+
+
+def system_menu() -> None:
+    while True:
+        choice = show_system_submenu()
+
+        if choice == "1":
+            show_system_info()
+        elif choice == "2":
+            disk_cleaner_menu()
+        elif choice == "0":
+            break
+        else:
+            console.print("[red]Opcion no valida.[/red]")
+
+        if choice in ("1", "2"):
+            Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
+
+
+# ─── Sub-menu 5: Utilidades ──────────────────────────────────
+
+def show_utilities_submenu() -> str:
+    console.print(
+        Panel(
+            "[bold]1[/bold] - Editor de PDF\n"
+            "[bold]2[/bold] - Generador de Contrasenas\n"
+            "[bold]3[/bold] - Simulador de Prestaciones\n"
+            "[bold]0[/bold] - Volver",
+            title="[bold yellow]Utilidades[/bold yellow]",
+            box=box.ROUNDED,
+        )
+    )
+    return Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
+
+
+def utilities_menu() -> None:
+    while True:
+        choice = show_utilities_submenu()
+
+        if choice == "1":
+            pdf_menu()
+        elif choice == "2":
+            password_generator_menu()
+        elif choice == "3":
+            prestaciones_menu()
+        elif choice == "0":
+            break
+        else:
+            console.print("[red]Opcion no valida.[/red]")
+
+        if choice in ("2",):
+            Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
+
+
 # ─── Sub-menu: Rescatista de Archivos Office ──────────────────
 
-def show_office_menu() -> str:
+def show_office_rescue_menu() -> str:
     console.print(
         Panel(
             "[bold]1[/bold] - Buscar por nombre de archivo\n"
@@ -86,12 +277,12 @@ def show_office_menu() -> str:
             "[bold]4[/bold] - Revisar archivos temporales / autorecuperacion\n"
             "[bold]5[/bold] - Revisar archivos recientes de Windows\n"
             "[bold]6[/bold] - Busqueda completa (todas las opciones)\n"
-            "[bold]0[/bold] - Volver al menu principal",
+            "[bold]0[/bold] - Volver",
             title="[bold yellow]Rescatista de Archivos Office[/bold yellow]",
             box=box.ROUNDED,
         )
     )
-    return Prompt.ask("\n[bold cyan]Selecciona una opcion[/bold cyan]", default="0")
+    return Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
 
 
 def ask_name() -> str:
@@ -236,7 +427,7 @@ def _deduplicate(results: list[dict]) -> list[dict]:
 def office_rescue_menu() -> None:
     """Sub-menu de rescate de archivos Office."""
     while True:
-        choice = show_office_menu()
+        choice = show_office_rescue_menu()
 
         if choice == "1":
             option_search_by_name()
@@ -266,27 +457,20 @@ def main() -> None:
             choice = show_main_menu()
 
             if choice == "1":
-                office_rescue_menu()
+                office_menu()
             elif choice == "2":
-                reset_spooler()
+                printers_menu()
             elif choice == "3":
-                show_system_info()
+                usb_net_menu()
             elif choice == "4":
-                usb_disinfect_menu()
+                system_menu()
             elif choice == "5":
-                pdf_menu()
-            elif choice == "6":
-                show_wifi_passwords()
-            elif choice == "7":
-                password_generator_menu()
+                utilities_menu()
             elif choice == "0":
                 console.print("[bold cyan]Hasta luego![/bold cyan]")
                 break
             else:
                 console.print("[red]Opcion no valida.[/red]")
-
-            if choice != "1":
-                Prompt.ask("\n[dim]Presiona Enter para volver al menu[/dim]", default="")
     except KeyboardInterrupt:
         console.print("\n[bold cyan]Hasta luego![/bold cyan]")
 
