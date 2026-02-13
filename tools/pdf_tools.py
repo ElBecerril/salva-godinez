@@ -52,16 +52,24 @@ def merge_pdfs() -> None:
     try:
         writer = pypdf.PdfWriter()
         for path in paths:
-            reader = pypdf.PdfReader(path)
+            try:
+                reader = pypdf.PdfReader(path)
+            except (pypdf.errors.PdfReadError, pypdf.errors.PdfStreamError) as e:
+                console.print(f"  [red]PDF corrupto o invalido: {os.path.basename(path)} — {e}[/red]")
+                continue
             for page in reader.pages:
                 writer.add_page(page)
+
+        if len(writer.pages) == 0:
+            console.print("[red]No se pudieron leer paginas de ninguno de los PDFs.[/red]")
+            return
 
         with open(output, "wb") as f:
             writer.write(f)
 
         total_pages = len(writer.pages)
         console.print(f"\n[bold green]PDF unido creado: {output} ({total_pages} paginas)[/bold green]")
-    except Exception as e:
+    except (pypdf.errors.PdfReadError, OSError) as e:
         console.print(f"[red]Error al unir PDFs: {e}[/red]")
 
 
@@ -81,8 +89,8 @@ def split_pdf() -> None:
     try:
         reader = pypdf.PdfReader(path)
         total = len(reader.pages)
-    except Exception as e:
-        console.print(f"[red]Error al leer PDF: {e}[/red]")
+    except (pypdf.errors.PdfReadError, pypdf.errors.PdfStreamError, OSError) as e:
+        console.print(f"[red]Error al leer PDF (archivo corrupto o invalido): {e}[/red]")
         return
 
     console.print(f"[dim]El PDF tiene {total} paginas.[/dim]")

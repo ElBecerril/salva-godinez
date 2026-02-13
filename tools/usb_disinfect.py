@@ -1,69 +1,20 @@
 """Desinfectante de USB: detecta y limpia amenazas comunes."""
 
-import ctypes
 import os
-import struct
 import subprocess
 
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
+from tools import get_removable_drives
+from utils import read_lnk_target as _read_lnk_target
+
 console = Console()
 
 # Nombres sospechosos comunes en USBs infectados
 SUSPICIOUS_FILES = {"autorun.inf", "desktop.ini.exe", "recycler.exe", "ravmon.exe"}
 SUSPICIOUS_EXTENSIONS = {".exe", ".scr", ".bat", ".cmd", ".vbs", ".wsf", ".pif", ".com"}
-
-
-def get_removable_drives() -> list[str]:
-    """Detecta unidades USB removibles."""
-    drives = []
-    for letter in "DEFGHIJKLMNOPQRSTUVWXYZ":
-        path = f"{letter}:\\"
-        try:
-            drive_type = ctypes.windll.kernel32.GetDriveTypeW(path)
-            if drive_type == 2:  # DRIVE_REMOVABLE
-                drives.append(path)
-        except (AttributeError, OSError):
-            continue
-    return drives
-
-
-def _read_lnk_target(lnk_path: str) -> str | None:
-    """Lee la ruta destino de un archivo .lnk."""
-    try:
-        with open(lnk_path, "rb") as f:
-            content = f.read()
-        if len(content) < 76:
-            return None
-        header_size = struct.unpack_from("<I", content, 0)[0]
-        if header_size != 0x4C:
-            return None
-        flags = struct.unpack_from("<I", content, 0x14)[0]
-        has_link_target_id = flags & 0x01
-        has_link_info = flags & 0x02
-        offset = 0x4C
-        if has_link_target_id:
-            if offset + 2 > len(content):
-                return None
-            id_list_size = struct.unpack_from("<H", content, offset)[0]
-            offset += 2 + id_list_size
-        if has_link_info:
-            if offset + 16 > len(content):
-                return None
-            link_info_start = offset
-            local_base_path_offset = struct.unpack_from("<I", content, offset + 16)[0]
-            path_start = link_info_start + local_base_path_offset
-            if path_start >= len(content):
-                return None
-            end = content.index(b"\x00", path_start)
-            path = content[path_start:end].decode("ascii", errors="replace")
-            if path and os.path.splitext(path)[1]:
-                return path
-        return None
-    except (OSError, struct.error, ValueError):
-        return None
 
 
 def _is_suspicious_lnk(lnk_path: str, drive: str) -> bool:

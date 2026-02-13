@@ -97,6 +97,7 @@ def _generate_diff_report(path1: str, path2: str, comparison: dict, output: str)
             cell.fill = red_fill
 
     wb1.save(output)
+    wb1.close()
 
 
 def comparator_menu() -> None:
@@ -119,43 +120,53 @@ def comparator_menu() -> None:
     if not result:
         return
 
-    # Hojas exclusivas
-    if result["sheets_only_v1"]:
-        console.print(f"\n[yellow]Hojas solo en archivo 1:[/yellow] {', '.join(result['sheets_only_v1'])}")
-    if result["sheets_only_v2"]:
-        console.print(f"[yellow]Hojas solo en archivo 2:[/yellow] {', '.join(result['sheets_only_v2'])}")
+    wb1 = result.pop("_wb1", None)
+    wb2 = result.pop("_wb2", None)
 
-    # Diferencias
-    total_diffs = sum(len(d) for d in result["common_diffs"].values())
+    try:
+        # Hojas exclusivas
+        if result["sheets_only_v1"]:
+            console.print(f"\n[yellow]Hojas solo en archivo 1:[/yellow] {', '.join(result['sheets_only_v1'])}")
+        if result["sheets_only_v2"]:
+            console.print(f"[yellow]Hojas solo en archivo 2:[/yellow] {', '.join(result['sheets_only_v2'])}")
 
-    if total_diffs == 0:
-        console.print("\n[bold green]Los archivos son identicos en las hojas comunes.[/bold green]")
-        return
+        # Diferencias
+        total_diffs = sum(len(d) for d in result["common_diffs"].values())
 
-    console.print(f"\n[bold yellow]{total_diffs} diferencia(s) encontrada(s):[/bold yellow]")
+        if total_diffs == 0:
+            console.print("\n[bold green]Los archivos son identicos en las hojas comunes.[/bold green]")
+            return
 
-    for sheet_name, diffs in result["common_diffs"].items():
-        table = Table(title=f"Hoja: {sheet_name}")
-        table.add_column("Celda", style="bold cyan")
-        table.add_column("Archivo 1", style="red")
-        table.add_column("Archivo 2", style="green")
+        console.print(f"\n[bold yellow]{total_diffs} diferencia(s) encontrada(s):[/bold yellow]")
 
-        for diff in diffs[:30]:
-            table.add_row(diff["celda"], diff["v1"], diff["v2"])
+        for sheet_name, diffs in result["common_diffs"].items():
+            table = Table(title=f"Hoja: {sheet_name}")
+            table.add_column("Celda", style="bold cyan")
+            table.add_column("Archivo 1", style="red")
+            table.add_column("Archivo 2", style="green")
 
-        if len(diffs) > 30:
-            table.add_row("...", f"+{len(diffs) - 30} mas", "")
+            for diff in diffs[:30]:
+                table.add_row(diff["celda"], diff["v1"], diff["v2"])
 
-        console.print(table)
+            if len(diffs) > 30:
+                table.add_row("...", f"+{len(diffs) - 30} mas", "")
 
-    # Ofrecer generar reporte
-    gen_report = Prompt.ask(
-        "\n[bold]Generar reporte con diferencias marcadas?[/bold]",
-        choices=["s", "n"], default="s",
-    )
-    if gen_report == "s":
-        base, ext = os.path.splitext(path1)
-        output = f"{base}_comparado{ext}"
-        output = Prompt.ask("[bold]Ruta del reporte[/bold]", default=output).strip().strip('"')
-        _generate_diff_report(path1, path2, result, output)
-        console.print(f"\n[bold green]Reporte guardado: {output}[/bold green]")
+            console.print(table)
+
+        # Ofrecer generar reporte
+        gen_report = Prompt.ask(
+            "\n[bold]Generar reporte con diferencias marcadas?[/bold]",
+            choices=["s", "n"], default="s",
+        )
+        if gen_report == "s":
+            base, ext = os.path.splitext(path1)
+            output = f"{base}_comparado{ext}"
+            output = Prompt.ask("[bold]Ruta del reporte[/bold]", default=output).strip().strip('"')
+            result["_wb1"] = wb1
+            _generate_diff_report(path1, path2, result, output)
+            console.print(f"\n[bold green]Reporte guardado: {output}[/bold green]")
+    finally:
+        if wb1:
+            wb1.close()
+        if wb2:
+            wb2.close()

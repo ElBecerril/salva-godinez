@@ -247,16 +247,20 @@ def read_lnk_target(lnk_path):
         if flags & 0x02:  # HasLinkInfo
             if offset + 20 > len(content):
                 return None
+            # LinkInfoFlags en offset+8: bit 0 = VolumeIDAndLocalBasePath
+            link_info_flags = struct.unpack_from("<I", content, offset + 8)[0]
+            if not (link_info_flags & 0x01):
+                return None  # No hay ruta local (posible ruta de red)
             lbp_offset = struct.unpack_from("<I", content, offset + 16)[0]
             path_start = offset + lbp_offset
             if path_start >= len(content):
                 return None
             end = content.index(b"\x00", path_start)
-            path = content[path_start:end].decode("ascii", errors="replace")
+            path = content[path_start:end].decode("latin-1")
             if path and os.path.splitext(path)[1]:
                 return path
         return None
-    except Exception:
+    except (OSError, struct.error, ValueError):
         return None
 
 

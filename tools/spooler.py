@@ -24,11 +24,16 @@ def reset_spooler() -> None:
 
     console.print("[bold yellow]Deteniendo servicio de impresion...[/bold yellow]")
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["net", "stop", "spooler"],
             capture_output=True, text=True, timeout=15,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
+        if result.returncode != 0:
+            # returncode 2 = servicio ya estaba detenido, no es error real
+            if "3521" not in result.stderr and "already" not in result.stderr.lower() \
+                    and "ya" not in result.stderr.lower():
+                console.print(f"[yellow]Advertencia al detener spooler: {result.stderr.strip()}[/yellow]")
     except (subprocess.TimeoutExpired, OSError) as e:
         console.print(f"[red]Error al detener spooler: {e}[/red]")
         return
@@ -46,11 +51,15 @@ def reset_spooler() -> None:
 
     console.print("[bold yellow]Reiniciando servicio de impresion...[/bold yellow]")
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["net", "start", "spooler"],
             capture_output=True, text=True, timeout=15,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
+        if result.returncode != 0:
+            console.print(f"[red]No se pudo reiniciar el spooler: {result.stderr.strip()}[/red]")
+            console.print("[dim]Intenta reiniciar el servicio 'Print Spooler' manualmente.[/dim]")
+            return
     except (subprocess.TimeoutExpired, OSError) as e:
         console.print(f"[red]Error al reiniciar spooler: {e}[/red]")
         return

@@ -4,14 +4,7 @@ import os
 from datetime import datetime
 
 from config import OFFICE_EXTENSIONS, RECOVERY_PATHS, TEMP_PREFIXES
-
-
-def _format_size(size_bytes: int) -> str:
-    for unit in ("B", "KB", "MB", "GB"):
-        if size_bytes < 1024:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.1f} TB"
+from utils import format_size as _format_size
 
 
 def _is_office_temp(filename: str) -> bool:

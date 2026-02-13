@@ -31,8 +31,8 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 
 ### Impresoras (El Doctor)
 
-- **Reset de Cola (Spooler)** - Boton de panico para limpiar documentos trabados y reiniciar el servicio de impresion
-- **Limpiador de Fantasmas** - Identificacion y eliminacion de impresoras duplicadas o inactivas (Copia 1, Copia 2, etc.)
+- **Reset de Cola (Spooler)** `admin` - Boton de panico para limpiar documentos trabados y reiniciar el servicio de impresion
+- **Limpiador de Fantasmas** `admin` - Identificacion y eliminacion de impresoras duplicadas o inactivas (Copia 1, Copia 2, etc.)
 - **Verificador de Conexion** - Prueba de comunicacion (Ping) para saber si la impresora de red responde
 
 ### USB y Red (El Escudo)
@@ -40,18 +40,20 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 - **Desinfectante de USB** - Eliminacion de virus de "acceso directo" y recuperacion de carpetas ocultas por malware
 - **Verificador de USB** - Diagnostico de estado: filesystem corrupto, deteccion de USBs falsas, errores de lectura/escritura
 - **Respaldo Rapido a USB** - Copiar carpetas importantes (Escritorio, Documentos) a USB con barra de progreso
-- **Recuperador de Contrasena WiFi** - Mostrar las claves WiFi guardadas en el equipo
+- **Recuperador de Contrasena WiFi** `admin` - Mostrar las claves WiFi guardadas en el equipo
 
 ### Sistema (El Conserje)
 
 - **Info del Sistema** - Muestra rapida del nombre del equipo y la direccion IP (datos que siempre pide el area de Sistemas)
-- **Liberador de Espacio** - Limpiar temporales, cache de Windows Update y descargas viejas para liberar disco
+- **Liberador de Espacio** `admin` - Limpiar temporales, cache de Windows Update y descargas viejas para liberar disco
 
 ### Utilidades
 
 - **Editor de PDF** - Combinar varios documentos en uno solo o separar paginas especificas
 - **Generador de Contrasenas** - Crear contrasenas seguras y copiarlas al portapapeles
 - **Simulador de Prestaciones** - Estimacion de aguinaldo, vacaciones, finiquito y liquidacion segun la LFT
+
+> `admin` = Requiere ejecutar como administrador. Sin permisos de admin la herramienta lo indica y funciona de forma limitada o se omite.
 
 ## Estado actual
 
@@ -69,9 +71,9 @@ python main.py
 | # | Categoria | Herramientas |
 |---|-----------|--------------|
 | 1 | Office (El Rescatista) | Rescate de Archivos, Limpiador de Celdas, Consolidador, Comparador, Desbloquear |
-| 2 | Impresoras (El Doctor) | Reset de Spooler, Limpiador de Fantasmas, Verificador de Conexion |
-| 3 | USB y Red (El Escudo) | Desinfectante USB, Verificador USB, Respaldo Rapido, Recuperador WiFi |
-| 4 | Sistema (El Conserje) | Info del Sistema, Liberador de Espacio |
+| 2 | Impresoras (El Doctor) | Reset de Spooler `admin`, Limpiador de Fantasmas `admin`, Verificador de Conexion |
+| 3 | USB y Red (El Escudo) | Desinfectante USB, Verificador USB, Respaldo Rapido, Recuperador WiFi `admin` |
+| 4 | Sistema (El Conserje) | Info del Sistema, Liberador de Espacio `admin` |
 | 5 | Utilidades | Editor de PDF, Generador de Contrasenas, Simulador de Prestaciones |
 
 ### Rescatista de Archivos - Estrategias de busqueda
@@ -99,6 +101,26 @@ python main.py
 - Python 3.10+
 - Dependencias: `rich>=13.7.0`, `pypdf>=4.0.0`, `openpyxl>=3.1.0`
 - Para shadow copies, reset de spooler y limpieza de impresoras: ejecutar como administrador
+
+## Troubleshooting
+
+**"Se requieren permisos de administrador"**
+Clic derecho en la terminal o acceso directo > "Ejecutar como administrador". Las herramientas marcadas con `admin` necesitan esto para funcionar completamente.
+
+**No encuentra archivos que se que existen**
+El buscador omite carpetas del sistema (`$Recycle.Bin`, `Windows`, `Recovery`). Si el archivo esta en una USB, asegurate de que este conectada antes de buscar.
+
+**El spooler no reinicia**
+Si `net start spooler` falla, abre `services.msc`, busca "Print Spooler" y reinicialo manualmente. Si sigue fallando, puede haber un driver de impresora corrupto.
+
+**"ModuleNotFoundError: No module named 'rich'"**
+Ejecuta `pip install -r requirements.txt` desde la carpeta del proyecto. Si tienes varias versiones de Python, usa `python -m pip install -r requirements.txt`.
+
+**El comparador de Excel tarda mucho**
+Archivos muy grandes (>50,000 celdas) pueden tardar. Considera comparar hojas especificas en lugar del libro completo.
+
+**La USB no aparece en el desinfectante**
+Solo detecta unidades removibles. Discos duros externos pueden no aparecer si Windows los reconoce como "disco fijo".
 
 ## Licencia
 
