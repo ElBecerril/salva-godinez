@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 import sys
 import os
@@ -54,6 +54,7 @@ from tools.image_converter import image_converter_menu
 from tools.printer_share import printer_share_menu
 from tools.salary_calculator import salary_calculator_menu
 from tools.retention_calculator import retention_calculator_menu
+from tools.updater import check_for_updates
 
 console = Console()
 
@@ -480,6 +481,7 @@ def office_rescue_menu() -> None:
 # ─── Main ─────────────────────────────────────────────────────
 
 def main() -> None:
+    check_for_updates(__version__)
     try:
         while True:
             choice = show_main_menu()
@@ -504,4 +506,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        console.print("\n[bold red]Error inesperado:[/bold red]")
+        console.print(traceback.format_exc())
+        input("\nPresiona Enter para cerrar...")

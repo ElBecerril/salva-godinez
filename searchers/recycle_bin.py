@@ -15,6 +15,7 @@ def search_recycle_bin(name_filter: str = "") -> list[dict]:
         Lista de dicts con nombre, ruta_original, tamano y fecha.
     """
     ps_script = r"""
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 $shell = New-Object -ComObject Shell.Application
 $folder = $shell.NameSpace(0x0a)
 $items = $folder.Items()
@@ -38,6 +39,8 @@ $results | ConvertTo-Json -Compress
             ["powershell", "-NoProfile", "-Command", ps_script],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
