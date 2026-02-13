@@ -73,14 +73,14 @@ BANNER = r"""[bold cyan]
  |____/ \__,_|_| \_/ \__,_| \____|\___/ \__,_|_|_| |_|\___/___|
 
   [bold white]La navaja suiza para sobrevivir la oficina[/bold white]
-  [dim]by El_Becerril[/dim]
+  [dim]by El_Becerril - v{version}[/dim]
 [/bold cyan]"""
 
 
 # ─── Menu principal ───────────────────────────────────────────
 
 def show_main_menu() -> str:
-    console.print(BANNER)
+    console.print(BANNER.format(version=__version__))
     console.print(
         Panel(
             "[bold]1[/bold] - Office (El Rescatista)\n"
