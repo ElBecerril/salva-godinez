@@ -38,27 +38,31 @@ def search_by_name(name_filter: str, progress_callback=None) -> list[dict]:
     drives = _get_drives()
 
     for drive in drives:
-        for dirpath, dirnames, filenames in os.walk(drive, topdown=True):
+        for dirpath, dirnames, filenames in os.walk(drive, topdown=True,
+                                                     onerror=lambda e: None):
             # Saltar directorios del sistema que causan problemas
             dirnames[:] = [
                 d for d in dirnames
                 if d not in ("$Recycle.Bin", "System Volume Information",
                              "Windows", "$WinREAgent", "Recovery")
             ]
-            if progress_callback:
-                progress_callback(dirpath)
+            try:
+                if progress_callback:
+                    progress_callback(dirpath)
 
-            for fname in filenames:
-                ext = os.path.splitext(fname)[1].lower()
-                if ext not in OFFICE_EXTENSIONS:
-                    continue
-                if name_lower and name_lower not in fname.lower():
-                    continue
-                filepath = os.path.join(dirpath, fname)
-                info = _file_info(filepath)
-                if info:
-                    info["origen"] = f"Disco ({drive.rstrip(os.sep)})"
-                    results.append(info)
+                for fname in filenames:
+                    ext = os.path.splitext(fname)[1].lower()
+                    if ext not in OFFICE_EXTENSIONS:
+                        continue
+                    if name_lower and name_lower not in fname.lower():
+                        continue
+                    filepath = os.path.join(dirpath, fname)
+                    info = _file_info(filepath)
+                    if info:
+                        info["origen"] = f"Disco ({drive.rstrip(os.sep)})"
+                        results.append(info)
+            except (PermissionError, OSError):
+                continue
 
     return results
 
@@ -78,24 +82,28 @@ def search_recent_excel(days: int = RECENT_DAYS, progress_callback=None) -> list
     drives = _get_drives()
 
     for drive in drives:
-        for dirpath, dirnames, filenames in os.walk(drive, topdown=True):
+        for dirpath, dirnames, filenames in os.walk(drive, topdown=True,
+                                                     onerror=lambda e: None):
             dirnames[:] = [
                 d for d in dirnames
                 if d not in ("$Recycle.Bin", "System Volume Information",
                              "Windows", "$WinREAgent", "Recovery")
             ]
-            if progress_callback:
-                progress_callback(dirpath)
+            try:
+                if progress_callback:
+                    progress_callback(dirpath)
 
-            for fname in filenames:
-                ext = os.path.splitext(fname)[1].lower()
-                if ext not in OFFICE_EXTENSIONS:
-                    continue
-                filepath = os.path.join(dirpath, fname)
-                info = _file_info(filepath)
-                if info and info["mtime"] >= cutoff:
-                    info["origen"] = f"Disco ({drive.rstrip(os.sep)})"
-                    results.append(info)
+                for fname in filenames:
+                    ext = os.path.splitext(fname)[1].lower()
+                    if ext not in OFFICE_EXTENSIONS:
+                        continue
+                    filepath = os.path.join(dirpath, fname)
+                    info = _file_info(filepath)
+                    if info and info["mtime"] >= cutoff:
+                        info["origen"] = f"Disco ({drive.rstrip(os.sep)})"
+                        results.append(info)
+            except (PermissionError, OSError):
+                continue
 
     # Ordenar por fecha de modificacion, mas reciente primero
     results.sort(key=lambda x: x["mtime"], reverse=True)
