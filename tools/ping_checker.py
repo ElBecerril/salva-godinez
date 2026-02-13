@@ -1,5 +1,6 @@
 """Verificador de conexion: ping y prueba de puertos."""
 
+import re
 import socket
 import subprocess
 
@@ -8,6 +9,20 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 console = Console()
+
+# Regex para la linea de estadisticas de paquetes (funciona en cualquier locale)
+# Busca 3 numeros que representan enviados, recibidos, perdidos
+_PKT_REGEX = re.compile(
+    r"(\d+).*?(\d+).*?(\d+).*?(?:%|perdidos|lost)",
+    re.IGNORECASE,
+)
+
+# Regex para la linea de tiempos min/max/avg (funciona en cualquier locale)
+# Busca 3 valores numericos seguidos de "ms"
+_TIME_REGEX = re.compile(
+    r"(\d+)\s*ms.*?(\d+)\s*ms.*?(\d+)\s*ms",
+    re.IGNORECASE,
+)
 
 
 def ping_host(host: str, count: int = 4) -> dict:
@@ -28,23 +43,18 @@ def ping_host(host: str, count: int = 4) -> dict:
                       "min_ms": "-", "max_ms": "-", "avg_ms": "-"}
 
         for line in output.splitlines():
-            low = line.strip().lower()
-            # Paquetes enviados (espanol / ingles)
-            if "recibidos" in low or "received" in low:
-                parts = low.replace("=", " ").replace(",", " ").split()
-                nums = [p for p in parts if p.isdigit()]
-                if len(nums) >= 3:
-                    info["sent"] = int(nums[0])
-                    info["received"] = int(nums[1])
-                    info["lost"] = int(nums[2])
-            # Tiempos (espanol / ingles)
-            if ("nimo" in low or "minimum" in low) and "ms" in low:
-                parts = low.replace("=", " ").replace(",", " ").replace("ms", " ").split()
-                nums = [p for p in parts if p.replace(".", "").isdigit()]
-                if len(nums) >= 3:
-                    info["min_ms"] = nums[0]
-                    info["max_ms"] = nums[1]
-                    info["avg_ms"] = nums[2]
+            # Paquetes: busca linea con 3 numeros + "perdidos"/"lost"/%
+            m = _PKT_REGEX.search(line)
+            if m:
+                info["sent"] = int(m.group(1))
+                info["received"] = int(m.group(2))
+                info["lost"] = int(m.group(3))
+            # Tiempos: busca linea con 3 valores en ms
+            m = _TIME_REGEX.search(line)
+            if m:
+                info["min_ms"] = m.group(1)
+                info["max_ms"] = m.group(2)
+                info["avg_ms"] = m.group(3)
 
         return info
     except subprocess.TimeoutExpired:

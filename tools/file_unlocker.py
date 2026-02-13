@@ -107,6 +107,8 @@ def _find_locking_processes(filepath: str) -> list[dict]:
 
 def _fallback_find_locking(filepath: str) -> list[dict]:
     """Fallback usando PowerShell si Restart Manager falla."""
+    import json
+
     try:
         abs_path = os.path.abspath(filepath).replace("'", "''")
         cmd = (
@@ -119,12 +121,11 @@ def _fallback_find_locking(filepath: str) -> list[dict]:
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         if result.stdout.strip():
-            import json
             data = json.loads(result.stdout)
             if isinstance(data, dict):
                 data = [data]
             return [{"pid": p["Id"], "nombre": p["ProcessName"]} for p in data]
-    except (subprocess.TimeoutExpired, OSError, Exception):
+    except (subprocess.TimeoutExpired, OSError, json.JSONDecodeError, KeyError, TypeError):
         pass
     return []
 

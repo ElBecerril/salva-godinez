@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "salva-godinez"
+version = "2.0.0"
+description = "Navaja suiza para oficinistas — rescate de archivos, impresoras, USB, sistema y mas"
+readme = "README.md"
+license = "GPL-3.0-only"
+requires-python = ">=3.10"
+authors = [
+    { name = "El_Becerril" },
+]
+keywords = ["office", "windows", "tools", "recovery", "printer"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "rich>=13.7.0",
+    "pypdf>=4.0.0",
+    "openpyxl>=3.1.0",
+]
+
+[project.scripts]
+salva-godinez = "main:main"
+
+[tool.setuptools]
+py-modules = ["main", "config", "utils"]
+packages = ["searchers", "reporting", "tools"]
