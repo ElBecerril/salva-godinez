@@ -1,29 +1,11 @@
 """Busqueda de archivos Office por nombre en todos los discos."""
 
 import os
-import string
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from config import OFFICE_EXTENSIONS, RECENT_DAYS
-
-
-def _get_drives() -> list[str]:
-    """Detecta las unidades de disco disponibles en Windows."""
-    drives = []
-    for letter in string.ascii_uppercase:
-        path = f"{letter}:\\"
-        if os.path.exists(path):
-            drives.append(path)
-    return drives
-
-
-def _format_size(size_bytes: int) -> str:
-    for unit in ("B", "KB", "MB", "GB"):
-        if size_bytes < 1024:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.1f} TB"
+from utils import format_size as _format_size, get_drives as _get_drives
 
 
 def _file_info(filepath: str) -> dict | None:
@@ -75,7 +57,7 @@ def search_by_name(name_filter: str, progress_callback=None) -> list[dict]:
                 filepath = os.path.join(dirpath, fname)
                 info = _file_info(filepath)
                 if info:
-                    info["origen"] = f"Disco ({drive.rstrip(chr(92))})"
+                    info["origen"] = f"Disco ({drive.rstrip(os.sep)})"
                     results.append(info)
 
     return results
@@ -112,7 +94,7 @@ def search_recent_excel(days: int = RECENT_DAYS, progress_callback=None) -> list
                 filepath = os.path.join(dirpath, fname)
                 info = _file_info(filepath)
                 if info and info["mtime"] >= cutoff:
-                    info["origen"] = f"Disco ({drive.rstrip(chr(92))})"
+                    info["origen"] = f"Disco ({drive.rstrip(os.sep)})"
                     results.append(info)
 
     # Ordenar por fecha de modificacion, mas reciente primero

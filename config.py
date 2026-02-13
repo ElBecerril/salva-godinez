@@ -64,9 +64,11 @@ WINDOWS_UPDATE_CACHE = os.path.join(
 DOWNLOADS_PATH = os.path.join(os.path.expanduser("~"), "Downloads")
 OLD_DOWNLOAD_DAYS = 30
 
-# Simulador de prestaciones — constantes laborales Mexico
+# ─── Simulador de prestaciones — constantes laborales Mexico ──
+# IMPORTANTE: Actualizar UMA cada febrero cuando el INEGI publique el nuevo valor.
+# Fuente: https://www.inegi.org.mx/temas/uma/
 AGUINALDO_MIN_DAYS = 15
-UMA_DAILY = 108.57
+UMA_DAILY = 113.14  # Valor diario vigente 2025 (actualizar anualmente)
 
 # Tabla de dias de vacaciones segun antiguedad (LFT 2023+)
 VACATION_DAYS_TABLE = {

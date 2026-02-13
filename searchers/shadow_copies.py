@@ -3,9 +3,9 @@
 import os
 import re
 import subprocess
-from datetime import datetime
 
 from config import OFFICE_EXTENSIONS
+from utils import format_size as _format_size
 
 
 def _list_shadow_copies() -> list[dict]:
@@ -47,14 +47,6 @@ def _list_shadow_copies() -> list[dict]:
         return shadows
     except (subprocess.TimeoutExpired, OSError):
         return []
-
-
-def _format_size(size_bytes: int) -> str:
-    for unit in ("B", "KB", "MB", "GB"):
-        if size_bytes < 1024:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.1f} TB"
 
 
 def search_shadow_copies(name_filter: str, original_path: str = "") -> list[dict]:

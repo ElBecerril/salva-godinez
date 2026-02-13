@@ -100,6 +100,8 @@ def cell_cleaner_menu() -> None:
 
     if not result["changes"]:
         console.print("\n[bold green]No se encontraron celdas por limpiar.[/bold green]")
+        if wb:
+            wb.close()
         return
 
     # Preview de cambios
@@ -122,9 +124,14 @@ def cell_cleaner_menu() -> None:
         choices=["s", "n"], default="s",
     )
     if confirm != "s" or not wb:
+        if wb:
+            wb.close()
         return
 
     base, ext = os.path.splitext(filepath)
     output = f"{base}_limpio{ext}"
-    wb.save(output)
-    console.print(f"\n[bold green]Archivo guardado: {output}[/bold green]")
+    try:
+        wb.save(output)
+        console.print(f"\n[bold green]Archivo guardado: {output}[/bold green]")
+    finally:
+        wb.close()

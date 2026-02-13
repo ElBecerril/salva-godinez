@@ -1,6 +1,7 @@
 """Consolidador de libros Excel: unir archivos o unir hojas."""
 
 import os
+import zipfile
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -40,7 +41,11 @@ def _merge_files(paths: list[str], output: str) -> int:
     total_sheets = 0
 
     for path in paths:
-        src_wb = openpyxl.load_workbook(path, data_only=True)
+        try:
+            src_wb = openpyxl.load_workbook(path, data_only=True)
+        except (OSError, KeyError, zipfile.BadZipFile) as e:
+            console.print(f"  [red]No se pudo abrir {os.path.basename(path)}: {e}[/red]")
+            continue
         base = os.path.splitext(os.path.basename(path))[0]
 
         for ws in src_wb.worksheets:
@@ -63,7 +68,10 @@ def _merge_files(paths: list[str], output: str) -> int:
 
             total_sheets += 1
 
+        src_wb.close()
+
     dest_wb.save(output)
+    dest_wb.close()
     return total_sheets
 
 
@@ -77,7 +85,11 @@ def _merge_sheets(filepath: str, output: str) -> int:
     if not openpyxl:
         return 0
 
-    src_wb = openpyxl.load_workbook(filepath, data_only=True)
+    try:
+        src_wb = openpyxl.load_workbook(filepath, data_only=True)
+    except (OSError, KeyError, zipfile.BadZipFile) as e:
+        console.print(f"  [red]No se pudo abrir el archivo: {e}[/red]")
+        return 0
     dest_wb = openpyxl.Workbook()
     dest_ws = dest_wb.active
     dest_ws.title = "Consolidado"
@@ -92,7 +104,9 @@ def _merge_sheets(filepath: str, output: str) -> int:
                 dest_ws.cell(row=current_row, column=col, value=value)
             current_row += 1
 
+    src_wb.close()
     dest_wb.save(output)
+    dest_wb.close()
     return current_row - 1
 
 
