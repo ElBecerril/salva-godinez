@@ -47,6 +47,14 @@ from tools.usb_backup import usb_backup_menu
 from tools.disk_cleaner import disk_cleaner_menu
 from tools.prestaciones_sim import prestaciones_menu
 
+# Tools — Fase 3
+from tools.usb_eject import usb_eject_menu
+from tools.net_drive import net_drive_menu
+from tools.image_converter import image_converter_menu
+from tools.printer_share import printer_share_menu
+from tools.salary_calculator import salary_calculator_menu
+from tools.retention_calculator import retention_calculator_menu
+
 console = Console()
 
 BANNER = r"""[bold cyan]
@@ -136,6 +144,7 @@ def show_printers_submenu() -> str:
             "[bold]1[/bold] - Reset de Spooler\n"
             "[bold]2[/bold] - Limpiador de Fantasmas\n"
             "[bold]3[/bold] - Verificador de Conexion\n"
+            "[bold]4[/bold] - Compartir en Red\n"
             "[bold]0[/bold] - Volver",
             title="[bold yellow]Impresoras (El Doctor)[/bold yellow]",
             box=box.ROUNDED,
@@ -154,6 +163,8 @@ def printers_menu() -> None:
             ghost_printers_menu()
         elif choice == "3":
             ping_checker_menu()
+        elif choice == "4":
+            printer_share_menu()
         elif choice == "0":
             break
         else:
@@ -172,6 +183,8 @@ def show_usb_net_submenu() -> str:
             "[bold]2[/bold] - Verificador de USB\n"
             "[bold]3[/bold] - Respaldo Rapido a USB\n"
             "[bold]4[/bold] - Recuperador de WiFi\n"
+            "[bold]5[/bold] - Expulsion Segura USB\n"
+            "[bold]6[/bold] - Mapeo de Unidades de Red\n"
             "[bold]0[/bold] - Volver",
             title="[bold yellow]USB y Red (El Escudo)[/bold yellow]",
             box=box.ROUNDED,
@@ -192,12 +205,16 @@ def usb_net_menu() -> None:
             usb_backup_menu()
         elif choice == "4":
             show_wifi_passwords()
+        elif choice == "5":
+            usb_eject_menu()
+        elif choice == "6":
+            net_drive_menu()
         elif choice == "0":
             break
         else:
             console.print("[red]Opcion no valida.[/red]")
 
-        if choice in ("1", "2", "3", "4"):
+        if choice in ("1", "2", "3", "4", "5"):
             Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
 
 
@@ -241,6 +258,9 @@ def show_utilities_submenu() -> str:
             "[bold]1[/bold] - Editor de PDF\n"
             "[bold]2[/bold] - Generador de Contrasenas\n"
             "[bold]3[/bold] - Simulador de Prestaciones\n"
+            "[bold]4[/bold] - Conversor de Imagenes\n"
+            "[bold]5[/bold] - Calculadora de Sueldo Neto\n"
+            "[bold]6[/bold] - Calculadora de Retenciones\n"
             "[bold]0[/bold] - Volver",
             title="[bold yellow]Utilidades[/bold yellow]",
             box=box.ROUNDED,
@@ -259,12 +279,18 @@ def utilities_menu() -> None:
             password_generator_menu()
         elif choice == "3":
             prestaciones_menu()
+        elif choice == "4":
+            image_converter_menu()
+        elif choice == "5":
+            salary_calculator_menu()
+        elif choice == "6":
+            retention_calculator_menu()
         elif choice == "0":
             break
         else:
             console.print("[red]Opcion no valida.[/red]")
 
-        if choice in ("2",):
+        if choice in ("2", "4", "5"):
             Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
 
 
