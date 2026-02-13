@@ -15,6 +15,8 @@ def _list_shadow_copies() -> list[dict]:
             ["vssadmin", "list", "shadows"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=15,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
