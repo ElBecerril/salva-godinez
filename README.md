@@ -17,7 +17,9 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril**
+**by El_Becerril** | v2.1.0
+
+[![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
 ## Modulos
 
@@ -61,11 +63,15 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 
 > `admin` = Requiere ejecutar como administrador. Sin permisos de admin la herramienta lo indica y funciona de forma limitada o se omite.
 
+## Descarga
+
+Baja el `.exe` de la [ultima release](https://github.com/ElBecerril/salva-godinez/releases/latest) y ejecutalo directamente, no requiere instalacion. Al abrir, SalvaGodinez verifica automaticamente si hay una version nueva disponible.
+
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias.
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater.
 
-### Uso rapido
+### Uso rapido (desde codigo)
 
 ```bash
 pip install -r requirements.txt
@@ -163,6 +169,10 @@ Este proyecto esta bajo la licencia GPL v3. Ver [LICENSE](LICENSE) para mas deta
 - [x] Conversor de Imagenes
 - [x] Calculadora de Sueldo Neto (ISR/IMSS)
 - [x] Calculadora de Retenciones (Honorarios/RESICO)
+
+### Fase 4 - Infraestructura
+- [x] Auto-updater desde GitHub Releases
+- [x] Version visible en banner
 
 ### En veremos
 - Transformador de Texto (cuando haya GUI)
