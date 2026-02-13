@@ -2,6 +2,16 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.1.0] - 2026-02-13
+
+### Agregado
+- Auto-updater: al abrir SalvaGodinez verifica GitHub Releases y ofrece descargar nueva version al Escritorio
+- Version visible en el banner del menu principal (by El_Becerril - v2.1.0)
+
+### Corregido
+- Crash por UnicodeDecodeError (cp1252) al buscar en papelera de reciclaje con archivos con caracteres especiales
+- Mismo fix aplicado a shadow copies (searchers/shadow_copies.py)
+
 ## [1.2.0] - 2026-02-12
 
 ### Agregado
