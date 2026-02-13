@@ -93,3 +93,40 @@ VACATION_DAYS_TABLE = {
     19: 26,
     20: 26,
 }
+
+# ─── Fase 3: Constantes fiscales Mexico ──────────────────────
+
+# Tabla ISR mensual Art. 96 LISR 2025
+# (limite_inferior, limite_superior, cuota_fija, tasa_excedente)
+ISR_MONTHLY_TABLE = [
+    (0.01, 746.04, 0.00, 0.0192),
+    (746.05, 6_332.05, 14.32, 0.0640),
+    (6_332.06, 11_128.01, 371.83, 0.1088),
+    (11_128.02, 12_935.82, 893.63, 0.16),
+    (12_935.83, 15_487.71, 1_182.88, 0.1792),
+    (15_487.72, 31_236.49, 1_640.18, 0.2136),
+    (31_236.50, 49_233.00, 5_004.12, 0.2352),
+    (49_233.01, 93_993.90, 9_236.89, 0.30),
+    (93_993.91, 125_325.20, 22_665.17, 0.32),
+    (125_325.21, 375_975.61, 32_691.18, 0.34),
+    (375_975.62, float("inf"), 117_912.32, 0.35),
+]
+
+# Cuotas obrero IMSS (porcentajes sobre SBC salvo donde se indica)
+IMSS_EMPLOYEE_RATES = {
+    "enf_mat_excedente": 0.004,    # Enf. y Mat. excedente 3 UMA (prestaciones en especie)
+    "enf_mat_dinero": 0.0025,      # Enf. y Mat. prestaciones en dinero
+    "gastos_medicos": 0.00375,     # Gastos medicos pensionados
+    "invalidez_vida": 0.00625,     # Invalidez y vida
+    "cesantia_vejez": 0.01125,     # Cesantia en edad avanzada y vejez
+}
+
+# Tabla RESICO mensual personas fisicas
+# (limite_inferior, limite_superior, cuota_fija, tasa_excedente)
+RESICO_MONTHLY_TABLE = [
+    (0.01, 25_000.00, 0.00, 0.01),
+    (25_000.01, 50_000.00, 250.00, 0.011),
+    (50_000.01, 83_333.33, 525.00, 0.015),
+    (83_333.34, 208_333.33, 1_025.00, 0.02),
+    (208_333.34, float("inf"), 3_525.00, 0.025),
+]

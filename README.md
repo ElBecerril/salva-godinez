@@ -34,6 +34,7 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 - **Reset de Cola (Spooler)** `admin` - Boton de panico para limpiar documentos trabados y reiniciar el servicio de impresion
 - **Limpiador de Fantasmas** `admin` - Identificacion y eliminacion de impresoras duplicadas o inactivas (Copia 1, Copia 2, etc.)
 - **Verificador de Conexion** - Prueba de comunicacion (Ping) para saber si la impresora de red responde
+- **Compartir en Red** `admin` - Compartir o dejar de compartir impresoras en la red local
 
 ### USB y Red (El Escudo)
 
@@ -41,6 +42,8 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 - **Verificador de USB** - Diagnostico de estado: filesystem corrupto, deteccion de USBs falsas, errores de lectura/escritura
 - **Respaldo Rapido a USB** - Copiar carpetas importantes (Escritorio, Documentos) a USB con barra de progreso
 - **Recuperador de Contrasena WiFi** `admin` - Mostrar las claves WiFi guardadas en el equipo
+- **Expulsion Segura USB** - Expulsar unidades USB de forma segura (mismo mecanismo que el Explorador de Windows)
+- **Mapeo de Unidades de Red** - Ver, conectar y desconectar unidades de red mapeadas
 
 ### Sistema (El Conserje)
 
@@ -52,12 +55,15 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 - **Editor de PDF** - Combinar varios documentos en uno solo o separar paginas especificas
 - **Generador de Contrasenas** - Crear contrasenas seguras y copiarlas al portapapeles
 - **Simulador de Prestaciones** - Estimacion de aguinaldo, vacaciones, finiquito y liquidacion segun la LFT
+- **Conversor de Imagenes** - Convertir imagenes entre PNG, JPG, BMP, WEBP e ICO con barra de progreso
+- **Calculadora de Sueldo Neto** - Desglose de deducciones IMSS e ISR para calcular el sueldo neto mensual
+- **Calculadora de Retenciones** - Calculo de retenciones para Honorarios y regimen RESICO
 
 > `admin` = Requiere ejecutar como administrador. Sin permisos de admin la herramienta lo indica y funciona de forma limitada o se omite.
 
 ## Estado actual
 
-Fase 2 completada. 17 herramientas funcionales organizadas en 5 categorias.
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias.
 
 ### Uso rapido
 
@@ -71,10 +77,10 @@ python main.py
 | # | Categoria | Herramientas |
 |---|-----------|--------------|
 | 1 | Office (El Rescatista) | Rescate de Archivos, Limpiador de Celdas, Consolidador, Comparador, Desbloquear |
-| 2 | Impresoras (El Doctor) | Reset de Spooler `admin`, Limpiador de Fantasmas `admin`, Verificador de Conexion |
-| 3 | USB y Red (El Escudo) | Desinfectante USB, Verificador USB, Respaldo Rapido, Recuperador WiFi `admin` |
+| 2 | Impresoras (El Doctor) | Reset de Spooler `admin`, Limpiador de Fantasmas `admin`, Verificador de Conexion, Compartir en Red `admin` |
+| 3 | USB y Red (El Escudo) | Desinfectante USB, Verificador USB, Respaldo Rapido, Recuperador WiFi `admin`, Expulsion Segura, Mapeo de Red |
 | 4 | Sistema (El Conserje) | Info del Sistema, Liberador de Espacio `admin` |
-| 5 | Utilidades | Editor de PDF, Generador de Contrasenas, Simulador de Prestaciones |
+| 5 | Utilidades | Editor de PDF, Generador de Contrasenas, Simulador de Prestaciones, Conversor de Imagenes, Calculadora de Sueldo Neto, Calculadora de Retenciones |
 
 ### Rescatista de Archivos - Estrategias de busqueda
 
@@ -99,7 +105,7 @@ python main.py
 
 - Windows 10 / 11
 - Python 3.10+
-- Dependencias: `rich>=13.7.0`, `pypdf>=4.0.0`, `openpyxl>=3.1.0`
+- Dependencias: `rich>=13.7.0`, `pypdf>=4.0.0`, `openpyxl>=3.1.0`, `Pillow>=10.0.0`
 - Para shadow copies, reset de spooler y limpieza de impresoras: ejecutar como administrador
 
 ## Troubleshooting
@@ -151,12 +157,12 @@ Este proyecto esta bajo la licencia GPL v3. Ver [LICENSE](LICENSE) para mas deta
 - [x] Simulador de Prestaciones
 
 ### Fase 3 - Evaluar
-- [ ] Compartir Impresora en Red
-- [ ] Expulsion Segura USB
-- [ ] Mapeo de Unidades de Red
-- [ ] Conversor de Imagenes
-- [ ] Calculadora de Sueldo Neto (ISR/IMSS)
-- [ ] Calculadora de Retenciones (Honorarios/RESICO)
+- [x] Compartir Impresora en Red
+- [x] Expulsion Segura USB
+- [x] Mapeo de Unidades de Red
+- [x] Conversor de Imagenes
+- [x] Calculadora de Sueldo Neto (ISR/IMSS)
+- [x] Calculadora de Retenciones (Honorarios/RESICO)
 
 ### En veremos
 - Transformador de Texto (cuando haya GUI)
