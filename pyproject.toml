@@ -4,7 +4,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "salva-godinez"
-version = "2.0.0"
+dynamic = ["version"]
 description = "Navaja suiza para oficinistas — rescate de archivos, impresoras, USB, sistema y mas"
 readme = "README.md"
 license = "GPL-3.0-only"
@@ -34,6 +34,9 @@ dependencies = [
 
 [project.scripts]
 salva-godinez = "main:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "main.__version__"}
 
 [tool.setuptools]
 py-modules = ["main", "config", "utils"]

@@ -2,6 +2,10 @@
 Buscador de Archivos Excel Perdidos - Ejecutable standalone
 by El_Becerril
 
+DEPRECADO: Este archivo es una version legacy standalone.
+La version activa y mantenida es main.py (SalvaGodinez).
+Ejecuta: python main.py  o  SalvaGodinez.exe
+
 Busca archivos Excel perdidos usando: papelera, disco completo,
 temporales/autorecuperacion, recientes de Windows y shadow copies.
 """
@@ -57,6 +61,7 @@ RECENT_PATH = os.path.join(
     os.environ.get("APPDATA", ""), "Microsoft", "Windows", "Recent"
 )
 SKIP_DIRS = {"$Recycle.Bin", "System Volume Information", "Windows", "$WinREAgent", "Recovery"}
+SECONDS_PER_DAY = 86400
 
 # ── Utilidades ──────────────────────────────────────────────────────────────
 
@@ -179,7 +184,7 @@ def search_disk_by_name(name_filter, progress_cb=None):
 
 
 def search_recent_excel(days=30, progress_cb=None):
-    cutoff = time.time() - (days * 86400)
+    cutoff = time.time() - (days * SECONDS_PER_DAY)
     results = []
     for drive in get_drives():
         for dirpath, dirnames, filenames in os.walk(drive, topdown=True):

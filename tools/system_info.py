@@ -5,10 +5,9 @@ import platform
 import socket
 import uuid
 
-from rich.console import Console
 from rich.table import Table
+from utils import console
 
-console = Console()
 
 
 def get_system_info() -> dict:

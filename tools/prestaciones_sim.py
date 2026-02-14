@@ -1,19 +1,14 @@
 """Simulador de prestaciones laborales Mexico."""
 
-from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
 from rich import box
 
 from config import AGUINALDO_MIN_DAYS, UMA_DAILY, VACATION_DAYS_TABLE
+from tools._fiscal_helpers import DISCLAIMER, ask_float as _ask_float, fmt as _fmt
+from utils import console
 
-console = Console()
-
-DISCLAIMER = (
-    "[dim italic]Este calculo es un estimado con fines informativos. "
-    "Consulta con un contador o abogado laboral para cifras exactas.[/dim italic]"
-)
 
 
 def _get_vacation_days(years: int) -> int:
@@ -27,19 +22,6 @@ def _get_vacation_days(years: int) -> int:
     return 26 + extra
 
 
-def _ask_float(prompt: str) -> float | None:
-    val = Prompt.ask(prompt).strip()
-    try:
-        result = float(val.replace(",", ""))
-        if result <= 0:
-            console.print("[red]El valor debe ser mayor a cero.[/red]")
-            return None
-        return result
-    except ValueError:
-        console.print("[red]Valor numerico invalido.[/red]")
-        return None
-
-
 def _ask_int(prompt: str) -> int | None:
     val = Prompt.ask(prompt).strip()
     try:
@@ -51,10 +33,6 @@ def _ask_int(prompt: str) -> int | None:
     except ValueError:
         console.print("[red]Valor numerico invalido.[/red]")
         return None
-
-
-def _fmt(amount: float) -> str:
-    return f"${amount:,.2f}"
 
 
 def calculate_aguinaldo(daily_salary: float, days_worked: int) -> dict:

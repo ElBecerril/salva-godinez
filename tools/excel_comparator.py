@@ -2,24 +2,11 @@
 
 import os
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
-console = Console()
+from utils import get_openpyxl as _get_openpyxl, console
 
-
-def _get_openpyxl():
-    """Import lazy de openpyxl."""
-    try:
-        import openpyxl
-        return openpyxl
-    except ImportError:
-        console.print(
-            "[bold red]openpyxl no esta instalado.[/bold red]\n"
-            "[dim]Ejecuta: pip install openpyxl[/dim]"
-        )
-        return None
 
 
 def compare_sheets(ws1, ws2) -> list[dict]:

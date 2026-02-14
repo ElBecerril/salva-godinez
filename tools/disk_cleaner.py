@@ -4,14 +4,13 @@ import ctypes
 import os
 import time
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
 from tools import format_size, is_admin
-from config import TEMP_CLEAN_PATHS, WINDOWS_UPDATE_CACHE, DOWNLOADS_PATH, OLD_DOWNLOAD_DAYS
+from config import TEMP_CLEAN_PATHS, WINDOWS_UPDATE_CACHE, DOWNLOADS_PATH, OLD_DOWNLOAD_DAYS, SECONDS_PER_DAY
+from utils import console
 
-console = Console()
 
 
 def _scan_dir(path: str) -> tuple[int, int]:
@@ -59,7 +58,7 @@ def _scan_old_downloads(days: int = OLD_DOWNLOAD_DAYS) -> tuple[int, int, list[s
     if not os.path.isdir(DOWNLOADS_PATH):
         return 0, 0, []
 
-    cutoff = time.time() - (days * 86400)
+    cutoff = time.time() - (days * SECONDS_PER_DAY)
     total = 0
     count = 0
     files = []

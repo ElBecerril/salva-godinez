@@ -1,44 +1,14 @@
 """Calculadora de Retenciones (Honorarios / RESICO)."""
 
-from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
 from rich import box
 
-from config import RESICO_MONTHLY_TABLE
+from config import RESICO_MONTHLY_TABLE, IVA_RATE, ISR_RETENTION_RATE, IVA_RETENTION_FRACTION
+from tools._fiscal_helpers import DISCLAIMER, ask_float as _ask_float, fmt as _fmt, find_bracket as _find_bracket
+from utils import console
 
-console = Console()
-
-DISCLAIMER = (
-    "[dim italic]Este calculo es un estimado con fines informativos. "
-    "Consulta con un contador para cifras exactas.[/dim italic]"
-)
-
-
-def _ask_float(prompt: str) -> float | None:
-    val = Prompt.ask(prompt).strip()
-    try:
-        result = float(val.replace(",", ""))
-        if result <= 0:
-            console.print("[red]El valor debe ser mayor a cero.[/red]")
-            return None
-        return result
-    except ValueError:
-        console.print("[red]Valor numerico invalido.[/red]")
-        return None
-
-
-def _fmt(amount: float) -> str:
-    return f"${amount:,.2f}"
-
-
-def _find_bracket(income: float, table: list[tuple]) -> tuple | None:
-    """Busca el rango correspondiente en una tabla progresiva."""
-    for row in table:
-        if row[0] <= income <= row[1]:
-            return row
-    return None
 
 
 def _option_honorarios() -> None:
@@ -49,9 +19,9 @@ def _option_honorarios() -> None:
     if not subtotal:
         return
 
-    iva = subtotal * 0.16
-    isr_retenido = subtotal * 0.10
-    iva_retenido = iva * (2 / 3)
+    iva = subtotal * IVA_RATE
+    isr_retenido = subtotal * ISR_RETENTION_RATE
+    iva_retenido = iva * IVA_RETENTION_FRACTION
     total = subtotal + iva - isr_retenido - iva_retenido
 
     table = Table(title="Honorarios - Desglose", box=box.SIMPLE_HEAVY)

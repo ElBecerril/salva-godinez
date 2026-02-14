@@ -5,15 +5,14 @@ import platform
 import shutil
 from datetime import datetime
 
-from rich.console import Console
 from rich.progress import Progress, BarColumn, TextColumn, TransferSpeedColumn
 from rich.prompt import Prompt
 from rich.table import Table
 
 from tools import get_removable_drives, format_size
 from config import BACKUP_SOURCES
+from utils import console
 
-console = Console()
 
 
 def _calculate_backup_size(sources: list[str]) -> tuple[int, int]:

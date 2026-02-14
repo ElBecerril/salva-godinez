@@ -4,6 +4,23 @@ import os
 import string
 import struct
 
+from rich.console import Console
+
+# Instancia compartida de Console para todo el proyecto.
+console = Console()
+
+
+def ps_escape(value: str) -> str:
+    """Escapa un valor para interpolacion segura en cadenas PowerShell con comillas dobles.
+
+    Previene inyeccion de comandos via $(...), backticks y comillas.
+    """
+    # Orden: primero backtick (caracter de escape de PS), luego los demas
+    value = value.replace("`", "``")
+    value = value.replace('"', '`"')
+    value = value.replace("$", "`$")
+    return value
+
 
 def format_size(size_bytes: int) -> str:
     """Formatea bytes a unidad legible: '1.5 MB'."""
@@ -83,3 +100,28 @@ def read_lnk_target(lnk_path: str) -> str | None:
         return None
     except (OSError, struct.error, ValueError):
         return None
+
+
+def get_openpyxl():
+    """Import lazy de openpyxl para no crashear si no esta instalado."""
+    try:
+        import openpyxl
+        return openpyxl
+    except ImportError:
+        console.print(
+            "[bold red]openpyxl no esta instalado.[/bold red]\n"
+            "[dim]Ejecuta: pip install openpyxl[/dim]"
+        )
+        return None
+
+
+def deduplicate(results: list[dict]) -> list[dict]:
+    """Elimina resultados duplicados por ruta."""
+    seen = set()
+    unique = []
+    for r in results:
+        key = r.get("ruta", "")
+        if key not in seen:
+            seen.add(key)
+            unique.append(r)
+    return unique

@@ -4,10 +4,9 @@ import secrets
 import string
 import subprocess
 
-from rich.console import Console
 from rich.prompt import Prompt
+from utils import console
 
-console = Console()
 
 
 def generate_password(length: int = 16, use_symbols: bool = True) -> str:

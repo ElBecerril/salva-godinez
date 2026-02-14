@@ -3,13 +3,12 @@
 import json
 import subprocess
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
 from tools import is_admin
+from utils import ps_escape, console
 
-console = Console()
 
 
 def _get_printers() -> list[dict]:
@@ -109,7 +108,7 @@ def _share_printer() -> None:
         with console.status("[bold green]Compartiendo impresora..."):
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
-                 f'Set-Printer -Name "{name}" -Shared $true -ShareName "{share_name}"'],
+                 f'Set-Printer -Name "{ps_escape(name)}" -Shared $true -ShareName "{ps_escape(share_name)}"'],
                 capture_output=True, text=True, timeout=15,
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
@@ -172,7 +171,7 @@ def _unshare_printer() -> None:
         with console.status("[bold green]Quitando comparticion..."):
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
-                 f'Set-Printer -Name "{name}" -Shared $false'],
+                 f'Set-Printer -Name "{ps_escape(name)}" -Shared $false'],
                 capture_output=True, text=True, timeout=15,
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )

@@ -5,11 +5,11 @@ import ctypes.wintypes
 import os
 import subprocess
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
-console = Console()
+from utils import ps_escape, console
+
 
 
 def _find_locking_processes(filepath: str) -> list[dict]:
@@ -110,9 +110,9 @@ def _fallback_find_locking(filepath: str) -> list[dict]:
     import json
 
     try:
-        abs_path = os.path.abspath(filepath).replace("'", "''")
+        abs_path = ps_escape(os.path.abspath(filepath))
         cmd = (
-            f"Get-Process | Where-Object {{ $_.Modules.FileName -contains '{abs_path}' }} "
+            f'Get-Process | Where-Object {{ $_.Modules.FileName -contains "{abs_path}" }} '
             f"| Select-Object Id, ProcessName | ConvertTo-Json -Compress"
         )
         result = subprocess.run(

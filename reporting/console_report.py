@@ -3,12 +3,11 @@
 import os
 import shutil
 
-from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.prompt import Prompt, IntPrompt
+from rich.prompt import Prompt
+from utils import console
 
-console = Console()
 
 
 def show_results(results: list[dict], title: str = "Resultados") -> None:

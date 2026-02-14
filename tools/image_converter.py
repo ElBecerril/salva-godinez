@@ -2,11 +2,10 @@
 
 import os
 
-from rich.console import Console
 from rich.progress import Progress, BarColumn, TextColumn
 from rich.prompt import Prompt
+from utils import console
 
-console = Console()
 
 SUPPORTED_FORMATS = {
     "png": ".png",

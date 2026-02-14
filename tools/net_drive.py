@@ -2,11 +2,10 @@
 
 import subprocess
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
+from utils import console
 
-console = Console()
 
 
 def _run_net_use(args: list[str]) -> subprocess.CompletedProcess:
@@ -117,17 +116,26 @@ def _map_new_drive() -> None:
 
     if use_creds == "s":
         user = Prompt.ask("[bold]Usuario[/bold] (ej: DOMINIO\\usuario)").strip()
-        password = Prompt.ask("[bold]Contrasena[/bold]", password=True)
-        args.extend([f"/user:{user}", password])
+        # Se usa '*' para que net use pida la contrasena de forma interactiva,
+        # evitando que sea visible en la lista de procesos del sistema.
+        args.extend([f"/user:{user}", "*"])
+        console.print("[dim]net use te pedira la contrasena directamente.[/dim]")
 
     try:
-        with console.status("[bold green]Conectando..."):
-            result = _run_net_use(args)
+        # Cuando se usa '*', net use necesita interaccion directa con la consola
+        run_kwargs = {"capture_output": True, "text": True, "timeout": 30}
+        if use_creds == "s":
+            run_kwargs = {"text": True, "timeout": 60}
+            result = subprocess.run(["net", "use"] + args, **run_kwargs)
+        else:
+            with console.status("[bold green]Conectando..."):
+                result = _run_net_use(args)
 
         if result.returncode == 0:
             console.print(f"\n[bold green]Unidad {letter} mapeada a {remote}[/bold green]")
         else:
-            error = result.stderr.strip() or result.stdout.strip()
+            error = (getattr(result, "stderr", "") or "").strip() or \
+                    (getattr(result, "stdout", "") or "").strip()
             console.print(f"[red]Error al mapear: {error}[/red]")
     except subprocess.TimeoutExpired:
         console.print("[red]Timeout al intentar conectar. El servidor puede no estar accesible.[/red]")

@@ -4,11 +4,10 @@ import re
 import socket
 import subprocess
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
+from utils import console
 
-console = Console()
 
 # Regex para la linea de estadisticas de paquetes (funciona en cualquier locale)
 # Busca 3 numeros que representan enviados, recibidos, perdidos

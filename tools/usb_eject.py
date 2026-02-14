@@ -2,12 +2,11 @@
 
 import subprocess
 
-from rich.console import Console
 from rich.prompt import Prompt
 
 from tools import get_removable_drives
+from utils import ps_escape, console
 
-console = Console()
 
 
 def _eject_drive(drive_letter: str) -> None:
@@ -21,7 +20,7 @@ def _eject_drive(drive_letter: str) -> None:
 
     ps_script = (
         f'$shell = New-Object -ComObject Shell.Application; '
-        f'$item = $shell.Namespace(17).ParseName("{drive}"); '
+        f'$item = $shell.Namespace(17).ParseName("{ps_escape(drive)}"); '
         f'if ($item) {{ $item.InvokeVerb("Eject") }} '
         f'else {{ exit 1 }}'
     )

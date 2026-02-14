@@ -3,11 +3,10 @@
 import os
 import subprocess
 
-from rich.console import Console
 
 from tools import is_admin
+from utils import console
 
-console = Console()
 
 SPOOL_PATH = os.path.join(os.environ.get("SYSTEMROOT", r"C:\Windows"),
                           "System32", "spool", "PRINTERS")
