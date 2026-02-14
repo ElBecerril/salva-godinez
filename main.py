@@ -170,7 +170,7 @@ def printers_menu() -> None:
         else:
             console.print("[red]Opcion no valida.[/red]")
 
-        if choice in ("1", "2", "3"):
+        if choice in ("1", "2", "3", "4"):
             Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
 
 
