@@ -54,10 +54,16 @@ def _parse_net_use_output() -> list[dict]:
             if len(part) == 2 and part[0].isalpha() and part[1] == ":":
                 drive_letter = part.upper()
                 status = " ".join(parts[:i]) if i > 0 else ""
-                # Buscar la ruta UNC despues de la letra
+                # Buscar la ruta UNC despues de la letra, uniendo partes
+                # hasta el tipo de red ("Microsoft Windows Network", etc.)
                 for j in range(i + 1, len(parts)):
                     if parts[j].startswith("\\\\"):
-                        remote_path = parts[j]
+                        unc_parts = [parts[j]]
+                        for k in range(j + 1, len(parts)):
+                            if parts[k] in ("Microsoft", "Web", "Client"):
+                                break
+                            unc_parts.append(parts[k])
+                        remote_path = " ".join(unc_parts)
                         break
                 break
 

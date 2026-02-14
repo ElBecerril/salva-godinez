@@ -36,8 +36,17 @@ def _merge_files(paths: list[str], output: str) -> int:
         base = os.path.splitext(os.path.basename(path))[0]
 
         for ws in src_wb.worksheets:
-            # Nombre unico para la hoja
+            # Nombre unico para la hoja (max 31 chars, limite de Excel)
             sheet_name = f"{base}_{ws.title}"[:31]
+            existing = {s.title for s in dest_wb.worksheets}
+            if sheet_name in existing:
+                # Agregar sufijo numerico si el nombre truncado ya existe
+                for n in range(2, 100):
+                    suffix = f"_{n}"
+                    candidate = f"{base}_{ws.title}"[:31 - len(suffix)] + suffix
+                    if candidate not in existing:
+                        sheet_name = candidate
+                        break
             dest_ws = dest_wb.create_sheet(title=sheet_name)
 
             for row in ws.iter_rows():
