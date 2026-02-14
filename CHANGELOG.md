@@ -6,10 +6,13 @@ Todos los cambios notables del proyecto se documentan aqui.
 
 ### Agregado
 - Panel de despedida al salir con links a YouTube y Facebook para apoyar el proyecto
+- Mensajes descriptivos en herramientas de unir/dividir PDF
+- Seccion de bugs y sugerencias en README con links a redes
 
 ### Corregido
 - Auto-updater: ahora elimina versiones anteriores del Escritorio antes de descargar la nueva
 - CONTRIBUTORS: link al perfil de GitHub y descripcion actualizada
+- Eliminar datos personales del codigo (rutas hardcodeadas, ruta absoluta en .spec)
 
 ## [2.2.1] - 2026-02-14
 
