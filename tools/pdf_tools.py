@@ -27,7 +27,8 @@ def merge_pdfs() -> None:
         return
 
     console.print("\n[bold cyan]Unir PDFs[/bold cyan]")
-    console.print("[dim]Ingresa las rutas de los PDFs a unir (una por linea, linea vacia para terminar):[/dim]\n")
+    console.print("[dim]Agrega todos los PDFs que necesites, no hay limite.[/dim]")
+    console.print("[dim]Ingresa las rutas una por linea (linea vacia para terminar):[/dim]\n")
 
     paths = []
     while True:
@@ -79,6 +80,7 @@ def split_pdf() -> None:
         return
 
     console.print("\n[bold cyan]Dividir PDF[/bold cyan]")
+    console.print("[dim]Separa un PDF en paginas individuales o extrae un rango especifico.[/dim]")
 
     path = Prompt.ask("[bold]Ruta del PDF a dividir[/bold]").strip().strip('"')
     if not os.path.isfile(path):
