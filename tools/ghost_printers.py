@@ -4,13 +4,12 @@ import json
 import re
 import subprocess
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
 from tools import is_admin
+from utils import ps_escape, console
 
-console = Console()
 
 
 def _get_printers() -> list[dict]:
@@ -51,7 +50,7 @@ def _remove_printer(name: str) -> bool:
     try:
         result = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
-             f'Remove-Printer -Name "{name}"'],
+             f'Remove-Printer -Name "{ps_escape(name)}"'],
             capture_output=True, text=True, timeout=15,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )

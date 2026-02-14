@@ -14,7 +14,6 @@ import os
 # Agregar el directorio del script al path para imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich import box
@@ -55,8 +54,8 @@ from tools.printer_share import printer_share_menu
 from tools.salary_calculator import salary_calculator_menu
 from tools.retention_calculator import retention_calculator_menu
 from tools.updater import check_for_updates
+from utils import deduplicate as _deduplicate, console
 
-console = Console()
 
 BANNER = r"""[bold cyan]
               ( (
@@ -441,18 +440,6 @@ def option_full_search() -> None:
     offer_restore(all_results)
 
 
-def _deduplicate(results: list[dict]) -> list[dict]:
-    """Elimina resultados duplicados por ruta."""
-    seen = set()
-    unique = []
-    for r in results:
-        key = r.get("ruta", "")
-        if key not in seen:
-            seen.add(key)
-            unique.append(r)
-    return unique
-
-
 def office_rescue_menu() -> None:
     """Sub-menu de rescate de archivos Office."""
     while True:
@@ -510,6 +497,14 @@ if __name__ == "__main__":
         main()
     except Exception:
         import traceback
-        console.print("\n[bold red]Error inesperado:[/bold red]")
-        console.print(traceback.format_exc())
+        # Guardar traceback completo en archivo para diagnostico
+        log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "salva_error.log")
+        try:
+            with open(log_path, "w", encoding="utf-8") as f:
+                traceback.print_exc(file=f)
+        except OSError:
+            log_path = None
+        console.print("\n[bold red]Ocurrio un error inesperado.[/bold red]")
+        if log_path:
+            console.print(f"[dim]Detalles guardados en: {log_path}[/dim]")
         input("\nPresiona Enter para cerrar...")

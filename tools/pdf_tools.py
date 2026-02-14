@@ -2,10 +2,9 @@
 
 import os
 
-from rich.console import Console
 from rich.prompt import Prompt
+from utils import console
 
-console = Console()
 
 
 def _get_pypdf():

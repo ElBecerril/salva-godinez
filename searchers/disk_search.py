@@ -4,7 +4,7 @@ import os
 import time
 from datetime import datetime
 
-from config import OFFICE_EXTENSIONS, RECENT_DAYS
+from config import OFFICE_EXTENSIONS, RECENT_DAYS, SECONDS_PER_DAY, SKIP_DIRS
 from utils import format_size as _format_size, get_drives as _get_drives
 
 
@@ -41,11 +41,7 @@ def search_by_name(name_filter: str, progress_callback=None) -> list[dict]:
         for dirpath, dirnames, filenames in os.walk(drive, topdown=True,
                                                      onerror=lambda e: None):
             # Saltar directorios del sistema que causan problemas
-            dirnames[:] = [
-                d for d in dirnames
-                if d not in ("$Recycle.Bin", "System Volume Information",
-                             "Windows", "$WinREAgent", "Recovery")
-            ]
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
             try:
                 if progress_callback:
                     progress_callback(dirpath)
@@ -77,18 +73,14 @@ def search_recent_excel(days: int = RECENT_DAYS, progress_callback=None) -> list
     Returns:
         Lista de resultados.
     """
-    cutoff = time.time() - (days * 86400)
+    cutoff = time.time() - (days * SECONDS_PER_DAY)
     results = []
     drives = _get_drives()
 
     for drive in drives:
         for dirpath, dirnames, filenames in os.walk(drive, topdown=True,
                                                      onerror=lambda e: None):
-            dirnames[:] = [
-                d for d in dirnames
-                if d not in ("$Recycle.Bin", "System Volume Information",
-                             "Windows", "$WinREAgent", "Recovery")
-            ]
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
             try:
                 if progress_callback:
                     progress_callback(dirpath)

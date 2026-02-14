@@ -1,43 +1,12 @@
 """Calculadora de Sueldo Neto (ISR/IMSS)."""
 
-from rich.console import Console
-from rich.prompt import Prompt
 from rich.table import Table
 from rich import box
 
 from config import ISR_MONTHLY_TABLE, IMSS_EMPLOYEE_RATES, UMA_DAILY
+from tools._fiscal_helpers import DISCLAIMER, ask_float as _ask_float, fmt as _fmt, find_bracket as _find_bracket
+from utils import console
 
-console = Console()
-
-DISCLAIMER = (
-    "[dim italic]Este calculo es un estimado con fines informativos. "
-    "Consulta con un contador para cifras exactas.[/dim italic]"
-)
-
-
-def _ask_float(prompt: str) -> float | None:
-    val = Prompt.ask(prompt).strip()
-    try:
-        result = float(val.replace(",", ""))
-        if result <= 0:
-            console.print("[red]El valor debe ser mayor a cero.[/red]")
-            return None
-        return result
-    except ValueError:
-        console.print("[red]Valor numerico invalido.[/red]")
-        return None
-
-
-def _fmt(amount: float) -> str:
-    return f"${amount:,.2f}"
-
-
-def _find_bracket(income: float, table: list[tuple]) -> tuple | None:
-    """Busca el rango correspondiente en una tabla progresiva."""
-    for row in table:
-        if row[0] <= income <= row[1]:
-            return row
-    return None
 
 
 def calculate_imss_deductions(monthly_gross: float) -> dict:
