@@ -2,6 +2,15 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.2.1] - 2026-02-14
+
+### Corregido
+- Tabla ISR mensual actualizada a 2026 (Anexo 8 RMF 2026, DOF 28/12/2025, factor 1.13213)
+- Version en README sincronizada con `main.__version__`
+- Submenu de impresoras: "Compartir en Red" ahora muestra pausa "Presiona Enter"
+- Consolidador Excel: nombres de hoja truncados a 31 chars ya no crashean por duplicados (sufijo numerico)
+- Mapeo de red: rutas UNC con espacios se parsean correctamente en `net use`
+
 ## [2.2.0] - 2026-02-13
 
 ### Seguridad
