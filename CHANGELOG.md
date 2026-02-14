@@ -2,6 +2,33 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.2.0] - 2026-02-13
+
+### Seguridad
+- Escape de inyeccion PowerShell (`ps_escape()`) en 5 modulos: ghost_printers, printer_share, usb_eject, usb_health, file_unlocker
+- Verificacion SHA-256 del .exe descargado en auto-updater
+- Passwords WiFi enmascarados por defecto (revelar solo si el usuario confirma)
+- Credenciales de unidades de red nunca visibles en lista de procesos (`net use *`)
+
+### Cambiado
+- Constantes hardcoded centralizadas en `config.py`: SKIP_DIRS, SECONDS_PER_DAY, IVA_RATE, ISR_RETENTION_RATE, IVA_RETENTION_FRACTION
+- UMA actualizado a $117.31 (2026)
+- Console singleton en `utils.py` compartido por 26 modulos (antes cada uno creaba su propia instancia)
+- Funciones fiscales duplicadas extraidas a `tools/_fiscal_helpers.py`
+- `get_openpyxl()` y `deduplicate()` extraidas a `utils.py`
+- Version dinamica en `pyproject.toml` (lee de `main.__version__`)
+- Dependencias fijadas en `requirements.txt`: rich==14.3.2, pypdf==6.6.0, openpyxl==3.1.5, Pillow==12.1.0
+- Traceback amigable: errores inesperados se loguean a `salva_error.log` en vez de mostrarse al usuario
+
+### Deprecado
+- `BuscadorExcel.py` y `BuscadorExcel.ps1` movidos a `legacy/` con banner de advertencia
+
+### Eliminado
+- Import no usado `IntPrompt` en console_report
+- Parametro no usado `drive` en usb_disinfect
+- Archivo `nul` accidental en raiz del proyecto
+- ~1,200 lineas de codigo duplicado eliminadas
+
 ## [2.1.0] - 2026-02-13
 
 ### Agregado
