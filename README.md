@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.1.0
+**by El_Becerril** | v2.2.0
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
