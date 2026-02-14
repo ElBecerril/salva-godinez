@@ -4,8 +4,8 @@ Gracias a todas las personas que han contribuido a Salva Godinez.
 
 ## Autor
 
-- **El_Becerril** — Creador y desarrollador principal
+- **[El_Becerril](https://github.com/ElBecerril)** — Creador y desarrollador principal
 
 ## Contribuidores
 
-- **Claude (Anthropic)** — Asistencia en desarrollo de Fase 1
+- **Claude (Anthropic)** — Asistencia en desarrollo y auditoría
