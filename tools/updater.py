@@ -2,10 +2,12 @@
 Auto-updater: verifica GitHub Releases y ofrece descargar nueva version.
 """
 
+import glob
 import hashlib
 import json
 import os
 import re
+import sys
 import urllib.request
 
 from rich.panel import Panel
@@ -136,6 +138,16 @@ def check_for_updates(current_version: str) -> None:
         # Extraer hash SHA-256 del body del Release (si el autor lo incluyo)
         release_body = data.get("body", "")
         expected_hash = _extract_sha256(release_body, exe_asset["name"])
+
+        # Limpiar versiones anteriores del Escritorio
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        current_exe = os.path.abspath(sys.executable) if getattr(sys, "frozen", False) else ""
+        for old in glob.glob(os.path.join(desktop, "SalvaGodinez*.exe")):
+            if os.path.abspath(old) != current_exe:
+                try:
+                    os.remove(old)
+                except OSError:
+                    pass
 
         filename = f"SalvaGodinez_{remote_tag}.exe"
         _download_exe(exe_asset["browser_download_url"], filename, expected_hash)
