@@ -35,6 +35,12 @@ RECENT_PATH = os.path.join(
 # Dias para considerar un archivo como "reciente"
 RECENT_DAYS = 30
 
+# Segundos por dia (evitar magic number 86400)
+SECONDS_PER_DAY = 86400
+
+# Directorios del sistema a excluir en busquedas de disco
+SKIP_DIRS = {"$Recycle.Bin", "System Volume Information", "Windows", "$WinREAgent", "Recovery"}
+
 # ─── Fase 2: Constantes adicionales ─────────────────────────
 
 # Respaldo rapido a USB: carpetas de origen
@@ -68,7 +74,7 @@ OLD_DOWNLOAD_DAYS = 30
 # IMPORTANTE: Actualizar UMA cada febrero cuando el INEGI publique el nuevo valor.
 # Fuente: https://www.inegi.org.mx/temas/uma/
 AGUINALDO_MIN_DAYS = 15
-UMA_DAILY = 113.14  # Valor diario vigente 2025 (actualizar anualmente)
+UMA_DAILY = 117.31  # Valor diario vigente 2026 (actualizar anualmente)
 
 # Tabla de dias de vacaciones segun antiguedad (LFT 2023+)
 VACATION_DAYS_TABLE = {
@@ -93,6 +99,11 @@ VACATION_DAYS_TABLE = {
     19: 26,
     20: 26,
 }
+
+# ─── Retenciones de honorarios ────────────────────────────────
+IVA_RATE = 0.16                 # Tasa IVA vigente
+ISR_RETENTION_RATE = 0.10       # Retencion ISR sobre honorarios (Art. 106 LISR)
+IVA_RETENTION_FRACTION = 2 / 3  # Fraccion del IVA retenida en honorarios
 
 # ─── Fase 3: Constantes fiscales Mexico ──────────────────────
 

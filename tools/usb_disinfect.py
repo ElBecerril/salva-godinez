@@ -3,21 +3,19 @@
 import os
 import subprocess
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
 from tools import get_removable_drives
-from utils import read_lnk_target as _read_lnk_target
+from utils import read_lnk_target as _read_lnk_target, console
 
-console = Console()
 
 # Nombres sospechosos comunes en USBs infectados
 SUSPICIOUS_FILES = {"autorun.inf", "desktop.ini.exe", "recycler.exe", "ravmon.exe"}
 SUSPICIOUS_EXTENSIONS = {".exe", ".scr", ".bat", ".cmd", ".vbs", ".wsf", ".pif", ".com"}
 
 
-def _is_suspicious_lnk(lnk_path: str, drive: str) -> bool:
+def _is_suspicious_lnk(lnk_path: str) -> bool:
     """Verifica si un .lnk apunta a un ejecutable (patron de virus USB)."""
     target = _read_lnk_target(lnk_path)
     if not target:
@@ -55,7 +53,7 @@ def scan_usb(drive: str) -> list[dict]:
 
             # .lnk que apuntan a ejecutables
             if lower.endswith(".lnk") and os.path.isfile(filepath):
-                if _is_suspicious_lnk(filepath, drive):
+                if _is_suspicious_lnk(filepath):
                     threats.append({"archivo": filepath, "tipo": "Acceso directo malicioso",
                                     "riesgo": "Medio"})
     except OSError:

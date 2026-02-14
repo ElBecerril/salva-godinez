@@ -2,10 +2,17 @@
 
 import subprocess
 
-from rich.console import Console
+from rich.prompt import Prompt
 from rich.table import Table
+from utils import console
 
-console = Console()
+
+
+def _mask(password: str) -> str:
+    """Enmascara una contrasena mostrando solo el primer y ultimo caracter."""
+    if len(password) <= 2:
+        return "*" * len(password)
+    return password[0] + "*" * (len(password) - 2) + password[-1]
 
 
 def get_wifi_passwords() -> list[dict]:
@@ -71,6 +78,12 @@ def show_wifi_passwords() -> None:
         console.print("[yellow]No se encontraron redes WiFi guardadas.[/yellow]")
         return
 
+    reveal = Prompt.ask(
+        "[bold]Mostrar contrasenas en texto plano?[/bold]",
+        choices=["s", "n"], default="n",
+    )
+    show_plain = reveal == "s"
+
     table = Table(title=f"Redes WiFi guardadas ({len(networks)})")
     table.add_column("#", style="bold cyan", width=4, justify="right")
     table.add_column("Red", style="bold white", max_width=30)
@@ -78,8 +91,14 @@ def show_wifi_passwords() -> None:
     table.add_column("Seguridad", style="yellow", max_width=20)
 
     for i, net in enumerate(networks, 1):
-        pwd = net["contrasena"] if net["contrasena"] else "[dim]Sin contrasena[/dim]"
-        table.add_row(str(i), net["red"], pwd, net["seguridad"])
+        pwd = net["contrasena"]
+        if not pwd:
+            display = "[dim]Sin contrasena[/dim]"
+        elif show_plain:
+            display = pwd
+        else:
+            display = _mask(pwd)
+        table.add_row(str(i), net["red"], display, net["seguridad"])
 
     console.print()
     console.print(table)

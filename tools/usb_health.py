@@ -6,18 +6,20 @@ import subprocess
 import tempfile
 import time
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
 from tools import get_removable_drives, format_size
+from utils import console
 
-console = Console()
 
 
 def _get_usb_info(drive: str) -> dict:
     """Obtiene informacion de la unidad via PowerShell Get-Volume."""
-    letter = drive[0]
+    letter = drive[0].upper()
+    if not letter.isalpha():
+        return {"label": "Desconocido", "filesystem": "Desconocido",
+                "size": 0, "free": 0, "health": "Desconocido"}
     try:
         result = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
