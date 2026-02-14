@@ -179,6 +179,13 @@ Este proyecto esta bajo la licencia GPL v3. Ver [LICENSE](LICENSE) para mas deta
 - Compresor PDF (dependencia Ghostscript)
 - OCR Basico (dependencia Tesseract)
 
+## Bugs, sugerencias o ideas
+
+Encontraste un error o quieres pedir una funcionalidad nueva? Dejalo en los comentarios de cualquiera de mis redes:
+
+- [YouTube — @el_becerril](https://www.youtube.com/@el_becerril)
+- [Facebook — El Becerril](https://www.facebook.com/elbecerrilslim)
+
 ## Autor
 
 **El_Becerril**
