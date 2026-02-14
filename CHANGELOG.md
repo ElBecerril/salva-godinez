@@ -2,6 +2,15 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.2.2] - 2026-02-14
+
+### Agregado
+- Panel de despedida al salir con links a YouTube y Facebook para apoyar el proyecto
+
+### Corregido
+- Auto-updater: ahora elimina versiones anteriores del Escritorio antes de descargar la nueva
+- CONTRIBUTORS: link al perfil de GitHub y descripcion actualizada
+
 ## [2.2.1] - 2026-02-14
 
 ### Corregido
