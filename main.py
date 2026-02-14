@@ -10,6 +10,7 @@ __version__ = "2.2.1"
 
 import sys
 import os
+import webbrowser
 
 # Agregar el directorio del script al path para imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -465,6 +466,34 @@ def office_rescue_menu() -> None:
         Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
 
 
+CHANNELS = {
+    "1": ("YouTube", "https://www.youtube.com/@el_becerril"),
+    "2": ("Facebook", "https://www.facebook.com/elbecerrilslim"),
+}
+
+
+def show_farewell() -> None:
+    console.print()
+    console.print(
+        Panel(
+            "[bold yellow]Te sirvio Salva Godinez?[/bold yellow]\n\n"
+            "Esta herramienta es [bold]100% gratis[/bold]. Si quieres apoyar\n"
+            "su desarrollo, ver mis videos me ayuda muchisimo.\n\n"
+            "[bold]1[/bold] - YouTube  (@el_becerril)\n"
+            "[bold]2[/bold] - Facebook (El Becerril)\n"
+            "[bold]0[/bold] - Cerrar",
+            title="[bold cyan]Gracias por usar Salva Godinez![/bold cyan]",
+            box=box.ROUNDED,
+        )
+    )
+    choice = Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
+    if choice in CHANNELS:
+        name, url = CHANNELS[choice]
+        console.print(f"[bold green]Abriendo {name}...[/bold green]")
+        webbrowser.open(url)
+    console.print("[bold cyan]Hasta luego![/bold cyan]")
+
+
 # ─── Main ─────────────────────────────────────────────────────
 
 def main() -> None:
@@ -484,12 +513,13 @@ def main() -> None:
             elif choice == "5":
                 utilities_menu()
             elif choice == "0":
-                console.print("[bold cyan]Hasta luego![/bold cyan]")
+                show_farewell()
                 break
             else:
                 console.print("[red]Opcion no valida.[/red]")
     except KeyboardInterrupt:
-        console.print("\n[bold cyan]Hasta luego![/bold cyan]")
+        console.print()
+        show_farewell()
 
 
 if __name__ == "__main__":
