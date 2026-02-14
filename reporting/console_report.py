@@ -79,7 +79,7 @@ def offer_restore(results: list[dict]) -> None:
         return
 
     dest_dir = Prompt.ask(
-        "Carpeta destino (ej: C:\\Users\\david\\Desktop)",
+        "Carpeta destino (ej: C:\\Users\\TuUsuario\\Desktop)",
         default=os.path.join(os.path.expanduser("~"), "Desktop"),
     )
 
