@@ -2,6 +2,23 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.3.0] - 2026-02-18
+
+### Agregado
+- **Rotar Paginas** — Rota todas o paginas especificas 90°, 180° o 270°
+- **Eliminar Paginas** — Elimina paginas por indice (1,3,5 o 2-4)
+- **Reordenar Paginas** — Cambia el orden de las paginas del PDF
+- **Extraer Texto** — Extrae todo el texto del PDF a un archivo .txt UTF-8
+- **Imagenes a PDF** — Convierte JPG/PNG/BMP/WEBP a PDF (soporta transparencia RGBA)
+- **PDF a Imagenes** — Renderiza cada pagina como PNG/JPG con DPI configurable (requiere PyMuPDF)
+- **Proteger/Desproteger PDF** — Agrega o quita password de un PDF
+- **Ver/Limpiar Metadatos** — Muestra titulo, autor, fechas y permite limpiar metadatos
+- Helpers reutilizables: `_get_pillow()`, `_get_pymupdf()`, `_open_pdf_reader()`, `_parse_page_selection()`
+- PyMuPDF como dependencia opcional en requirements.txt (solo para PDF a Imagenes)
+
+### Cambiado
+- Menu de Herramientas PDF expandido de 2 a 10 opciones
+
 ## [2.2.2] - 2026-02-14
 
 ### Agregado
