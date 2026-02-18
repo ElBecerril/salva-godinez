@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.2.2
+**by El_Becerril** | v2.3.0
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -54,7 +54,7 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 
 ### Utilidades
 
-- **Editor de PDF** - Combinar varios documentos en uno solo o separar paginas especificas
+- **Editor de PDF** - Unir, dividir, rotar, eliminar, reordenar paginas, extraer texto, convertir imagenes, proteger/desproteger y limpiar metadatos
 - **Generador de Contrasenas** - Crear contrasenas seguras y copiarlas al portapapeles
 - **Simulador de Prestaciones** - Estimacion de aguinaldo, vacaciones, finiquito y liquidacion segun la LFT
 - **Conversor de Imagenes** - Convertir imagenes entre PNG, JPG, BMP, WEBP e ICO con barra de progreso
@@ -69,7 +69,7 @@ Baja el `.exe` de la [ultima release](https://github.com/ElBecerril/salva-godine
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater.
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones.
 
 ### Uso rapido (desde codigo)
 
@@ -111,7 +111,7 @@ python main.py
 
 - Windows 10 / 11
 - Python 3.10+
-- Dependencias: `rich>=13.7.0`, `pypdf>=4.0.0`, `openpyxl>=3.1.0`, `Pillow>=10.0.0`
+- Dependencias: `rich>=13.7.0`, `pypdf>=4.0.0`, `openpyxl>=3.1.0`, `Pillow>=10.0.0`, `PyMuPDF>=1.25.0` (opcional, solo para PDF a Imagenes)
 - Para shadow copies, reset de spooler y limpieza de impresoras: ejecutar como administrador
 
 ## Troubleshooting
@@ -173,6 +173,7 @@ Este proyecto esta bajo la licencia GPL v3. Ver [LICENSE](LICENSE) para mas deta
 ### Fase 4 - Infraestructura
 - [x] Auto-updater desde GitHub Releases
 - [x] Version visible en banner
+- [x] Editor de PDF expandido (rotar, eliminar, reordenar, extraer texto, imagenes a PDF, PDF a imagenes, proteger/desproteger, metadatos)
 
 ### En veremos
 - Transformador de Texto (cuando haya GUI)
