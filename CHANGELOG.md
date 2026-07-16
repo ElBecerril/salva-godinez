@@ -2,6 +2,72 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.3.1] - 2026-07-15
+
+Auditoria completa del proyecto (bugs reales, riesgo de perdida de datos y
+formulas fiscales/laborales incorrectas), con verificacion adversarial y
+correccion de todos los hallazgos criticos, altos y medios. Ver
+`AUDITORIA_2026-07-15.md` para el detalle completo.
+
+### Seguridad
+- USB Desinfectante: el prompt de "eliminar amenazas" ya no borra por
+  defecto al presionar Enter; el escaneo ahora es recursivo (antes solo
+  revisaba la raiz) y los ejecutables sueltos bajan de riesgo "Alto" a
+  "Medio" para reducir falsos positivos
+- Auto-updater: ahora descarga y verifica el SHA-256 ANTES de borrar la
+  version anterior del Escritorio (antes borraba primero, arriesgando dejar
+  al usuario sin ejecutable si la descarga fallaba)
+- Editor de PDF: la contrasena para proteger un PDF ya no se muestra en
+  pantalla (input oculto)
+
+### Corregido
+- Prima de antiguedad (Simulador de Prestaciones): topaba con 2x UMA en vez
+  de 2x salario minimo (Art. 162/486 LFT), subestimando liquidaciones reales
+- Vacaciones de 21 a 24 anios de antiguedad: calculaban 0 dias extra por un
+  error de formula, ahora dan los 28 dias correctos (LFT Art. 76)
+- Calculadora de Retenciones RESICO: usaba un modelo marginal incorrecto en
+  vez de tasa fija sobre el ingreso total (Art. 113-E LISR)
+- Calculadora de Sueldo Neto: el SBC ahora topa a 25 UMA mensuales (Art. 28
+  LSS) y se agrego el subsidio al empleo 2026 (monto unico $536.22/mes segun
+  Decreto DOF 31/12/2025, reemplaza la tabla obsoleta de 2013)
+- Papelera de reciclaje: la restauracion nunca funcionaba y la busqueda
+  colapsaba archivos distintos en uno solo porque solo se obtenia la carpeta
+  original, no la ruta completa del archivo
+- Limpiador de Celdas: los archivos .xlsm perdian sus macros al procesarlos
+  (faltaba `keep_vba=True`); las formulas ya no se alteran al limpiar
+- Respaldo Rapido a USB: los archivos que fallaban al copiarse se ignoraban
+  en silencio; ahora se cuentan y se reportan al final
+- Expulsion Segura USB: reportaba exito sin verificar que la unidad
+  realmente se hubiera expulsado; ahora lo confirma antes de avisar
+- Editor de PDF: ninguna operacion (unir, dividir, rotar, etc.) protegia
+  contra sobrescribir el archivo de salida por accidente
+- Verificador de Conexion VSS (busqueda por shadow copies): el parser de
+  fecha nunca coincidia con el formato real de `vssadmin`, siempre mostraba "?"
+- Verificador de USB: el chequeo de chkdsk daba falso positivo permanente
+  (la palabra "bad"/"problema" aparece incluso en el mensaje de un disco
+  sano); el test de autenticidad de USB solo probaba el primer MB, ahora
+  prueba varios puntos de la capacidad reportada
+- Comparador de Excel: un archivo corrupto tumbaba toda la aplicacion; el
+  reporte podia sobrescribir accidentalmente el archivo original
+- Consolidador de Libros: el modo "unir hojas" descartaba la primera fila de
+  cada hoja asumiendo encabezado, ahora avisa y permite evitarlo
+- Mapeo de Unidades de Red: el orden de argumentos de `net use` con
+  credenciales no seguia la sintaxis estandar de Windows
+- Reset de Spooler: ahora verifica el estado real del servicio tras
+  reiniciarlo en vez de asumir exito
+- Limpiador de Impresoras Fantasma / Compartir en Red: distingue "no hay
+  impresoras instaladas" de un error real al consultarlas; deteccion de
+  impresoras fantasma ampliada (sufijos numericos, impresoras redirigidas)
+- Varios modulos (WiFi, Mapeo de Red, Ping) podian crashear con caracteres
+  no-UTF8 en la salida de comandos de Windows en espanol
+
+### Cambiado
+- Salario minimo diario 2026 actualizado a $315.04 (CONASAMI/DOF 09/12/2025)
+- Se agrego una advertencia en tiempo de ejecucion si las tablas fiscales
+  (ISR, UMA, RESICO) quedan desactualizadas para el anio en curso
+- Normalizado el fin de linea a LF en todo el repositorio (`.gitattributes`)
+  para evitar diffs espurios entre sesiones editadas en distinto SO
+
 ## [2.3.0] - 2026-02-18
 
 ### Agregado

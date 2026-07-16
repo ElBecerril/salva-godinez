@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.3.0
+**by El_Becerril** | v2.3.1
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -69,7 +69,7 @@ Baja el `.exe` de la [ultima release](https://github.com/ElBecerril/salva-godine
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones.
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.3.1: auditoria completa de seguridad y correctitud, ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 
