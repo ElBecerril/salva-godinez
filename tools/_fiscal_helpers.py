@@ -29,9 +29,30 @@ def fmt(amount: float) -> str:
     return f"${amount:,.2f}"
 
 
-def find_bracket(income: float, table: list[tuple]) -> tuple | None:
-    """Busca el rango correspondiente en una tabla progresiva."""
-    for row in table:
-        if row[0] <= income <= row[1]:
+def find_bracket(income: float, table: list[tuple]) -> tuple:
+    """Busca el rango correspondiente en una tabla progresiva.
+
+    Usa un intervalo semi-abierto [limite_inferior, siguiente_limite_inferior)
+    en vez de [limite_inferior, limite_superior] declarado en la tabla: los
+    limites superior/inferior de renglones consecutivos en las tablas del SAT
+    no son exactamente contiguos (ej. 844.59 vs 844.60), y comparar contra el
+    limite superior declarado puede dejar huecos por errores de punto
+    flotante donde ningun rango calza y la funcion devolveria None
+    silenciosamente (ISR de $0 sin aviso). Con el limite inferior del
+    siguiente renglon como corte, no quedan huecos.
+    """
+    if income < table[0][0]:
+        raise ValueError(
+            f"Ingreso {income} por debajo del primer limite inferior de la tabla ({table[0][0]})."
+        )
+
+    for idx, row in enumerate(table):
+        lim_inf = row[0]
+        upper_bound = table[idx + 1][0] if idx + 1 < len(table) else float("inf")
+        if lim_inf <= income < upper_bound:
             return row
-    return None
+
+    # No deberia llegarse aqui si la tabla cubre hasta infinito, pero se deja
+    # un error explicito en vez de un 0 silencioso por si la tabla esta mal
+    # construida.
+    raise ValueError(f"No se encontro un bracket para el ingreso {income} en la tabla proporcionada.")

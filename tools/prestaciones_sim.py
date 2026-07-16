@@ -5,21 +5,35 @@ from rich.prompt import Prompt
 from rich.table import Table
 from rich import box
 
-from config import AGUINALDO_MIN_DAYS, UMA_DAILY, VACATION_DAYS_TABLE
+from config import (
+    AGUINALDO_MIN_DAYS,
+    SALARIO_MINIMO_DAILY,
+    UMA_DAILY,
+    VACATION_DAYS_RANGES_20PLUS,
+    VACATION_DAYS_TABLE,
+)
 from tools._fiscal_helpers import DISCLAIMER, ask_float as _ask_float, fmt as _fmt
 from utils import console
 
 
 
 def _get_vacation_days(years: int) -> int:
-    """Dias de vacaciones segun antiguedad (LFT 2023+)."""
+    """Dias de vacaciones segun antiguedad (LFT Art. 76, reforma "vacaciones
+    dignas" 2023+)."""
     if years <= 0:
         return 0
     if years <= 20:
         return VACATION_DAYS_TABLE.get(years, 20)
-    # Despues de 20 anos: +2 dias por cada 5 anos adicionales
-    extra = ((years - 20) // 5) * 2
-    return 26 + extra
+
+    for lo, hi, days in VACATION_DAYS_RANGES_20PLUS:
+        if lo <= years <= hi:
+            return days
+
+    # Mas alla del ultimo rango explicito de la tabla: seguir sumando 2 dias
+    # cada 5 anos adicionales a partir del ultimo tramo conocido.
+    last_lo, last_hi, last_days = VACATION_DAYS_RANGES_20PLUS[-1]
+    extra_blocks = (years - last_hi + 4) // 5
+    return last_days + extra_blocks * 2
 
 
 def _ask_int(prompt: str) -> int | None:
@@ -94,8 +108,9 @@ def calculate_liquidacion(daily_salary: float, years: int, days_worked: int) -> 
     three_months = daily_salary * 90
     twenty_per_year = daily_salary * 20 * years
 
-    # Prima de antiguedad: 12 dias por ano, tope de 2 UMA diarios
-    seniority_daily = min(daily_salary, UMA_DAILY * 2)
+    # Prima de antiguedad: 12 dias por ano, tope de 2 veces el SALARIO MINIMO
+    # general diario (Art. 162/486 LFT) — NO 2 veces la UMA.
+    seniority_daily = min(daily_salary, SALARIO_MINIMO_DAILY * 2)
     seniority = seniority_daily * 12 * years
 
     total = fin["total"] + three_months + twenty_per_year + seniority

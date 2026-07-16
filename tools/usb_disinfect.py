@@ -24,38 +24,52 @@ def _is_suspicious_lnk(lnk_path: str) -> bool:
     return ext in SUSPICIOUS_EXTENSIONS
 
 
-def scan_usb(drive: str) -> list[dict]:
-    """Escanea una USB en busca de amenazas comunes."""
+def scan_usb(drive: str, max_depth: int = 3) -> list[dict]:
+    """Escanea una USB en busca de amenazas comunes.
+
+    Recorre recursivamente hasta `max_depth` niveles bajo la raiz: el malware
+    de USB no siempre se copia solo en la raiz, y escanear unicamente ahi da
+    una falsa sensacion de seguridad.
+    """
     threats = []
+    base_depth = drive.rstrip("\\/").count(os.sep)
     try:
-        for entry in os.listdir(drive):
-            filepath = os.path.join(drive, entry)
-            lower = entry.lower()
-
-            # autorun.inf
-            if lower == "autorun.inf":
-                threats.append({"archivo": filepath, "tipo": "Autorun.inf",
-                                "riesgo": "Alto"})
+        for dirpath, dirnames, filenames in os.walk(drive):
+            depth = dirpath.rstrip("\\/").count(os.sep) - base_depth
+            if depth >= max_depth:
+                dirnames[:] = []
                 continue
 
-            # Ejecutables ocultos en la raiz
-            ext = os.path.splitext(lower)[1]
-            if ext in SUSPICIOUS_EXTENSIONS and os.path.isfile(filepath):
-                threats.append({"archivo": filepath, "tipo": "Ejecutable sospechoso",
-                                "riesgo": "Alto"})
-                continue
+            for entry in filenames:
+                filepath = os.path.join(dirpath, entry)
+                lower = entry.lower()
 
-            # Nombres conocidos de malware
-            if lower in SUSPICIOUS_FILES:
-                threats.append({"archivo": filepath, "tipo": "Archivo sospechoso",
-                                "riesgo": "Alto"})
-                continue
+                # autorun.inf
+                if lower == "autorun.inf":
+                    threats.append({"archivo": filepath, "tipo": "Autorun.inf",
+                                    "riesgo": "Alto"})
+                    continue
 
-            # .lnk que apuntan a ejecutables
-            if lower.endswith(".lnk") and os.path.isfile(filepath):
-                if _is_suspicious_lnk(filepath):
-                    threats.append({"archivo": filepath, "tipo": "Acceso directo malicioso",
+                # Nombres conocidos de malware (heuristica de alta confianza)
+                if lower in SUSPICIOUS_FILES:
+                    threats.append({"archivo": filepath, "tipo": "Archivo sospechoso",
+                                    "riesgo": "Alto"})
+                    continue
+
+                # Ejecutables sueltos: tener una extension comun (.exe/.bat/etc.)
+                # no es por si sola prueba de infeccion, asi que se marca como
+                # riesgo medio y nunca se borra sin confirmacion explicita.
+                ext = os.path.splitext(lower)[1]
+                if ext in SUSPICIOUS_EXTENSIONS:
+                    threats.append({"archivo": filepath, "tipo": "Ejecutable sospechoso",
                                     "riesgo": "Medio"})
+                    continue
+
+                # .lnk que apuntan a ejecutables
+                if lower.endswith(".lnk"):
+                    if _is_suspicious_lnk(filepath):
+                        threats.append({"archivo": filepath, "tipo": "Acceso directo malicioso",
+                                        "riesgo": "Medio"})
     except OSError:
         pass
     return threats
@@ -79,12 +93,21 @@ def unhide_folders(drive: str) -> None:
     """Restaura carpetas ocultas por malware usando attrib."""
     console.print(f"[bold yellow]Restaurando carpetas ocultas en {drive}...[/bold yellow]")
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["attrib", "-h", "-s", "-r", "/s", "/d", f"{drive}*.*"],
             capture_output=True, text=True, timeout=60,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
-        console.print("[green]Atributos restaurados.[/green]")
+        if result.returncode == 0:
+            console.print("[green]Atributos restaurados correctamente.[/green]")
+        else:
+            detail = (result.stderr or result.stdout or "").strip()
+            console.print(
+                f"[red]attrib devolvio un error (codigo {result.returncode}). "
+                "Es posible que no todas las carpetas/archivos se hayan restaurado.[/red]"
+            )
+            if detail:
+                console.print(f"[dim]{detail}[/dim]")
     except (subprocess.TimeoutExpired, OSError) as e:
         console.print(f"[red]Error al restaurar atributos: {e}[/red]")
 
@@ -131,7 +154,7 @@ def usb_disinfect_menu() -> None:
         console.print(table)
 
         confirm = Prompt.ask(
-            "\n[bold]Eliminar amenazas?[/bold]", choices=["s", "n"], default="s"
+            "\n[bold]Eliminar amenazas?[/bold]", choices=["s", "n"], default="n"
         )
         if confirm == "s":
             removed = clean_usb(drive, threats)
@@ -139,7 +162,7 @@ def usb_disinfect_menu() -> None:
 
     # Ofrecer restaurar carpetas ocultas
     restore = Prompt.ask(
-        "[bold]Restaurar carpetas ocultas?[/bold]", choices=["s", "n"], default="s"
+        "[bold]Restaurar carpetas ocultas?[/bold]", choices=["s", "n"], default="n"
     )
     if restore == "s":
         unhide_folders(drive)

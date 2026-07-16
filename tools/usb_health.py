@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -44,6 +45,44 @@ def _get_usb_info(drive: str) -> dict:
             "size": 0, "free": 0, "health": "Desconocido"}
 
 
+# chkdsk en un disco SANO siempre imprime una linea como
+# "0 KB in bad sectors." (o su equivalente en espanol), por lo que
+# buscar la palabra suelta "bad" genera un falso positivo permanente.
+# En vez de eso, se parsea la cantidad reportada y solo se considera
+# un problema real si esa cantidad es mayor a cero.
+_BAD_SECTORS_RE = re.compile(
+    r"(\d+)\s*kb\s+(?:in bad sectors|en sectores (?:dañados|defectuosos))",
+    re.IGNORECASE,
+)
+
+
+_PROBLEM_KEYWORD_RE = re.compile(r"\b(errores?|corrupt\w*|problemas?|incorrecto\w*)\b")
+
+# El mensaje de un disco SANO tipicamente incluye la propia palabra clave en
+# forma NEGADA (ej. "no encontro problemas", "no errors found"), asi que
+# buscar "problema"/"error" como substring suelto da el mismo falso positivo
+# permanente que "bad" (ver _BAD_SECTORS_RE arriba). Se descarta un match si
+# esta precedido de cerca por una negacion tipica.
+_NEGATION_MARKERS = ("no ", "sin ", "ningun", "ningún", "ninguna", "not ", "0 ")
+
+
+def _chkdsk_output_has_errors(output: str) -> bool:
+    """Analiza el output crudo de chkdsk buscando errores reales (EN/ES)."""
+    lower = output.lower()
+
+    for match in _BAD_SECTORS_RE.finditer(lower):
+        if int(match.group(1)) > 0:
+            return True
+
+    for match in _PROBLEM_KEYWORD_RE.finditer(lower):
+        context_before = lower[max(0, match.start() - 20):match.start()]
+        if any(neg in context_before for neg in _NEGATION_MARKERS):
+            continue
+        return True
+
+    return False
+
+
 def _check_filesystem(drive: str) -> dict:
     """Ejecuta chkdsk en modo solo lectura y parsea resultados."""
     try:
@@ -53,10 +92,7 @@ def _check_filesystem(drive: str) -> dict:
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         output = result.stdout + result.stderr
-        has_errors = any(
-            kw in output.lower()
-            for kw in ["error", "corrupt", "bad", "problema", "incorrecto"]
-        )
+        has_errors = _chkdsk_output_has_errors(output)
         return {"ok": not has_errors, "output": output, "returncode": result.returncode}
     except subprocess.TimeoutExpired:
         return {"ok": False, "output": "Timeout ejecutando chkdsk", "returncode": -1}
@@ -101,27 +137,83 @@ def _speed_test(drive: str, size_mb: int = 10) -> dict:
             pass
 
 
-def _detect_fake_usb(drive: str) -> dict:
-    """Detecta USBs con capacidad falsa escribiendo un patron y verificando."""
+def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
+    """Prueba rapida (NO concluyente) de posible capacidad USB falsificada.
+
+    LIMITACION IMPORTANTE: una memoria USB con capacidad falsificada
+    (chip real mas chico reportando un tamano mayor) tipicamente falla
+    solo al escribir MAS ALLA de su capacidad fisica real, no en el
+    primer MB — por eso probar solo el inicio de la unidad (como hacia
+    esta funcion antes) siempre "pasaba" incluso en USBs falsas. Una
+    prueba realmente concluyente requeriria escribir y verificar datos
+    a lo largo de TODA la capacidad reportada (puede ser cientos de GB
+    en USBs grandes), lo cual es lento y desgasta la memoria flash, asi
+    que no es viable en un diagnostico rapido.
+
+    Como mejora sobre la version anterior, se escribe y verifica un
+    patron distinto en varios puntos distribuidos (10%, 50% y 90%) de
+    la capacidad reportada, acotados a un tamano maximo de prueba
+    (_FAKE_TEST_CAP) para mantener el chequeo rapido. Si la unidad
+    "falsea" mas capacidad de la que este limite cubre, esta prueba no
+    lo detectara — por eso el resultado se reporta como "sin indicios
+    de falsificacion" y NO como "autentica".
+    """
+    _FAKE_TEST_CAP = 256 * 1024 * 1024  # limite de prueba: 256 MB
+    chunk_size = 256 * 1024  # 256 KB por punto verificado
+
+    test_size = min(reported_size, _FAKE_TEST_CAP) if reported_size else 0
+
+    if test_size >= chunk_size * 2:
+        offsets_fraction = [0.0, 0.10, 0.50, 0.90]
+    else:
+        # No conocemos la capacidad reportada (o es muy chica): solo
+        # se puede probar el inicio de la unidad.
+        offsets_fraction = [0.0]
+        test_size = max(test_size, chunk_size)
+
+    def _pattern_for(offset: int) -> bytes:
+        seed = (offset % 251) + 1
+        return bytes((seed + i) % 256 for i in range(chunk_size))
+
+    def _offset_for(frac: float) -> int:
+        if test_size <= chunk_size:
+            return 0
+        return int((test_size - chunk_size) * frac)
+
     test_file = os.path.join(drive, ".salva_faketest.tmp")
-    size = 1024 * 1024  # 1 MB
-    pattern = bytes(range(256)) * (size // 256)
 
     try:
-        # Escribir patron
         with open(test_file, "wb") as f:
-            f.write(pattern)
+            for frac in offsets_fraction:
+                offset = _offset_for(frac)
+                f.seek(offset)
+                f.write(_pattern_for(offset))
             f.flush()
             os.fsync(f.fileno())
 
-        # Leer y verificar
+        all_match = True
         with open(test_file, "rb") as f:
-            read_back = f.read()
+            for frac in offsets_fraction:
+                offset = _offset_for(frac)
+                f.seek(offset)
+                read_back = f.read(chunk_size)
+                if read_back != _pattern_for(offset):
+                    all_match = False
+                    break
 
-        if read_back == pattern:
-            return {"authentic": True, "detail": "Patron verificado correctamente"}
+        if all_match:
+            return {
+                "authentic": True,
+                "detail": (
+                    f"Sin indicios de falsificacion en la prueba rapida "
+                    f"({len(offsets_fraction)} punto(s) verificado(s) — no concluyente)"
+                ),
+            }
         else:
-            return {"authentic": False, "detail": "Los datos leidos no coinciden — posible USB falsa"}
+            return {
+                "authentic": False,
+                "detail": "Los datos leidos no coinciden en uno o mas puntos — posible USB falsa",
+            }
     except OSError as e:
         return {"authentic": False, "detail": f"Error durante la prueba: {e}"}
     finally:
@@ -186,13 +278,13 @@ def usb_health_menu() -> None:
         console.print(f"  Escritura: [bold]{speed['write_mbps']:.1f} MB/s[/bold]")
         console.print(f"  Lectura:   [bold]{speed['read_mbps']:.1f} MB/s[/bold]")
 
-    # Deteccion de USB falsa
-    console.print("\n[bold yellow]Verificacion de autenticidad...[/bold yellow]")
+    # Deteccion de USB falsa (prueba rapida, no concluyente — ver docstring)
+    console.print("\n[bold yellow]Verificacion de autenticidad (prueba rapida, no concluyente)...[/bold yellow]")
     with console.status("[bold green]Verificando integridad de datos..."):
-        fake = _detect_fake_usb(drive)
+        fake = _detect_fake_usb(drive, reported_size=info["size"])
 
     if fake["authentic"]:
-        console.print(f"  [bold green]USB autentica:[/bold green] {fake['detail']}")
+        console.print(f"  [bold green]OK:[/bold green] {fake['detail']}")
     else:
         console.print(f"  [bold red]Advertencia:[/bold red] {fake['detail']}")
 

@@ -41,34 +41,38 @@ def _option_honorarios() -> None:
 
 
 def _option_resico() -> None:
-    """Calculo de ISR para RESICO personas fisicas."""
+    """Calculo de ISR para RESICO personas fisicas.
+
+    RESICO PF (Art. 113-E LISR) NO es un calculo marginal: se aplica una
+    TASA FIJA sobre el INGRESO TOTAL segun el rango en el que cae, no una
+    cuota fija mas un porcentaje sobre el excedente.
+    """
     console.print("\n[bold cyan]ISR RESICO Personas Fisicas[/bold cyan]\n")
 
     income = _ask_float("[bold]Ingreso mensual[/bold]")
     if not income:
         return
 
-    bracket = _find_bracket(income, RESICO_MONTHLY_TABLE)
-    if bracket is None:
-        console.print("[red]No se encontro el rango fiscal para ese monto.[/red]")
+    try:
+        bracket = _find_bracket(income, RESICO_MONTHLY_TABLE)
+    except ValueError as e:
+        console.print(f"[red]No se encontro el rango fiscal para ese monto: {e}[/red]")
         return
 
-    lim_inf, _, cuota_fija, tasa = bracket
-    excedente = income - lim_inf
-    impuesto_marginal = excedente * tasa
-    isr_total = cuota_fija + impuesto_marginal
+    lim_inf, lim_sup, _cuota_fija_no_usada, tasa = bracket
+    isr_total = income * tasa
     tasa_efectiva = (isr_total / income) * 100 if income > 0 else 0
     neto = income - isr_total
+
+    rango_sup = "en adelante" if lim_sup == float("inf") else _fmt(lim_sup)
 
     table = Table(title="RESICO - Desglose ISR", box=box.SIMPLE_HEAVY)
     table.add_column("Concepto", style="bold")
     table.add_column("Valor", justify="right")
 
     table.add_row("Ingreso mensual", _fmt(income))
-    table.add_row("Limite inferior", _fmt(lim_inf))
-    table.add_row("Excedente", _fmt(excedente))
-    table.add_row(f"Tasa sobre excedente ({tasa:.2%})", _fmt(impuesto_marginal))
-    table.add_row("Cuota fija", _fmt(cuota_fija))
+    table.add_row("Rango aplicable", f"{_fmt(lim_inf)} - {rango_sup}")
+    table.add_row(f"Tasa fija del rango ({tasa:.2%})", _fmt(isr_total))
     table.add_row("", "")
     table.add_row("[bold]ISR a pagar[/bold]", f"[red]{_fmt(isr_total)}[/red]")
     table.add_row("Tasa efectiva", f"{tasa_efectiva:.2f}%")

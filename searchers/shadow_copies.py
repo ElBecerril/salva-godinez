@@ -31,7 +31,14 @@ def _list_shadow_copies() -> list[dict]:
                 match = re.search(r"(\\\\[?]\\GLOBALROOT\\Device\\HarddiskVolumeShadowCopy\d+)", line)
                 if match:
                     current["path"] = match.group(1)
-            elif "creation date" in line.lower() or "fecha de creacion" in line.lower():
+            elif (
+                "creation time" in line.lower()
+                or "creation date" in line.lower()
+                or "creación" in line.lower()
+                or "creacion" in line.lower()
+            ):
+                # vssadmin real usa "...at creation time:" (EN) o
+                # "...en el momento de creación:" (ES, con acento).
                 # Capturar la fecha despues del ":"
                 parts = line.split(":", 1)
                 if len(parts) > 1:
@@ -96,7 +103,6 @@ def search_shadow_copies(name_filter: str, original_path: str = "") -> list[dict
                     pass
         else:
             # Busqueda por nombre - intentar en rutas comunes
-            drive = shadow.get("drive", "C")
             common_dirs = [
                 "\\Users",
                 "\\Documents and Settings",

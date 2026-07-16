@@ -344,7 +344,11 @@ def option_search_by_name() -> None:
             status.update(f"[bold green]Escaneando:[/bold green] {display}")
         all_results.extend(search_by_name(name, progress_callback=progress))
 
-    with console.status("[bold green]Revisando shadow copies (VSS)..."):
+    console.print(
+        "[bold yellow]Buscando en shadow copies (VSS), esto puede tardar "
+        "varios minutos en discos con muchos archivos...[/bold yellow]"
+    )
+    with console.status("[bold green]Revisando shadow copies (VSS), por favor espera..."):
         all_results.extend(search_shadow_copies(name))
 
     all_results = _deduplicate(all_results)
@@ -427,7 +431,11 @@ def option_full_search() -> None:
         if results:
             console.print(f"  [green]+{len(results)}[/green] encontrado(s) en discos")
 
-    with console.status("[bold green]Revisando shadow copies (VSS)..."):
+    console.print(
+        "[bold yellow]Buscando en shadow copies (VSS), esto puede tardar "
+        "varios minutos en discos con muchos archivos...[/bold yellow]"
+    )
+    with console.status("[bold green]Revisando shadow copies (VSS), por favor espera..."):
         results = search_shadow_copies(name)
         all_results.extend(results)
         if results:

@@ -13,6 +13,7 @@ def _run_net_use(args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["net", "use"] + args,
         capture_output=True, text=True, timeout=30,
+        encoding="utf-8", errors="replace",
     )
 
 
@@ -124,14 +125,19 @@ def _map_new_drive() -> None:
         user = Prompt.ask("[bold]Usuario[/bold] (ej: DOMINIO\\usuario)").strip()
         # Se usa '*' para que net use pida la contrasena de forma interactiva,
         # evitando que sea visible en la lista de procesos del sistema.
-        args.extend([f"/user:{user}", "*"])
+        # Sintaxis estandar de Windows: net use <letra> <remoto> <clave> /user:<user> /persistent:yes
+        # La contrasena ('*') debe ir inmediatamente despues de la ruta remota,
+        # antes de los switches.
+        args = [letter, remote, "*", f"/user:{user}", "/persistent:yes"]
         console.print("[dim]net use te pedira la contrasena directamente.[/dim]")
 
     try:
         # Cuando se usa '*', net use necesita interaccion directa con la consola
-        run_kwargs = {"capture_output": True, "text": True, "timeout": 30}
+        run_kwargs = {"capture_output": True, "text": True, "timeout": 30,
+                      "encoding": "utf-8", "errors": "replace"}
         if use_creds == "s":
-            run_kwargs = {"text": True, "timeout": 60}
+            run_kwargs = {"text": True, "timeout": 60,
+                          "encoding": "utf-8", "errors": "replace"}
             result = subprocess.run(["net", "use"] + args, **run_kwargs)
         else:
             with console.status("[bold green]Conectando..."):

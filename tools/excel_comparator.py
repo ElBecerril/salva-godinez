@@ -1,6 +1,7 @@
 """Comparador de Excel: diferencias celda por celda entre dos archivos."""
 
 import os
+import zipfile
 
 from rich.prompt import Prompt
 from rich.table import Table
@@ -43,8 +44,27 @@ def compare_files(path1: str, path2: str) -> dict:
     if not openpyxl:
         return {}
 
-    wb1 = openpyxl.load_workbook(path1, data_only=True)
-    wb2 = openpyxl.load_workbook(path2, data_only=True)
+    wb1 = None
+    wb2 = None
+    try:
+        wb1 = openpyxl.load_workbook(path1, data_only=True)
+        wb2 = openpyxl.load_workbook(path2, data_only=True)
+    except (
+        openpyxl.utils.exceptions.InvalidFileException,
+        zipfile.BadZipFile,
+        KeyError,
+        OSError,
+    ) as e:
+        if wb1 is not None:
+            try:
+                wb1.close()
+            except Exception:
+                pass
+        console.print(
+            f"[red]No se pudo abrir uno de los archivos Excel "
+            f"(corrupto, extension incorrecta o formato invalido): {e}[/red]"
+        )
+        return {}
 
     names1 = set(wb1.sheetnames)
     names2 = set(wb2.sheetnames)
@@ -149,6 +169,16 @@ def comparator_menu() -> None:
             base, ext = os.path.splitext(path1)
             output = f"{base}_comparado{ext}"
             output = Prompt.ask("[bold]Ruta del reporte[/bold]", default=output).strip().strip('"')
+
+            # El reporte reutiliza wb1 (cargado con data_only=True, que
+            # reemplaza formulas por sus valores). Si se guardara sobre
+            # path1 o path2, se destruiria el archivo original.
+            if os.path.abspath(output) in (os.path.abspath(path1), os.path.abspath(path2)):
+                console.print(
+                    "[red]La ruta del reporte no puede ser igual a ninguno de los "
+                    "archivos originales (se perderian formulas/datos). Elige otra ruta.[/red]"
+                )
+                return
             result["_wb1"] = wb1
             _generate_diff_report(path1, path2, result, output)
             console.print(f"\n[bold green]Reporte guardado: {output}[/bold green]")

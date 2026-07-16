@@ -1,10 +1,23 @@
 """Herramientas PDF: unir, dividir, rotar, eliminar, reordenar, extraer texto, convertir y mas."""
 
+import getpass
 import os
 
 from rich.prompt import Prompt
 from utils import console
+from tools.image_converter import _safe_output_path as _safe_output_path_parts
 
+
+def _safe_output_path(path: str) -> str:
+    """Evita sobrescribir un archivo existente agregando un sufijo numerico.
+
+    Reutiliza la logica de image_converter._safe_output_path, adaptando
+    una ruta completa (directorio + nombre + extension) al formato que
+    espera esa funcion (directorio, nombre base, extension).
+    """
+    directory = os.path.dirname(path) or "."
+    base_name, ext = os.path.splitext(os.path.basename(path))
+    return _safe_output_path_parts(directory, base_name, ext)
 
 
 def _get_pypdf():
@@ -98,6 +111,15 @@ def merge_pdfs() -> None:
         default=os.path.join(os.path.dirname(paths[0]), "unido.pdf"),
     ).strip().strip('"')
 
+    input_abspaths = {os.path.abspath(p) for p in paths}
+    if os.path.abspath(output) in input_abspaths:
+        console.print(
+            "[red]La ruta de salida no puede ser igual a uno de los PDFs de entrada "
+            "(se perderia el original). Elige otra ruta.[/red]"
+        )
+        return
+    output = _safe_output_path(output)
+
     try:
         writer = pypdf.PdfWriter()
         for path in paths:
@@ -163,7 +185,7 @@ def split_pdf() -> None:
         for i, page in enumerate(reader.pages, 1):
             writer = pypdf.PdfWriter()
             writer.add_page(page)
-            out_path = os.path.join(output_dir, f"{base_name}_pag{i}.pdf")
+            out_path = _safe_output_path(os.path.join(output_dir, f"{base_name}_pag{i}.pdf"))
             with open(out_path, "wb") as f:
                 writer.write(f)
         console.print(f"\n[bold green]{total} archivos creados en: {output_dir}[/bold green]")
@@ -183,7 +205,7 @@ def split_pdf() -> None:
         for i in range(start - 1, end):
             writer.add_page(reader.pages[i])
 
-        out_path = os.path.join(output_dir, f"{base_name}_pag{start}-{end}.pdf")
+        out_path = _safe_output_path(os.path.join(output_dir, f"{base_name}_pag{start}-{end}.pdf"))
         with open(out_path, "wb") as f:
             writer.write(f)
         console.print(f"\n[bold green]PDF creado: {out_path} ({end - start + 1} paginas)[/bold green]")
@@ -230,7 +252,7 @@ def rotate_pages() -> None:
             writer.add_page(page)
 
         base_name = os.path.splitext(path)[0]
-        output = f"{base_name}_rotado.pdf"
+        output = _safe_output_path(f"{base_name}_rotado.pdf")
         with open(output, "wb") as f:
             writer.write(f)
 
@@ -304,7 +326,7 @@ def delete_pages() -> None:
                 writer.add_page(page)
 
         base_name = os.path.splitext(path)[0]
-        output = f"{base_name}_editado.pdf"
+        output = _safe_output_path(f"{base_name}_editado.pdf")
         with open(output, "wb") as f:
             writer.write(f)
 
@@ -350,7 +372,7 @@ def reorder_pages() -> None:
             writer.add_page(reader.pages[num - 1])
 
         base_name = os.path.splitext(path)[0]
-        output = f"{base_name}_reordenado.pdf"
+        output = _safe_output_path(f"{base_name}_reordenado.pdf")
         with open(output, "wb") as f:
             writer.write(f)
 
@@ -386,7 +408,7 @@ def extract_text() -> None:
         full_text = "\n\n".join(text_parts)
 
         base_name = os.path.splitext(path)[0]
-        output = f"{base_name}.txt"
+        output = _safe_output_path(f"{base_name}.txt")
         with open(output, "w", encoding="utf-8") as f:
             f.write(full_text)
 
@@ -428,6 +450,7 @@ def images_to_pdf() -> None:
         "[bold]Ruta del PDF de salida[/bold]",
         default=os.path.join(os.path.dirname(paths[0]), "imagenes.pdf"),
     ).strip().strip('"')
+    output = _safe_output_path(output)
 
     try:
         images = []
@@ -500,7 +523,7 @@ def pdf_to_images() -> None:
         for i, page in enumerate(doc, 1):
             pix = page.get_pixmap(matrix=matrix)
             ext = "png" if fmt == "png" else "jpg"
-            out_path = os.path.join(output_dir, f"{base_name}_pag{i}.{ext}")
+            out_path = _safe_output_path(os.path.join(output_dir, f"{base_name}_pag{i}.{ext}"))
             if fmt == "jpg":
                 pix.save(out_path, jpg_quality=95)
             else:
@@ -537,7 +560,7 @@ def protect_pdf() -> None:
     if reader.is_encrypted:
         # Desproteger
         console.print("[dim]El PDF esta protegido con password.[/dim]")
-        password = Prompt.ask("[bold]Password actual[/bold]").strip()
+        password = getpass.getpass("Password actual: ").strip()
         try:
             if not reader.decrypt(password):
                 console.print("[red]Password incorrecto.[/red]")
@@ -550,7 +573,7 @@ def protect_pdf() -> None:
         for page in reader.pages:
             writer.add_page(page)
 
-        output = f"{base_name}_desprotegido.pdf"
+        output = _safe_output_path(f"{base_name}_desprotegido.pdf")
         with open(output, "wb") as f:
             writer.write(f)
 
@@ -558,12 +581,12 @@ def protect_pdf() -> None:
     else:
         # Proteger
         console.print("[dim]El PDF no tiene proteccion.[/dim]")
-        password = Prompt.ask("[bold]Nueva password[/bold]").strip()
+        password = getpass.getpass("Nueva password: ").strip()
         if not password:
             console.print("[yellow]Password vacio, operacion cancelada.[/yellow]")
             return
 
-        confirm = Prompt.ask("[bold]Confirmar password[/bold]").strip()
+        confirm = getpass.getpass("Confirmar password: ").strip()
         if password != confirm:
             console.print("[red]Las passwords no coinciden.[/red]")
             return
@@ -573,7 +596,7 @@ def protect_pdf() -> None:
             writer.add_page(page)
         writer.encrypt(password)
 
-        output = f"{base_name}_protegido.pdf"
+        output = _safe_output_path(f"{base_name}_protegido.pdf")
         with open(output, "wb") as f:
             writer.write(f)
 
@@ -636,7 +659,7 @@ def pdf_metadata() -> None:
             })
 
             base_name = os.path.splitext(path)[0]
-            output = f"{base_name}_limpio.pdf"
+            output = _safe_output_path(f"{base_name}_limpio.pdf")
             with open(output, "wb") as f:
                 writer.write(f)
 

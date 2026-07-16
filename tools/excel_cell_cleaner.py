@@ -40,7 +40,10 @@ def clean_file(filepath: str) -> dict:
     if not openpyxl:
         return {"total_cells": 0, "cleaned_cells": 0, "changes": []}
 
-    wb = openpyxl.load_workbook(filepath)
+    # .xlsm contiene macros VBA: si no se pasa keep_vba=True, openpyxl las
+    # descarta al guardar y el archivo queda corrupto/sin macros.
+    is_xlsm = os.path.splitext(filepath)[1].lower() == ".xlsm"
+    wb = openpyxl.load_workbook(filepath, keep_vba=is_xlsm)
     total = 0
     cleaned = 0
     changes = []
@@ -50,6 +53,12 @@ def clean_file(filepath: str) -> dict:
             for cell in row:
                 if isinstance(cell.value, str):
                     total += 1
+                    # No tocar formulas (empiezan con "="): la limpieza de
+                    # espacios/caracteres invisibles solo aplica a valores
+                    # literales de celda, alterar una formula rompe el
+                    # calculo.
+                    if cell.value.startswith("="):
+                        continue
                     new_val = _clean_cell_value(cell.value)
                     if new_val != cell.value:
                         changes.append({

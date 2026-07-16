@@ -1,6 +1,7 @@
 """Busqueda de archivos Office en la papelera de reciclaje via PowerShell."""
 
 import json
+import os
 import subprocess
 from config import OFFICE_EXTENSIONS
 
@@ -22,12 +23,15 @@ $items = $folder.Items()
 $results = @()
 foreach ($item in $items) {
     $name = $folder.GetDetailsOf($item, 0)
-    $originalPath = $folder.GetDetailsOf($item, 1)
+    # OJO: la columna 1 devuelve la CARPETA original del archivo, no la ruta
+    # completa. Hay que combinarla con el nombre (columna 0) para reconstruir
+    # la ruta real.
+    $originalFolder = $folder.GetDetailsOf($item, 1)
     $date = $folder.GetDetailsOf($item, 2)
     $size = $folder.GetDetailsOf($item, 3)
     $results += @{
         Name = $name
-        OriginalPath = $originalPath
+        OriginalFolder = $originalFolder
         DeleteDate = $date
         Size = $size
     }
@@ -65,9 +69,14 @@ $results | ConvertTo-Json -Compress
                 continue
             if name_lower and name_lower not in item_name.lower():
                 continue
+            original_folder = item.get("OriginalFolder", "")
+            if original_folder:
+                ruta = os.path.join(original_folder, item_name)
+            else:
+                ruta = "Desconocida"
             found.append({
                 "nombre": item_name,
-                "ruta": item.get("OriginalPath", "Desconocida"),
+                "ruta": ruta,
                 "tamano": item.get("Size", "?"),
                 "fecha": item.get("DeleteDate", "?"),
                 "origen": "Papelera de reciclaje",

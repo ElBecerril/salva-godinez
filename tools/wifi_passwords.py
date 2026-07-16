@@ -24,6 +24,7 @@ def get_wifi_passwords() -> list[dict]:
         output = subprocess.run(
             ["netsh", "wlan", "show", "profiles"],
             capture_output=True, text=True, timeout=10,
+            encoding="utf-8", errors="replace",
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         if output.returncode != 0:
@@ -43,6 +44,7 @@ def get_wifi_passwords() -> list[dict]:
                 detail = subprocess.run(
                     ["netsh", "wlan", "show", "profile", profile, "key=clear"],
                     capture_output=True, text=True, timeout=10,
+                    encoding="utf-8", errors="replace",
                     creationflags=subprocess.CREATE_NO_WINDOW,
                 )
                 for line in detail.stdout.splitlines():

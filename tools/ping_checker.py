@@ -34,6 +34,7 @@ def ping_host(host: str, count: int = 4) -> dict:
         result = subprocess.run(
             ["ping", "-n", str(count), host],
             capture_output=True, text=True, timeout=30,
+            encoding="utf-8", errors="replace",
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         output = result.stdout + result.stderr

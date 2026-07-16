@@ -76,7 +76,15 @@ OLD_DOWNLOAD_DAYS = 30
 AGUINALDO_MIN_DAYS = 15
 UMA_DAILY = 117.31  # Valor diario vigente 2026 (actualizar anualmente)
 
-# Tabla de dias de vacaciones segun antiguedad (LFT 2023+)
+# Salario minimo general diario vigente 2026 (zona general, resto del pais).
+# Fuente: CONASAMI/DOF, resolucion publicada 09/12/2025, vigente desde el
+# 01/01/2026 (incremento 13.0%: MIR 17.01 + 6.5% de fijacion).
+# Art. 162/486 LFT usan este valor (NO la UMA) como tope para la prima de
+# antiguedad.
+SALARIO_MINIMO_DAILY = 315.04  # Vigente 2026 (zona general) - CONASAMI/DOF 09/12/2025
+
+# Tabla de dias de vacaciones segun antiguedad, 1 a 20 anos (LFT 2023+, reforma
+# de "vacaciones dignas")
 VACATION_DAYS_TABLE = {
     1: 12,
     2: 14,
@@ -99,6 +107,19 @@ VACATION_DAYS_TABLE = {
     19: 26,
     20: 26,
 }
+
+# Dias de vacaciones para antiguedad mayor a 20 anos (LFT Art. 76, reforma
+# "vacaciones dignas" 2023): se suman 2 dias cada 5 anos adicionales,
+# iniciando en 28 dias para el rango 21-25 (no 26, que corresponde a 16-20).
+# (anio_inicio, anio_fin, dias)
+VACATION_DAYS_RANGES_20PLUS = [
+    (21, 25, 28),
+    (26, 30, 30),
+    (31, 35, 32),
+    (36, 40, 34),
+    (41, 45, 36),
+    (46, 50, 38),
+]
 
 # ─── Retenciones de honorarios ────────────────────────────────
 IVA_RATE = 0.16                 # Tasa IVA vigente
@@ -133,12 +154,50 @@ IMSS_EMPLOYEE_RATES = {
     "cesantia_vejez": 0.01125,     # Cesantia en edad avanzada y vejez
 }
 
-# Tabla RESICO mensual personas fisicas
-# (limite_inferior, limite_superior, cuota_fija, tasa_excedente)
+# Tabla RESICO mensual personas fisicas (Art. 113-E LISR).
+# IMPORTANTE: RESICO personas fisicas NO usa un modelo marginal (cuota fija +
+# excedente); aplica una TASA FIJA sobre el INGRESO TOTAL del rango en el que
+# cae el contribuyente. El campo "cuota_fija" se conserva por compatibilidad
+# de forma con otras tablas de este archivo pero NO debe usarse en el calculo
+# de RESICO (ver tools/retention_calculator.py, que aplica ingreso*tasa).
+# (limite_inferior, limite_superior, cuota_fija_no_usada, tasa)
 RESICO_MONTHLY_TABLE = [
     (0.01, 25_000.00, 0.00, 0.01),
-    (25_000.01, 50_000.00, 250.00, 0.011),
-    (50_000.01, 83_333.33, 525.00, 0.015),
-    (83_333.34, 208_333.33, 1_025.00, 0.02),
-    (208_333.34, float("inf"), 3_525.00, 0.025),
+    (25_000.01, 50_000.00, 0.00, 0.011),
+    (50_000.01, 83_333.33, 0.00, 0.015),
+    (83_333.34, 208_333.33, 0.00, 0.02),
+    (208_333.34, float("inf"), 0.00, 0.025),
 ]
+
+# ─── Vigencia de tablas fiscales ──────────────────────────────
+
+# Anio para el cual se verificaron las tablas fiscales de este archivo
+# (ISR_MONTHLY_TABLE, UMA_DAILY, RESICO_MONTHLY_TABLE, SALARIO_MINIMO_DAILY,
+# etc.). Actualizar cada vez que se revisen contra las publicaciones
+# oficiales del SAT/DOF/CONASAMI/INEGI.
+TABLAS_VIGENTES_PARA_ANIO = 2026
+
+
+def _warn_if_tables_outdated() -> None:
+    """Aviso en tiempo de ejecucion (no bloqueante) si el anio del sistema ya
+    no coincide con el anio para el que se verificaron las tablas fiscales."""
+    import datetime
+
+    current_year = datetime.date.today().year
+    if current_year == TABLAS_VIGENTES_PARA_ANIO:
+        return
+    mensaje = (
+        f"Aviso: las tablas fiscales (ISR, UMA, RESICO, salario minimo) de este "
+        f"programa fueron verificadas para {TABLAS_VIGENTES_PARA_ANIO} y el "
+        f"sistema marca el anio {current_year}. Revisa y actualiza config.py "
+        "con los valores oficiales vigentes antes de confiar en los calculos."
+    )
+    try:
+        from utils import console
+        console.print(f"[bold yellow]{mensaje}[/bold yellow]")
+    except Exception:
+        import warnings
+        warnings.warn(mensaje, stacklevel=2)
+
+
+_warn_if_tables_outdated()

@@ -37,14 +37,17 @@ def _calculate_backup_size(sources: list[str]) -> tuple[int, int]:
     return total, count
 
 
-def _copy_with_progress(sources: list[str], dest_base: str) -> tuple[int, int]:
+def _copy_with_progress(sources: list[str], dest_base: str) -> tuple[int, int, list[tuple[str, str]]]:
     """Copia archivos con barra de progreso Rich.
 
     Returns:
-        (files_copied, files_skipped)
+        (files_copied, files_skipped, failed) donde failed es una lista de
+        tuplas (ruta_origen, mensaje_de_error) para cada archivo que no pudo
+        copiarse.
     """
     copied = 0
     skipped = 0
+    failed: list[tuple[str, str]] = []
 
     # Contar total para progreso
     total_size, total_files = _calculate_backup_size(sources)
@@ -88,11 +91,12 @@ def _copy_with_progress(sources: list[str], dest_base: str) -> tuple[int, int]:
                         shutil.copy2(src_file, dst_file)
                         copied += 1
                         progress.advance(task, src_size)
-                    except OSError:
+                    except OSError as e:
                         progress.advance(task, 0)
+                        failed.append((src_file, str(e)))
                         continue
 
-    return copied, skipped
+    return copied, skipped, failed
 
 
 def usb_backup_menu() -> None:
@@ -160,10 +164,19 @@ def usb_backup_menu() -> None:
     if confirm != "s":
         return
 
-    copied, skipped = _copy_with_progress(valid_sources, dest_base)
+    copied, skipped, failed = _copy_with_progress(valid_sources, dest_base)
 
-    console.print(f"\n[bold green]Respaldo completado![/bold green]")
+    if failed:
+        console.print(f"\n[bold yellow]Respaldo completado con errores.[/bold yellow]")
+    else:
+        console.print(f"\n[bold green]Respaldo completado![/bold green]")
     console.print(f"  Archivos copiados: [bold]{copied}[/bold]")
     if skipped:
         console.print(f"  Archivos sin cambios (omitidos): [dim]{skipped}[/dim]")
+    if failed:
+        console.print(f"  Archivos que fallaron: [bold red]{len(failed)}[/bold red]")
+        for src_file, error in failed[:10]:
+            console.print(f"    [red]{os.path.basename(src_file)}: {error}[/red]")
+        if len(failed) > 10:
+            console.print(f"    [dim]... y {len(failed) - 10} archivo(s) mas[/dim]")
     console.print(f"  Ubicacion: [bold]{dest_base}[/bold]")

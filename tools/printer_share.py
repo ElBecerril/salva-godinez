@@ -11,8 +11,20 @@ from utils import ps_escape, console
 
 
 
+class PrinterQueryError(Exception):
+    """Error real al consultar impresoras (no confundir con 'sin impresoras')."""
+
+
 def _get_printers() -> list[dict]:
-    """Obtiene la lista de impresoras instaladas via PowerShell."""
+    """Obtiene la lista de impresoras instaladas via PowerShell.
+
+    Devuelve una lista vacia tanto si el comando tuvo exito y no hay
+    impresoras instaladas, como si la salida no pudo parsearse como JSON
+    (por ejemplo, stdout vacio cuando Get-Printer no devuelve nada). Un
+    fallo real de ejecucion (returncode != 0, timeout, error de SO) se
+    señala levantando PrinterQueryError para que el llamador pueda
+    distinguir "no tienes impresoras" de "ocurrio un error".
+    """
     try:
         result = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
@@ -21,25 +33,38 @@ def _get_printers() -> list[dict]:
             capture_output=True, text=True, timeout=30,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
-        if result.returncode != 0:
-            return []
+    except (subprocess.TimeoutExpired, OSError) as e:
+        raise PrinterQueryError(str(e)) from e
+
+    if result.returncode != 0:
+        error = result.stderr.strip() or result.stdout.strip() or f"returncode {result.returncode}"
+        raise PrinterQueryError(error)
+
+    try:
         data = json.loads(result.stdout)
-        if isinstance(data, dict):
-            data = [data]
-        return data
-    except (json.JSONDecodeError, subprocess.TimeoutExpired, OSError):
+    except json.JSONDecodeError:
+        # Stdout vacio (u otro contenido no-JSON) cuando el sistema no
+        # tiene ninguna impresora instalada: no es un error, es "sin datos".
         return []
+
+    if isinstance(data, dict):
+        data = [data]
+    return data
 
 
 def _show_shared_printers() -> None:
     """Muestra todas las impresoras con su estado de comparticion."""
     console.print("\n[bold cyan]Impresoras Instaladas[/bold cyan]\n")
 
-    with console.status("[bold green]Obteniendo lista de impresoras..."):
-        printers = _get_printers()
+    try:
+        with console.status("[bold green]Obteniendo lista de impresoras..."):
+            printers = _get_printers()
+    except PrinterQueryError as e:
+        console.print(f"[red]Error al obtener las impresoras del sistema: {e}[/red]")
+        return
 
     if not printers:
-        console.print("[yellow]No se pudieron obtener las impresoras del sistema.[/yellow]")
+        console.print("[yellow]No tienes impresoras instaladas en este equipo.[/yellow]")
         return
 
     table = Table()
@@ -72,11 +97,15 @@ def _share_printer() -> None:
         console.print("[red]Se requieren permisos de administrador para compartir impresoras.[/red]")
         return
 
-    with console.status("[bold green]Obteniendo lista de impresoras..."):
-        printers = _get_printers()
+    try:
+        with console.status("[bold green]Obteniendo lista de impresoras..."):
+            printers = _get_printers()
+    except PrinterQueryError as e:
+        console.print(f"[red]Error al obtener las impresoras del sistema: {e}[/red]")
+        return
 
     if not printers:
-        console.print("[yellow]No se pudieron obtener las impresoras del sistema.[/yellow]")
+        console.print("[yellow]No tienes impresoras instaladas en este equipo.[/yellow]")
         return
 
     # Filtrar impresoras no compartidas
@@ -134,11 +163,15 @@ def _unshare_printer() -> None:
         console.print("[red]Se requieren permisos de administrador para modificar impresoras.[/red]")
         return
 
-    with console.status("[bold green]Obteniendo lista de impresoras..."):
-        printers = _get_printers()
+    try:
+        with console.status("[bold green]Obteniendo lista de impresoras..."):
+            printers = _get_printers()
+    except PrinterQueryError as e:
+        console.print(f"[red]Error al obtener las impresoras del sistema: {e}[/red]")
+        return
 
     if not printers:
-        console.print("[yellow]No se pudieron obtener las impresoras del sistema.[/yellow]")
+        console.print("[yellow]No tienes impresoras instaladas en este equipo.[/yellow]")
         return
 
     # Filtrar impresoras compartidas

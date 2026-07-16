@@ -7,7 +7,9 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
+import tempfile
 import urllib.request
 
 from rich.panel import Panel
@@ -46,54 +48,89 @@ def _extract_sha256(body: str, filename: str) -> str | None:
     return None
 
 
-def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -> None:
-    """Descarga un archivo al Escritorio con barra de progreso Rich.
+def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -> bool:
+    """Descarga un archivo a una ubicacion temporal con barra de progreso Rich.
 
-    Si expected_sha256 se proporciona, verifica el hash despues de descargar.
-    Si no coincide, elimina el archivo y muestra error.
+    El orden es deliberado por seguridad: se descarga primero a un archivo
+    temporal (el Escritorio no se toca todavia), se verifica el SHA-256 y
+    SOLO si la verificacion es exitosa (o no hay hash de referencia) se
+    borran las versiones anteriores del Escritorio y se mueve el archivo
+    temporal a su ubicacion final.
+
+    Returns:
+        True si la descarga se completo y quedo instalada en el Escritorio,
+        False si algo fallo (descarga, verificacion de hash, etc.). En ese
+        caso el Escritorio no se modifica.
     """
     desktop = os.path.join(os.path.expanduser("~"), "Desktop")
     dest = os.path.join(desktop, filename)
 
-    req = urllib.request.Request(url, headers={"User-Agent": "SalvaGodinez-Updater"})
-    resp = urllib.request.urlopen(req, timeout=30)
-    total = int(resp.headers.get("Content-Length", 0))
+    tmp_fd, tmp_path = tempfile.mkstemp(prefix="salvagodinez_update_", suffix=".tmp")
+    os.close(tmp_fd)
 
-    sha256 = hashlib.sha256()
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "SalvaGodinez-Updater"})
+        resp = urllib.request.urlopen(req, timeout=30)
+        total = int(resp.headers.get("Content-Length", 0))
 
-    with Progress(
-        "[progress.description]{task.description}",
-        BarColumn(),
-        DownloadColumn(),
-        TransferSpeedColumn(),
-    ) as progress:
-        task = progress.add_task("Descargando...", total=total or None)
-        with open(dest, "wb") as f:
-            while True:
-                chunk = resp.read(8192)
-                if not chunk:
-                    break
-                f.write(chunk)
-                sha256.update(chunk)
-                progress.advance(task, len(chunk))
+        sha256 = hashlib.sha256()
 
-    actual_hash = sha256.hexdigest()
+        with Progress(
+            "[progress.description]{task.description}",
+            BarColumn(),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+        ) as progress:
+            task = progress.add_task("Descargando...", total=total or None)
+            with open(tmp_path, "wb") as f:
+                while True:
+                    chunk = resp.read(8192)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    sha256.update(chunk)
+                    progress.advance(task, len(chunk))
 
-    if expected_sha256:
-        if actual_hash != expected_sha256:
-            os.remove(dest)
+        actual_hash = sha256.hexdigest()
+
+        if expected_sha256:
+            if actual_hash != expected_sha256:
+                console.print(
+                    f"[bold red]Verificacion SHA-256 fallida![/bold red]\n"
+                    f"[red]Esperado: {expected_sha256}[/red]\n"
+                    f"[red]Obtenido: {actual_hash}[/red]\n"
+                    f"[red]La descarga se descarto por seguridad. El Escritorio no fue modificado.[/red]"
+                )
+                return False
+            console.print("[green]SHA-256 verificado correctamente.[/green]")
+        else:
             console.print(
-                f"[bold red]Verificacion SHA-256 fallida![/bold red]\n"
-                f"[red]Esperado: {expected_sha256}[/red]\n"
-                f"[red]Obtenido: {actual_hash}[/red]\n"
-                f"[red]El archivo descargado fue eliminado por seguridad.[/red]"
+                f"[yellow]SHA-256: {actual_hash} (sin hash de referencia en el Release "
+                "para verificar; se procede con precaucion)[/yellow]"
             )
-            return
-        console.print(f"[green]SHA-256 verificado correctamente.[/green]")
-    else:
-        console.print(f"[dim]SHA-256: {actual_hash} (sin hash de referencia para verificar)[/dim]")
 
-    console.print(f"[bold green]Guardado en:[/bold green] {dest}")
+        # Solo ahora, con la descarga ya verificada, es seguro tocar el Escritorio.
+        current_exe = os.path.abspath(sys.executable) if getattr(sys, "frozen", False) else ""
+        for old in glob.glob(os.path.join(desktop, "SalvaGodinez*.exe")):
+            if os.path.abspath(old) != current_exe:
+                try:
+                    os.remove(old)
+                except OSError as e:
+                    console.print(f"[yellow]No se pudo eliminar version anterior {old}: {e}[/yellow]")
+
+        shutil.move(tmp_path, dest)
+        console.print(f"[bold green]Guardado en:[/bold green] {dest}")
+        return True
+
+    except Exception as e:
+        console.print(f"[bold red]Error al descargar la actualizacion: {e}[/bold red]")
+        return False
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
 
 
 def check_for_updates(current_version: str) -> None:
@@ -139,19 +176,16 @@ def check_for_updates(current_version: str) -> None:
         release_body = data.get("body", "")
         expected_hash = _extract_sha256(release_body, exe_asset["name"])
 
-        # Limpiar versiones anteriores del Escritorio
-        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-        current_exe = os.path.abspath(sys.executable) if getattr(sys, "frozen", False) else ""
-        for old in glob.glob(os.path.join(desktop, "SalvaGodinez*.exe")):
-            if os.path.abspath(old) != current_exe:
-                try:
-                    os.remove(old)
-                except OSError:
-                    pass
-
+        # Nota: _download_exe() descarga primero a un temporal, verifica el
+        # hash y solo entonces borra versiones anteriores del Escritorio y
+        # mueve el archivo final. Reporta sus propios errores; no los
+        # silencia.
         filename = f"SalvaGodinez_{remote_tag}.exe"
         _download_exe(exe_asset["browser_download_url"], filename, expected_hash)
 
-    except Exception:
-        # Sin internet, timeout, API error, etc. — seguir sin molestar
+    except Exception as e:
+        # Esto solo cubre la verificacion de si hay una version nueva
+        # (llamada a la API de GitHub): sin internet, timeout, API error, etc.
+        # No cubre la descarga en si, que reporta sus propios errores arriba.
+        console.print(f"[dim]No se pudo verificar actualizaciones: {e}[/dim]")
         return

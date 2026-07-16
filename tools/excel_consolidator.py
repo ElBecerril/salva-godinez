@@ -71,8 +71,13 @@ def _merge_files(paths: list[str], output: str) -> int:
     return total_sheets
 
 
-def _merge_sheets(filepath: str, output: str) -> int:
+def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> int:
     """Modo 2: Unir hojas — stack vertical de hojas en una sola.
+
+    Args:
+        skip_header: si True (default), se descarta la primera fila de las
+            hojas 2+ asumiendo que traen encabezado repetido. Si False, se
+            conservan todas las filas de todas las hojas.
 
     Returns:
         Numero total de filas en la hoja final.
@@ -93,8 +98,9 @@ def _merge_sheets(filepath: str, output: str) -> int:
     current_row = 1
     for idx, ws in enumerate(src_wb.worksheets):
         for row_num, row in enumerate(ws.iter_rows(values_only=True), 1):
-            # Skip header en hojas 2+ (fila 1)
-            if idx > 0 and row_num == 1:
+            # Skip header en hojas 2+ (fila 1), solo si el usuario confirmo
+            # que todas las hojas traen encabezado.
+            if skip_header and idx > 0 and row_num == 1:
                 continue
             for col, value in enumerate(row, 1):
                 dest_ws.cell(row=current_row, column=col, value=value)
@@ -168,8 +174,28 @@ def consolidator_menu() -> None:
             default=f"{base}_consolidado{ext}",
         ).strip().strip('"')
 
+        console.print(
+            "\n[yellow]Aviso:[/yellow] por defecto se asume que [bold]todas[/bold] las hojas "
+            "tienen encabezado, y se descartara la primera fila de la hoja 2 en adelante "
+            "(la de la primera hoja se conserva completa). Si alguna hoja NO trae encabezado, "
+            "esa fila de datos se perderia."
+        )
+        has_header = Prompt.ask(
+            "[bold]Todas las hojas tienen fila de encabezado?[/bold]",
+            choices=["s", "n"], default="s",
+        )
+        if has_header == "n":
+            console.print("[dim]Se conservaran todas las filas de todas las hojas.[/dim]")
+        confirm = Prompt.ask(
+            "[bold]Continuar con la union de hojas?[/bold]",
+            choices=["s", "n"], default="s",
+        )
+        if confirm != "s":
+            console.print("[dim]Operacion cancelada.[/dim]")
+            return
+
         with console.status("[bold green]Uniendo hojas..."):
-            rows = _merge_sheets(filepath, output)
+            rows = _merge_sheets(filepath, output, skip_header=(has_header == "s"))
 
         if rows:
             console.print(f"\n[bold green]Archivo creado: {output} ({rows} filas)[/bold green]")

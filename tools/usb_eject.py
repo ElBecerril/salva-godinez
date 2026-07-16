@@ -1,12 +1,29 @@
 """Expulsion segura de unidades USB."""
 
+import ctypes
 import subprocess
+import time
 
 from rich.prompt import Prompt
 
 from tools import get_removable_drives
 from utils import ps_escape, console
 
+
+def _drive_still_present(drive: str) -> bool | None:
+    """Verifica si la unidad sigue presente en el sistema.
+
+    Returns:
+        True si sigue apareciendo como unidad removible, False si ya no esta
+        presente, None si no se pudo determinar (p. ej. no disponible en esta
+        plataforma).
+    """
+    try:
+        letter = drive.rstrip("\\") + "\\"
+        drive_type = ctypes.windll.kernel32.GetDriveTypeW(letter)
+        return drive_type == 2  # DRIVE_REMOVABLE
+    except (AttributeError, OSError):
+        return None
 
 
 def _eject_drive(drive_letter: str) -> None:
@@ -38,8 +55,38 @@ def _eject_drive(drive_letter: str) -> None:
                 console.print(f"[red]No se pudo expulsar {drive}. Verifica que no haya archivos abiertos.[/red]")
             return
 
-        console.print(f"\n[bold green]Unidad {drive} expulsada correctamente.[/bold green]")
-        console.print("[dim]Ya puedes retirar el dispositivo de forma segura.[/dim]")
+        # InvokeVerb("Eject") via COM es "fire-and-forget": el comando puede
+        # devolver returncode 0 aunque la expulsion real no se haya completado
+        # (p. ej. archivos abiertos). Verificar activamente antes de afirmar
+        # exito.
+        ejected_confirmed = False
+        verification_failed = False
+        for _ in range(10):
+            time.sleep(0.5)
+            present = _drive_still_present(drive)
+            if present is None:
+                verification_failed = True
+                break
+            if not present:
+                ejected_confirmed = True
+                break
+
+        if ejected_confirmed:
+            console.print(f"\n[bold green]Unidad {drive} expulsada correctamente.[/bold green]")
+            console.print("[dim]Ya puedes retirar el dispositivo de forma segura.[/dim]")
+        elif verification_failed:
+            console.print(
+                f"\n[yellow]Se envio el comando de expulsion para {drive}, pero no fue "
+                "posible verificar en este sistema si la unidad realmente se expulso. "
+                "Verifica manualmente (p. ej. en el explorador de archivos) antes de "
+                "retirar el dispositivo.[/yellow]"
+            )
+        else:
+            console.print(
+                f"\n[yellow]Se envio el comando de expulsion para {drive}, pero la unidad "
+                "todavia aparece en el sistema. Puede que siga en uso o que la expulsion "
+                "no se haya completado. No la retires todavia; verifica manualmente.[/yellow]"
+            )
 
     except subprocess.TimeoutExpired:
         console.print(
