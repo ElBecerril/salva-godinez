@@ -2,6 +2,7 @@
 
 import subprocess
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 from utils import console
@@ -9,10 +10,11 @@ from utils import console
 
 
 def _mask(password: str) -> str:
-    """Enmascara una contrasena mostrando solo el primer y ultimo caracter."""
-    if len(password) <= 2:
-        return "*" * len(password)
-    return password[0] + "*" * (len(password) - 2) + password[-1]
+    """Enmascara una contrasena con un placeholder de longitud fija.
+
+    No revela ningun caracter real (ni el primero ni el ultimo).
+    """
+    return "*" * 8
 
 
 def get_wifi_passwords() -> list[dict]:
@@ -97,10 +99,10 @@ def show_wifi_passwords() -> None:
         if not pwd:
             display = "[dim]Sin contrasena[/dim]"
         elif show_plain:
-            display = pwd
+            display = escape(pwd)
         else:
             display = _mask(pwd)
-        table.add_row(str(i), net["red"], display, net["seguridad"])
+        table.add_row(str(i), escape(net["red"]), display, escape(net["seguridad"]))
 
     console.print()
     console.print(table)

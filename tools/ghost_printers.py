@@ -4,6 +4,7 @@ import json
 import re
 import subprocess
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -32,6 +33,7 @@ def _get_printers() -> list[dict]:
              "Get-Printer | Select-Object Name, DriverName, PortName, Shared, PrinterStatus "
              "| ConvertTo-Json -Compress"],
             capture_output=True, text=True, timeout=30,
+            encoding="utf-8", errors="replace",
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
     except (subprocess.TimeoutExpired, OSError) as e:
@@ -78,18 +80,29 @@ _GHOST_REDIRECTED_PATTERN = re.compile(r"redirect(?:ed)?|redirigid[oa]s?", re.IG
 
 
 def _identify_ghosts(printers: list[dict]) -> list[dict]:
-    """Identifica impresoras fantasma (copias duplicadas o redirigidas)."""
+    """Identifica impresoras fantasma (copias duplicadas o redirigidas).
+
+    El patron de "sufijo numerico entre parentesis" (p.ej. "Recepcion (2)")
+    es el mas propenso a falsos positivos: puede ser una impresora legitima
+    a la que el usuario le puso ese nombre a proposito. Por eso se marca
+    con "_auto_candidate" = False, para que NUNCA se ofrezca en el borrado
+    en bloque, solo como aviso informativo que el usuario debe revisar y
+    borrar de forma individual si asi lo decide.
+    """
     ghosts = []
     for p in printers:
         name = p.get("Name", "")
         if _GHOST_COPY_PATTERN.search(name):
             p["_ghost_reason"] = "Copia duplicada"
+            p["_auto_candidate"] = True
             ghosts.append(p)
         elif _GHOST_BARE_SUFFIX_PATTERN.search(name):
-            p["_ghost_reason"] = "Sufijo numerico entre parentesis (posible duplicado)"
+            p["_ghost_reason"] = "Sufijo numerico entre parentesis (posible duplicado, revisar)"
+            p["_auto_candidate"] = False
             ghosts.append(p)
         elif _GHOST_REDIRECTED_PATTERN.search(name):
             p["_ghost_reason"] = "Impresora redirigida (sesion RDP/Terminal Services)"
+            p["_auto_candidate"] = True
             ghosts.append(p)
     return ghosts
 
@@ -101,6 +114,7 @@ def _remove_printer(name: str) -> bool:
             ["powershell", "-NoProfile", "-Command",
              f'Remove-Printer -Name "{ps_escape(name)}"'],
             capture_output=True, text=True, timeout=15,
+            encoding="utf-8", errors="replace",
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         return result.returncode == 0
@@ -116,7 +130,7 @@ def ghost_printers_menu() -> None:
         with console.status("[bold green]Obteniendo lista de impresoras..."):
             printers = _get_printers()
     except PrinterQueryError as e:
-        console.print(f"[red]Error al obtener las impresoras del sistema: {e}[/red]")
+        console.print(f"[red]Error al obtener las impresoras del sistema: {escape(str(e))}[/red]")
         return
 
     if not printers:
@@ -139,10 +153,10 @@ def ghost_printers_menu() -> None:
         marker = " [red](Fantasma)[/red]" if name in ghost_names else ""
         table.add_row(
             str(i),
-            name + marker,
-            p.get("DriverName", ""),
-            p.get("PortName", ""),
-            str(p.get("PrinterStatus", "")),
+            escape(name) + marker,
+            escape(p.get("DriverName", "")),
+            escape(p.get("PortName", "")),
+            escape(str(p.get("PrinterStatus", ""))),
         )
 
     console.print(table)
@@ -153,24 +167,71 @@ def ghost_printers_menu() -> None:
 
     console.print(f"\n[bold yellow]Se detectaron {len(ghosts)} impresora(s) fantasma.[/bold yellow]")
 
+    review_only = [g for g in ghosts if not g.get("_auto_candidate")]
+    candidates = [g for g in ghosts if g.get("_auto_candidate")]
+
+    if review_only:
+        console.print(
+            "\n[bold yellow]Las siguientes impresoras coinciden con un patron "
+            "ambiguo (sufijo numerico) y NO se ofrecen para borrado en bloque. "
+            "Si quieres eliminarlas, hazlo manualmente desde el Panel de "
+            "Control / Configuracion de impresoras:[/bold yellow]"
+        )
+        for g in review_only:
+            console.print(f"  [yellow]-[/yellow] {escape(g.get('Name', ''))}")
+
+    if not candidates:
+        return
+
     if not is_admin():
         console.print("[red]Se requieren permisos de administrador para eliminar impresoras.[/red]")
         return
 
-    confirm = Prompt.ask(
-        "[bold]Eliminar impresoras fantasma?[/bold]",
-        choices=["s", "n"], default="n",
-    )
-    if confirm != "s":
+    console.print("\n[bold]Impresoras candidatas a eliminar:[/bold]")
+    for i, g in enumerate(candidates, 1):
+        console.print(
+            f"  [cyan]{i}[/cyan] - {escape(g.get('Name', ''))} "
+            f"([dim]{escape(g.get('_ghost_reason', ''))}[/dim])"
+        )
+
+    selection = Prompt.ask(
+        "\n[bold]Selecciona los numeros a eliminar[/bold] "
+        "(separados por coma, ej: 1,3 - vacio para cancelar)",
+        default="",
+    ).strip()
+    if not selection:
+        console.print("[dim]Operacion cancelada.[/dim]")
         return
 
+    chosen_indexes = set()
+    for token in selection.split(","):
+        token = token.strip()
+        if not token.isdigit():
+            continue
+        idx = int(token)
+        if 1 <= idx <= len(candidates):
+            chosen_indexes.add(idx)
+
+    if not chosen_indexes:
+        console.print("[red]No se selecciono ninguna impresora valida.[/red]")
+        return
+
+    to_remove = [candidates[i - 1] for i in sorted(chosen_indexes)]
+
     removed = 0
-    for g in ghosts:
+    for g in to_remove:
         name = g.get("Name", "")
+        confirm = Prompt.ask(
+            f"[bold]Eliminar '{escape(name)}'?[/bold]",
+            choices=["s", "n"], default="n",
+        )
+        if confirm != "s":
+            console.print(f"  [dim]Omitida:[/dim] {escape(name)}")
+            continue
         if _remove_printer(name):
-            console.print(f"  [green]Eliminada:[/green] {name}")
+            console.print(f"  [green]Eliminada:[/green] {escape(name)}")
             removed += 1
         else:
-            console.print(f"  [red]No se pudo eliminar:[/red] {name}")
+            console.print(f"  [red]No se pudo eliminar:[/red] {escape(name)}")
 
     console.print(f"\n[bold green]{removed} impresora(s) eliminada(s).[/bold green]")

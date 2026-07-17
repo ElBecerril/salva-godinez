@@ -2,6 +2,7 @@
 
 import os
 import re
+import zipfile
 
 from rich.prompt import Prompt
 from rich.table import Table
@@ -20,6 +21,20 @@ _INVISIBLE = re.compile(
     "\u2060"      # Word joiner
     "]"
 )
+
+
+def _safe_output_path(path: str) -> str:
+    """Evita sobrescribir un archivo existente agregando un sufijo numerico."""
+    if not os.path.exists(path):
+        return path
+
+    base, ext = os.path.splitext(path)
+    counter = 1
+    while True:
+        candidate = f"{base}_{counter}{ext}"
+        if not os.path.exists(candidate):
+            return candidate
+        counter += 1
 
 
 def _clean_cell_value(value: str) -> str:
@@ -43,7 +58,11 @@ def clean_file(filepath: str) -> dict:
     # .xlsm contiene macros VBA: si no se pasa keep_vba=True, openpyxl las
     # descarta al guardar y el archivo queda corrupto/sin macros.
     is_xlsm = os.path.splitext(filepath)[1].lower() == ".xlsm"
-    wb = openpyxl.load_workbook(filepath, keep_vba=is_xlsm)
+    try:
+        wb = openpyxl.load_workbook(filepath, keep_vba=is_xlsm)
+    except (OSError, KeyError, zipfile.BadZipFile, openpyxl.utils.exceptions.InvalidFileException) as e:
+        console.print(f"[red]No se pudo abrir el archivo Excel (corrupto o formato invalido): {e}[/red]")
+        return {"total_cells": 0, "cleaned_cells": 0, "changes": []}
     total = 0
     cleaned = 0
     changes = []
@@ -125,9 +144,11 @@ def cell_cleaner_menu() -> None:
         return
 
     base, ext = os.path.splitext(filepath)
-    output = f"{base}_limpio{ext}"
+    output = _safe_output_path(f"{base}_limpio{ext}")
     try:
         wb.save(output)
         console.print(f"\n[bold green]Archivo guardado: {output}[/bold green]")
+    except OSError as e:
+        console.print(f"[red]Error al guardar archivo (revisa que no este abierto en Excel): {e}[/red]")
     finally:
         wb.close()

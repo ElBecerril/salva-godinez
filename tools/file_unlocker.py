@@ -12,8 +12,15 @@ from utils import ps_escape, console
 
 
 
-def _find_locking_processes(filepath: str) -> list[dict]:
-    """Detecta procesos que tienen abierto un archivo usando Restart Manager API."""
+def _find_locking_processes(filepath: str) -> dict:
+    """Detecta procesos que tienen abierto un archivo usando Restart Manager API.
+
+    Retorna {"procesos": [...], "certero": bool}. Restart Manager es una
+    API confiable para esto, asi que su resultado (incluyendo una lista
+    vacia) se marca como certero=True. Si falla y se usa el fallback de
+    PowerShell, certero=False porque ese metodo no ve archivos de datos
+    abiertos (ver docstring de _fallback_find_locking).
+    """
     processes = []
 
     try:
@@ -54,7 +61,7 @@ def _find_locking_processes(filepath: str) -> list[dict]:
             )
 
             if n_proc_info_needed.value == 0:
-                return []
+                return {"procesos": [], "certero": True}
 
             # Definir RM_PROCESS_INFO
             class FILETIME(ctypes.Structure):
@@ -102,11 +109,22 @@ def _find_locking_processes(filepath: str) -> list[dict]:
     except (OSError, AttributeError):
         return _fallback_find_locking(filepath)
 
-    return processes
+    return {"procesos": processes, "certero": True}
 
 
-def _fallback_find_locking(filepath: str) -> list[dict]:
-    """Fallback usando PowerShell si Restart Manager falla."""
+def _fallback_find_locking(filepath: str) -> dict:
+    """Fallback usando PowerShell si Restart Manager falla.
+
+    LIMITACION IMPORTANTE: este fallback busca en `$_.Modules.FileName`,
+    que solo contiene los EXE/DLL que un proceso tiene cargados en
+    memoria, NO los archivos de datos que tiene abiertos (ej. un .xlsx
+    abierto en Excel jamas aparece en Modules). Por eso, cuando esta
+    busqueda no encuentra nada, NO significa que el archivo este libre:
+    solo significa que este metodo no pudo determinarlo. Se devuelve un
+    dict con esa distincion explicita en vez de una simple lista vacia,
+    para que el llamador no reporte "archivo libre" cuando en realidad
+    no se sabe.
+    """
     import json
 
     try:
@@ -124,10 +142,11 @@ def _fallback_find_locking(filepath: str) -> list[dict]:
             data = json.loads(result.stdout)
             if isinstance(data, dict):
                 data = [data]
-            return [{"pid": p["Id"], "nombre": p["ProcessName"]} for p in data]
+            procesos = [{"pid": p["Id"], "nombre": p["ProcessName"]} for p in data]
+            return {"procesos": procesos, "certero": False}
     except (subprocess.TimeoutExpired, OSError, json.JSONDecodeError, KeyError, TypeError):
         pass
-    return []
+    return {"procesos": [], "certero": False}
 
 
 def _kill_process(pid: int) -> bool:
@@ -153,11 +172,24 @@ def file_unlocker_menu() -> None:
         return
 
     with console.status("[bold green]Buscando procesos que bloquean el archivo..."):
-        processes = _find_locking_processes(filepath)
+        resultado = _find_locking_processes(filepath)
+
+    processes = resultado["procesos"]
+    certero = resultado["certero"]
 
     if not processes:
-        console.print("\n[bold green]No se detectaron procesos bloqueando el archivo.[/bold green]")
-        console.print("[dim]El archivo podria estar libre o el proceso no fue detectado.[/dim]")
+        if certero:
+            console.print("\n[bold green]No se detectaron procesos bloqueando el archivo.[/bold green]")
+        else:
+            # El fallback de PowerShell no ve archivos de datos abiertos
+            # (solo EXE/DLL cargados), asi que una lista vacia aca NO es
+            # prueba de que el archivo este libre.
+            console.print("\n[bold yellow]No se pudo determinar que proceso bloquea el archivo.[/bold yellow]")
+            console.print(
+                "[dim]El metodo de deteccion disponible no alcanza a ver archivos de datos "
+                "abiertos (ej. documentos en Word/Excel). El archivo puede seguir bloqueado "
+                "aunque no se haya detectado ningun proceso.[/dim]"
+            )
         return
 
     table = Table(title=f"Procesos usando: {os.path.basename(filepath)}")

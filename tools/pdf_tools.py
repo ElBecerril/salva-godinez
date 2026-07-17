@@ -76,10 +76,23 @@ def _open_pdf_reader(prompt_text="[bold]Ruta del PDF[/bold]"):
 
     try:
         reader = pypdf.PdfReader(path)
-        return pypdf, reader, path
     except (pypdf.errors.PdfReadError, pypdf.errors.PdfStreamError, OSError) as e:
         console.print(f"[red]Error al leer PDF (archivo corrupto o invalido): {e}[/red]")
         return None
+
+    # Un PDF cifrado no falla al abrir con PdfReader, pero tumba la app al
+    # acceder a .pages. Intentamos descifrar con password vacio (comun en
+    # PDFs "protegidos" solo para edicion) y si sigue cifrado, abortamos.
+    if reader.is_encrypted:
+        try:
+            reader.decrypt("")
+        except Exception:
+            pass
+        if reader.is_encrypted:
+            console.print("[red]El PDF esta protegido con contrasena y no se puede procesar.[/red]")
+            return None
+
+    return pypdf, reader, path
 
 
 def merge_pdfs() -> None:
@@ -125,11 +138,13 @@ def merge_pdfs() -> None:
         for path in paths:
             try:
                 reader = pypdf.PdfReader(path)
-            except (pypdf.errors.PdfReadError, pypdf.errors.PdfStreamError) as e:
-                console.print(f"  [red]PDF corrupto o invalido: {os.path.basename(path)} — {e}[/red]")
+                if reader.is_encrypted:
+                    reader.decrypt("")
+                for page in reader.pages:
+                    writer.add_page(page)
+            except Exception as e:
+                console.print(f"  [red]PDF corrupto, cifrado o invalido: {os.path.basename(path)} — {e}[/red]")
                 continue
-            for page in reader.pages:
-                writer.add_page(page)
 
         if len(writer.pages) == 0:
             console.print("[red]No se pudieron leer paginas de ninguno de los PDFs.[/red]")
@@ -182,12 +197,16 @@ def split_pdf() -> None:
     base_name = os.path.splitext(os.path.basename(path))[0]
 
     if mode == "individual":
-        for i, page in enumerate(reader.pages, 1):
-            writer = pypdf.PdfWriter()
-            writer.add_page(page)
-            out_path = _safe_output_path(os.path.join(output_dir, f"{base_name}_pag{i}.pdf"))
-            with open(out_path, "wb") as f:
-                writer.write(f)
+        try:
+            for i, page in enumerate(reader.pages, 1):
+                writer = pypdf.PdfWriter()
+                writer.add_page(page)
+                out_path = _safe_output_path(os.path.join(output_dir, f"{base_name}_pag{i}.pdf"))
+                with open(out_path, "wb") as f:
+                    writer.write(f)
+        except OSError as e:
+            console.print(f"[red]Error al escribir archivo (revisa permisos o espacio en disco): {e}[/red]")
+            return
         console.print(f"\n[bold green]{total} archivos creados en: {output_dir}[/bold green]")
     else:
         rango = Prompt.ask("[bold]Rango (ej: 1-5)[/bold]").strip()
@@ -452,8 +471,8 @@ def images_to_pdf() -> None:
     ).strip().strip('"')
     output = _safe_output_path(output)
 
+    images = []
     try:
-        images = []
         for p in paths:
             img = Image.open(p)
             # RGBA/P/LA → RGB para compatibilidad con PDF
@@ -462,9 +481,12 @@ def images_to_pdf() -> None:
                 if img.mode == "P":
                     img = img.convert("RGBA")
                 background.paste(img, mask=img.split()[-1] if "A" in img.mode else None)
+                img.close()
                 img = background
             elif img.mode != "RGB":
-                img = img.convert("RGB")
+                converted = img.convert("RGB")
+                img.close()
+                img = converted
             images.append(img)
 
         if len(images) == 1:
@@ -473,8 +495,14 @@ def images_to_pdf() -> None:
             images[0].save(output, "PDF", save_all=True, append_images=images[1:])
 
         console.print(f"\n[bold green]PDF creado: {output} ({len(images)} imagenes)[/bold green]")
-    except (OSError, ValueError) as e:
-        console.print(f"[red]Error al crear PDF: {e}[/red]")
+    except Exception as e:
+        console.print(f"[red]Error al crear PDF (posible imagen invalida o demasiado grande): {e}[/red]")
+    finally:
+        for img in images:
+            try:
+                img.close()
+            except Exception:
+                pass
 
 
 def pdf_to_images() -> None:
@@ -574,8 +602,12 @@ def protect_pdf() -> None:
             writer.add_page(page)
 
         output = _safe_output_path(f"{base_name}_desprotegido.pdf")
-        with open(output, "wb") as f:
-            writer.write(f)
+        try:
+            with open(output, "wb") as f:
+                writer.write(f)
+        except OSError as e:
+            console.print(f"[red]Error al guardar PDF (revisa permisos o espacio en disco): {e}[/red]")
+            return
 
         console.print(f"\n[bold green]PDF desprotegido creado: {output}[/bold green]")
     else:
@@ -597,8 +629,12 @@ def protect_pdf() -> None:
         writer.encrypt(password)
 
         output = _safe_output_path(f"{base_name}_protegido.pdf")
-        with open(output, "wb") as f:
-            writer.write(f)
+        try:
+            with open(output, "wb") as f:
+                writer.write(f)
+        except OSError as e:
+            console.print(f"[red]Error al guardar PDF (revisa permisos o espacio en disco): {e}[/red]")
+            return
 
         console.print(f"\n[bold green]PDF protegido creado: {output}[/bold green]")
 

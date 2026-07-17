@@ -10,6 +10,20 @@ from utils import get_openpyxl as _get_openpyxl, console
 
 
 
+def _safe_output_path(path: str) -> str:
+    """Evita sobrescribir un archivo existente agregando un sufijo numerico."""
+    if not os.path.exists(path):
+        return path
+
+    base, ext = os.path.splitext(path)
+    counter = 1
+    while True:
+        candidate = f"{base}_{counter}{ext}"
+        if not os.path.exists(candidate):
+            return candidate
+        counter += 1
+
+
 def compare_sheets(ws1, ws2) -> list[dict]:
     """Compara dos hojas celda por celda.
 
@@ -179,6 +193,7 @@ def comparator_menu() -> None:
                     "archivos originales (se perderian formulas/datos). Elige otra ruta.[/red]"
                 )
                 return
+            output = _safe_output_path(output)
             result["_wb1"] = wb1
             _generate_diff_report(path1, path2, result, output)
             console.print(f"\n[bold green]Reporte guardado: {output}[/bold green]")

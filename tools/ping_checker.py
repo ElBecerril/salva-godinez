@@ -84,6 +84,12 @@ def ping_checker_menu() -> None:
     if not host:
         console.print("[red]Debes ingresar una IP o nombre.[/red]")
         return
+    if host.startswith("-") or host.startswith("/"):
+        console.print("[red]Nombre de host invalido: no puede empezar con '-' o '/'.[/red]")
+        return
+    if not re.match(r"^[A-Za-z0-9.:_-]+$", host):
+        console.print("[red]Nombre de host o IP invalido.[/red]")
+        return
 
     with console.status(f"[bold green]Haciendo ping a {host}..."):
         info = ping_host(host)

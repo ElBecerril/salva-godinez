@@ -2,6 +2,69 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.3.2] - 2026-07-17
+
+Segunda auditoria completa (ver `AUDITORIA_2026-07-17.md`): 5 agentes en
+paralelo por area + verificacion manual y funcional de los fixes. Sin
+vectores de inyeccion (cero shell=True/eval); todos los fixes de la auditoria
+previa siguen en pie.
+
+### Seguridad
+- Liberador de Espacio: un Enter ya no borra nada por defecto; vaciar la
+  papelera y borrar descargas antiguas (ambos permanentes e irreversibles)
+  ahora exigen una confirmacion explicita separada
+- Desinfectante de USB: ya no borra en bloque los ejecutables sueltos
+  legitimos (.exe/.bat/etc.); solo elimina automaticamente las amenazas de
+  riesgo alto conocidas, los demas se listan para revision manual
+- Limpiador de Impresoras Fantasma: una impresora legitima renombrada "(N)"
+  ya no se borra en bloque; el borrado requiere seleccion e confirmacion
+- Auto-updater: mueve el nuevo .exe ANTES de borrar las versiones anteriores
+  del Escritorio (si el move falla, no te quedas sin nada); aborta si la
+  descarga viene incompleta o excede un tamano maximo; el hash se ata al
+  nombre del archivo correcto
+- Contrasenas WiFi: el modo enmascarado ya no revela el primer/ultimo
+  caracter; SSID y claves con caracteres especiales ya no rompen ni falsean
+  la vista (escape de markup)
+- Verificador de conexion (ping): rechaza destinos que empiecen por `-`/`/`
+
+### Corregido
+- Sueldo Neto: la base del ISR ya no resta el IMSS (las cuotas obrero no son
+  deducibles de la base, Art. 96 LISR) — antes subestimaba el ISR y pagaba de
+  mas; el subsidio al empleo ya no vuelve negativo el ISR ni se entrega en
+  efectivo (esquema 2026)
+- Simulador de Prestaciones: el finiquito por renuncia ahora incluye la prima
+  de antiguedad con 15+ anios (Art. 162-III LFT); la indemnizacion de 20
+  dias/anio usa el salario diario integrado (SDI, Art. 89); el aguinaldo topa
+  los dias trabajados a 365
+- Editor de PDF: un PDF con contrasena ya no tumba la app (rotar, eliminar,
+  reordenar, extraer texto, metadatos); un PDF cifrado en una union se salta
+  en vez de abortar todo; imagenes enormes ya no crashean al convertir a PDF
+- Limpiador de Celdas: un Excel corrupto o cifrado ya no tumba la app; la
+  salida no sobrescribe un archivo previo
+- Consolidador de Libros: ya no puede sobrescribir un archivo de entrada; los
+  guardados no crashean si el archivo esta abierto en Excel; avisa que las
+  formulas se convierten a valores; no genera .xlsm corruptos
+- Comparador de Excel: el reporte no sobrescribe silenciosamente otros
+  archivos existentes
+- Mapeo de Unidades de Red: la ruta remota y el estado se leen bien en
+  Windows en espanol (antes mostraban basura y todo en amarillo)
+- Impresoras (compartir/fantasma): los nombres con caracteres no-ASCII ya no
+  crashean el listado (encoding); los datos externos se escapan para Rich
+- Conversor de Imagenes: respeta la orientacion EXIF (fotos de celular ya no
+  salen giradas) y avisa cuando un GIF/TIFF multipagina pierde frames
+- Restaurar archivo encontrado: acceso defensivo para no crashear si faltan
+  metadatos
+
+### Cambiado
+- Verificador de USB: una memoria legitima casi llena ya no se reporta como
+  "posible USB falsa"; se distingue "no se pudo completar la prueba"
+- Desbloquear archivos: cuando el metodo de respaldo no puede determinar el
+  proceso, lo dice honestamente en vez de afirmar que el archivo esta libre
+- config.py: se descartan rutas de limpieza no absolutas (defensa si faltan
+  variables de entorno)
+- CI: PyInstaller pineado a 6.21.0 y las GitHub Actions pineadas por SHA de
+  commit (hardening de cadena de suministro)
+
 ## [2.3.1] - 2026-07-15
 
 Auditoria completa del proyecto (bugs reales, riesgo de perdida de datos y

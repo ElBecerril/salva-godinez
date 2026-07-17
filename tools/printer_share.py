@@ -3,6 +3,7 @@
 import json
 import subprocess
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -31,6 +32,7 @@ def _get_printers() -> list[dict]:
              "Get-Printer | Select-Object Name, DriverName, PortName, Shared, ShareName "
              "| ConvertTo-Json -Compress"],
             capture_output=True, text=True, timeout=30,
+            encoding="utf-8", errors="replace",
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
     except (subprocess.TimeoutExpired, OSError) as e:
@@ -60,7 +62,7 @@ def _show_shared_printers() -> None:
         with console.status("[bold green]Obteniendo lista de impresoras..."):
             printers = _get_printers()
     except PrinterQueryError as e:
-        console.print(f"[red]Error al obtener las impresoras del sistema: {e}[/red]")
+        console.print(f"[red]Error al obtener las impresoras del sistema: {escape(str(e))}[/red]")
         return
 
     if not printers:
@@ -80,10 +82,10 @@ def _show_shared_printers() -> None:
         share_name = p.get("ShareName", "") or ""
         table.add_row(
             str(i),
-            p.get("Name", ""),
-            p.get("DriverName", ""),
+            escape(p.get("Name", "")),
+            escape(p.get("DriverName", "")),
             shared_text,
-            share_name,
+            escape(share_name),
         )
 
     console.print(table)
@@ -101,7 +103,7 @@ def _share_printer() -> None:
         with console.status("[bold green]Obteniendo lista de impresoras..."):
             printers = _get_printers()
     except PrinterQueryError as e:
-        console.print(f"[red]Error al obtener las impresoras del sistema: {e}[/red]")
+        console.print(f"[red]Error al obtener las impresoras del sistema: {escape(str(e))}[/red]")
         return
 
     if not printers:
@@ -116,7 +118,7 @@ def _share_printer() -> None:
 
     console.print("[bold]Impresoras disponibles para compartir:[/bold]")
     for i, p in enumerate(unshared, 1):
-        console.print(f"  [cyan]{i}[/cyan] - {p.get('Name', '')}")
+        console.print(f"  [cyan]{i}[/cyan] - {escape(p.get('Name', ''))}")
 
     choice = Prompt.ask(
         "\n[bold]Selecciona la impresora[/bold]",
@@ -139,16 +141,18 @@ def _share_printer() -> None:
                 ["powershell", "-NoProfile", "-Command",
                  f'Set-Printer -Name "{ps_escape(name)}" -Shared $true -ShareName "{ps_escape(share_name)}"'],
                 capture_output=True, text=True, timeout=15,
+                encoding="utf-8", errors="replace",
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
 
         if result.returncode == 0:
             console.print(
-                f"\n[bold green]Impresora '{name}' compartida como '{share_name}'.[/bold green]"
+                f"\n[bold green]Impresora '{escape(name)}' compartida como "
+                f"'{escape(share_name)}'.[/bold green]"
             )
         else:
             error = result.stderr.strip() or result.stdout.strip()
-            console.print(f"[red]Error al compartir: {error}[/red]")
+            console.print(f"[red]Error al compartir: {escape(error)}[/red]")
     except subprocess.TimeoutExpired:
         console.print("[red]Timeout al intentar compartir la impresora.[/red]")
     except OSError as e:
@@ -167,7 +171,7 @@ def _unshare_printer() -> None:
         with console.status("[bold green]Obteniendo lista de impresoras..."):
             printers = _get_printers()
     except PrinterQueryError as e:
-        console.print(f"[red]Error al obtener las impresoras del sistema: {e}[/red]")
+        console.print(f"[red]Error al obtener las impresoras del sistema: {escape(str(e))}[/red]")
         return
 
     if not printers:
@@ -183,7 +187,7 @@ def _unshare_printer() -> None:
     console.print("[bold]Impresoras compartidas:[/bold]")
     for i, p in enumerate(shared, 1):
         share_name = p.get("ShareName", "")
-        console.print(f"  [cyan]{i}[/cyan] - {p.get('Name', '')} (Red: {share_name})")
+        console.print(f"  [cyan]{i}[/cyan] - {escape(p.get('Name', ''))} (Red: {escape(share_name)})")
 
     choice = Prompt.ask(
         "\n[bold]Selecciona la impresora[/bold]",
@@ -193,7 +197,7 @@ def _unshare_printer() -> None:
     name = printer.get("Name", "")
 
     confirm = Prompt.ask(
-        f"[bold]Dejar de compartir '{name}'?[/bold]",
+        f"[bold]Dejar de compartir '{escape(name)}'?[/bold]",
         choices=["s", "n"], default="n",
     )
     if confirm != "s":
@@ -206,14 +210,15 @@ def _unshare_printer() -> None:
                 ["powershell", "-NoProfile", "-Command",
                  f'Set-Printer -Name "{ps_escape(name)}" -Shared $false'],
                 capture_output=True, text=True, timeout=15,
+                encoding="utf-8", errors="replace",
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
 
         if result.returncode == 0:
-            console.print(f"\n[bold green]Impresora '{name}' ya no esta compartida.[/bold green]")
+            console.print(f"\n[bold green]Impresora '{escape(name)}' ya no esta compartida.[/bold green]")
         else:
             error = result.stderr.strip() or result.stdout.strip()
-            console.print(f"[red]Error: {error}[/red]")
+            console.print(f"[red]Error: {escape(error)}[/red]")
     except subprocess.TimeoutExpired:
         console.print("[red]Timeout al intentar modificar la impresora.[/red]")
     except OSError as e:

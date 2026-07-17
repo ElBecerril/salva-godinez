@@ -76,9 +76,19 @@ def scan_usb(drive: str, max_depth: int = 3) -> list[dict]:
 
 
 def clean_usb(drive: str, threats: list[dict]) -> int:
-    """Elimina las amenazas detectadas con confirmacion."""
+    """Elimina las amenazas detectadas con confirmacion.
+
+    Solo borra las de riesgo Alto (autorun.inf, nombres de malware
+    conocidos): son heuristicas de alta confianza. Las de riesgo Medio
+    (ejecutables sueltos, accesos directos sospechosos) NO se borran
+    aqui — un .exe legitimo del usuario tiene la misma extension que uno
+    malicioso, asi que borrarlas en bloque es demasiado agresivo. Esas
+    quedan para revision manual (ver usb_disinfect_menu).
+    """
     removed = 0
     for threat in threats:
+        if threat.get("riesgo") != "Alto":
+            continue
         filepath = threat["archivo"]
         try:
             os.remove(filepath)
@@ -153,12 +163,29 @@ def usb_disinfect_menu() -> None:
         console.print()
         console.print(table)
 
-        confirm = Prompt.ask(
-            "\n[bold]Eliminar amenazas?[/bold]", choices=["s", "n"], default="n"
-        )
-        if confirm == "s":
-            removed = clean_usb(drive, threats)
-            console.print(f"\n[bold green]{removed} amenaza(s) eliminada(s).[/bold green]")
+        high_risk = [t for t in threats if t["riesgo"] == "Alto"]
+        medium_risk = [t for t in threats if t["riesgo"] != "Alto"]
+
+        if high_risk:
+            console.print(
+                f"\n[bold]{len(high_risk)} amenaza(s) de riesgo Alto[/bold] "
+                "(autorun.inf / nombres de malware conocidos)."
+            )
+            confirm = Prompt.ask(
+                "[bold]Eliminar solo las de riesgo Alto?[/bold]", choices=["s", "n"], default="n"
+            )
+            if confirm == "s":
+                removed = clean_usb(drive, threats)
+                console.print(f"\n[bold green]{removed} amenaza(s) eliminada(s).[/bold green]")
+
+        if medium_risk:
+            console.print(
+                f"\n[yellow]{len(medium_risk)} archivo(s) sospechoso(s) de riesgo Medio "
+                "(ejecutables sueltos / accesos directos) — NO se borran automaticamente. "
+                "Revisalos manualmente:[/yellow]"
+            )
+            for t in medium_risk:
+                console.print(f"  - {t['archivo']} ({t['tipo']})")
 
     # Ofrecer restaurar carpetas ocultas
     restore = Prompt.ask(

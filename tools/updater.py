@@ -20,6 +20,10 @@ from utils import console
 REPO = "ElBecerril/salva-godinez"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 
+# Limite maximo razonable para el .exe del updater (evita descargas
+# descontroladas o respuestas maliciosas con Content-Length falso/ausente).
+MAX_DOWNLOAD_SIZE = 200 * 1024 * 1024  # 200 MB
+
 
 
 def _parse_version(tag: str) -> tuple:
@@ -37,12 +41,14 @@ def _extract_sha256(body: str, filename: str) -> str | None:
     """
     if not body:
         return None
-    # Patron: SHA-256: <hex> o SHA256: <hex>
-    match = re.search(r"SHA-?256\s*:\s*([0-9a-fA-F]{64})", body)
+    # Primero el patron que ata el hash al filename del asset (mas
+    # especifico): <hex>  <filename>. Se intenta antes del patron generico
+    # para no agarrar el hash de otro asset cuando el body lista varios.
+    match = re.search(rf"([0-9a-fA-F]{{64}})\s+\S*{re.escape(filename)}", body)
     if match:
         return match.group(1).lower()
-    # Patron estilo checksum file: <hex>  <filename>
-    match = re.search(rf"([0-9a-fA-F]{{64}})\s+\S*{re.escape(filename)}", body)
+    # Fallback generico: SHA-256: <hex> o SHA256: <hex>
+    match = re.search(r"SHA-?256\s*:\s*([0-9a-fA-F]{64})", body)
     if match:
         return match.group(1).lower()
     return None
@@ -54,8 +60,10 @@ def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -
     El orden es deliberado por seguridad: se descarga primero a un archivo
     temporal (el Escritorio no se toca todavia), se verifica el SHA-256 y
     SOLO si la verificacion es exitosa (o no hay hash de referencia) se
-    borran las versiones anteriores del Escritorio y se mueve el archivo
-    temporal a su ubicacion final.
+    mueve el archivo temporal a su ubicacion final en el Escritorio. Solo
+    despues de confirmar que ese move fue exitoso se borran las versiones
+    anteriores del Escritorio; asi, si el move falla, las versiones viejas
+    siguen intactas.
 
     Returns:
         True si la descarga se completo y quedo instalada en el Escritorio,
@@ -73,7 +81,16 @@ def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -
         resp = urllib.request.urlopen(req, timeout=30)
         total = int(resp.headers.get("Content-Length", 0))
 
+        if total > MAX_DOWNLOAD_SIZE:
+            console.print(
+                f"[bold red]La descarga excede el tamano maximo permitido "
+                f"({MAX_DOWNLOAD_SIZE // (1024 * 1024)} MB segun Content-Length). "
+                "Se aborta por seguridad. El Escritorio no fue modificado.[/bold red]"
+            )
+            return False
+
         sha256 = hashlib.sha256()
+        written = 0
 
         with Progress(
             "[progress.description]{task.description}",
@@ -87,6 +104,14 @@ def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -
                     chunk = resp.read(8192)
                     if not chunk:
                         break
+                    written += len(chunk)
+                    if written > MAX_DOWNLOAD_SIZE:
+                        console.print(
+                            f"[bold red]La descarga supero el tamano maximo permitido "
+                            f"({MAX_DOWNLOAD_SIZE // (1024 * 1024)} MB). "
+                            "Se aborta por seguridad. El Escritorio no fue modificado.[/bold red]"
+                        )
+                        return False
                     f.write(chunk)
                     sha256.update(chunk)
                     progress.advance(task, len(chunk))
@@ -104,22 +129,36 @@ def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -
                 return False
             console.print("[green]SHA-256 verificado correctamente.[/green]")
         else:
+            if total > 0 and written != total:
+                console.print(
+                    f"[bold red]La descarga quedo incompleta: se esperaban {total} bytes "
+                    f"(Content-Length) y se recibieron {written}. Sin hash de referencia "
+                    "para verificar, se descarta por seguridad. El Escritorio no fue "
+                    "modificado.[/bold red]"
+                )
+                return False
             console.print(
                 f"[yellow]SHA-256: {actual_hash} (sin hash de referencia en el Release "
                 "para verificar; se procede con precaucion)[/yellow]"
             )
 
         # Solo ahora, con la descarga ya verificada, es seguro tocar el Escritorio.
+        # Primero se mueve el archivo temporal a su destino final; solo si el
+        # move fue exitoso se procede a borrar versiones anteriores del
+        # Escritorio. Asi, si el move falla, las versiones viejas siguen ahi.
+        shutil.move(tmp_path, dest)
+        console.print(f"[bold green]Guardado en:[/bold green] {dest}")
+
         current_exe = os.path.abspath(sys.executable) if getattr(sys, "frozen", False) else ""
+        dest_abs = os.path.abspath(dest)
         for old in glob.glob(os.path.join(desktop, "SalvaGodinez*.exe")):
-            if os.path.abspath(old) != current_exe:
+            old_abs = os.path.abspath(old)
+            if old_abs != current_exe and old_abs != dest_abs:
                 try:
                     os.remove(old)
                 except OSError as e:
                     console.print(f"[yellow]No se pudo eliminar version anterior {old}: {e}[/yellow]")
 
-        shutil.move(tmp_path, dest)
-        console.print(f"[bold green]Guardado en:[/bold green] {dest}")
         return True
 
     except Exception as e:
@@ -177,9 +216,9 @@ def check_for_updates(current_version: str) -> None:
         expected_hash = _extract_sha256(release_body, exe_asset["name"])
 
         # Nota: _download_exe() descarga primero a un temporal, verifica el
-        # hash y solo entonces borra versiones anteriores del Escritorio y
-        # mueve el archivo final. Reporta sus propios errores; no los
-        # silencia.
+        # hash, mueve el archivo final al Escritorio y solo tras confirmar
+        # ese move borra versiones anteriores. Reporta sus propios errores;
+        # no los silencia.
         filename = f"SalvaGodinez_{remote_tag}.exe"
         _download_exe(exe_asset["browser_download_url"], filename, expected_hash)
 

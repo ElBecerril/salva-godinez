@@ -50,7 +50,10 @@ BACKUP_SOURCES = [
 ]
 
 # Liberador de espacio: rutas de archivos temporales
-TEMP_CLEAN_PATHS = [
+# Si falta alguna env var (LOCALAPPDATA/TEMP/SYSTEMROOT), os.path.join con
+# base vacia produce una ruta RELATIVA peligrosa (disk_cleaner borra con
+# estas rutas). Se filtran al final para excluir cualquier ruta no absoluta.
+_TEMP_CLEAN_PATHS_RAW = [
     os.environ.get("TEMP", ""),
     os.path.join(os.environ.get("LOCALAPPDATA", ""), "Temp"),
     os.path.join(os.environ.get("SYSTEMROOT", r"C:\Windows"), "Temp"),
@@ -59,6 +62,7 @@ TEMP_CLEAN_PATHS = [
         "Microsoft", "Windows", "INetCache",
     ),
 ]
+TEMP_CLEAN_PATHS = [p for p in _TEMP_CLEAN_PATHS_RAW if os.path.isabs(p)]
 
 # Cache de Windows Update
 WINDOWS_UPDATE_CACHE = os.path.join(

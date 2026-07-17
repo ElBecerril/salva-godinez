@@ -70,7 +70,14 @@ def offer_restore(results: list[dict]) -> None:
         return
 
     selected = results[idx - 1]
-    source = selected["ruta"]
+    source = selected.get("ruta")
+    nombre = selected.get("nombre")
+
+    if not source or not nombre:
+        console.print(
+            "[red]El resultado seleccionado no tiene ruta o nombre validos.[/red]"
+        )
+        return
 
     if not os.path.isfile(source):
         console.print(
@@ -87,11 +94,11 @@ def offer_restore(results: list[dict]) -> None:
         console.print(f"[red]La carpeta no existe:[/red] {dest_dir}")
         return
 
-    dest_path = os.path.join(dest_dir, selected["nombre"])
+    dest_path = os.path.join(dest_dir, nombre)
 
     # Evitar sobreescribir
     if os.path.exists(dest_path):
-        base, ext = os.path.splitext(selected["nombre"])
+        base, ext = os.path.splitext(nombre)
         counter = 1
         while os.path.exists(dest_path):
             dest_path = os.path.join(dest_dir, f"{base}_recuperado{counter}{ext}")

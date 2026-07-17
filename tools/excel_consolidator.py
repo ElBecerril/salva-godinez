@@ -11,15 +11,29 @@ from utils import get_openpyxl as _get_openpyxl, console
 
 
 
-def _merge_files(paths: list[str], output: str) -> int:
+def _safe_output_path(path: str) -> str:
+    """Evita sobrescribir un archivo existente agregando un sufijo numerico."""
+    if not os.path.exists(path):
+        return path
+
+    base, ext = os.path.splitext(path)
+    counter = 1
+    while True:
+        candidate = f"{base}_{counter}{ext}"
+        if not os.path.exists(candidate):
+            return candidate
+        counter += 1
+
+
+def _merge_files(paths: list[str], output: str) -> tuple[int, str | None]:
     """Modo 1: Unir archivos — cada archivo aporta sus hojas al workbook final.
 
     Returns:
-        Numero total de hojas copiadas.
+        Tupla (numero total de hojas copiadas, ruta final de salida o None si fallo).
     """
     openpyxl = _get_openpyxl()
     if not openpyxl:
-        return 0
+        return 0, None
 
     from copy import copy
 
@@ -66,12 +80,36 @@ def _merge_files(paths: list[str], output: str) -> int:
 
         src_wb.close()
 
-    dest_wb.save(output)
+    # .xlsm de salida sin macros VBA reales queda corrupto: si el usuario
+    # pidio .xlsm pero ninguna hoja de origen trajo VBA, forzamos .xlsx.
+    if output.lower().endswith(".xlsm") and not getattr(dest_wb, "vba_archive", None):
+        console.print(
+            "[yellow]El archivo de salida se genero como .xlsx: ninguno de los archivos "
+            "de origen tenia macros VBA, un .xlsm sin macros queda corrupto.[/yellow]"
+        )
+        output = os.path.splitext(output)[0] + ".xlsx"
+
+    input_abspaths = {os.path.abspath(p) for p in paths}
+    if os.path.abspath(output) in input_abspaths:
+        console.print(
+            "[red]La ruta de salida no puede ser igual a uno de los archivos de entrada "
+            "(se perderia el original). Elige otra ruta.[/red]"
+        )
+        dest_wb.close()
+        return 0, None
+    output = _safe_output_path(output)
+
+    try:
+        dest_wb.save(output)
+    except OSError as e:
+        console.print(f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {e}[/red]")
+        dest_wb.close()
+        return 0, None
     dest_wb.close()
-    return total_sheets
+    return total_sheets, output
 
 
-def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> int:
+def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> tuple[int, str | None]:
     """Modo 2: Unir hojas — stack vertical de hojas en una sola.
 
     Args:
@@ -80,17 +118,26 @@ def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> int:
             conservan todas las filas de todas las hojas.
 
     Returns:
-        Numero total de filas en la hoja final.
+        Tupla (numero total de filas en la hoja final, ruta final de salida o None si fallo).
     """
     openpyxl = _get_openpyxl()
     if not openpyxl:
-        return 0
+        return 0, None
 
     try:
         src_wb = openpyxl.load_workbook(filepath, data_only=True)
     except (OSError, KeyError, zipfile.BadZipFile) as e:
         console.print(f"  [red]No se pudo abrir el archivo: {e}[/red]")
-        return 0
+        return 0, None
+
+    if os.path.abspath(output) == os.path.abspath(filepath):
+        console.print(
+            "[red]La ruta de salida no puede ser igual al archivo de entrada "
+            "(se perderia el original). Elige otra ruta.[/red]"
+        )
+        src_wb.close()
+        return 0, None
+
     dest_wb = openpyxl.Workbook()
     dest_ws = dest_wb.active
     dest_ws.title = "Consolidado"
@@ -107,9 +154,23 @@ def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> int:
             current_row += 1
 
     src_wb.close()
-    dest_wb.save(output)
+
+    if output.lower().endswith(".xlsm") and not getattr(dest_wb, "vba_archive", None):
+        console.print(
+            "[yellow]El archivo de salida se genero como .xlsx: el resultado no tiene "
+            "macros VBA, un .xlsm sin macros queda corrupto.[/yellow]"
+        )
+        output = os.path.splitext(output)[0] + ".xlsx"
+    output = _safe_output_path(output)
+
+    try:
+        dest_wb.save(output)
+    except OSError as e:
+        console.print(f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {e}[/red]")
+        dest_wb.close()
+        return 0, None
     dest_wb.close()
-    return current_row - 1
+    return current_row - 1, output
 
 
 def consolidator_menu() -> None:
@@ -154,11 +215,17 @@ def consolidator_menu() -> None:
             default=os.path.join(os.path.dirname(paths[0]), "consolidado.xlsx"),
         ).strip().strip('"')
 
+        console.print(
+            "[yellow]Aviso:[/yellow] las formulas de los archivos de origen se convierten "
+            "a sus valores actuales. Si algun archivo no fue abierto/recalculado en Excel "
+            "antes de esto, esas celdas pueden llegar vacias."
+        )
+
         with console.status("[bold green]Consolidando archivos..."):
-            sheets = _merge_files(paths, output)
+            sheets, final_output = _merge_files(paths, output)
 
         if sheets:
-            console.print(f"\n[bold green]Consolidado creado: {output} ({sheets} hojas)[/bold green]")
+            console.print(f"\n[bold green]Consolidado creado: {final_output} ({sheets} hojas)[/bold green]")
 
     elif mode == "2":
         console.print("\n[bold cyan]Unir hojas en una sola[/bold cyan]\n")
@@ -180,6 +247,11 @@ def consolidator_menu() -> None:
             "(la de la primera hoja se conserva completa). Si alguna hoja NO trae encabezado, "
             "esa fila de datos se perderia."
         )
+        console.print(
+            "[yellow]Aviso:[/yellow] las formulas se convierten a sus valores actuales. Si el "
+            "archivo no fue abierto/recalculado en Excel antes de esto, esas celdas pueden "
+            "llegar vacias."
+        )
         has_header = Prompt.ask(
             "[bold]Todas las hojas tienen fila de encabezado?[/bold]",
             choices=["s", "n"], default="s",
@@ -195,10 +267,10 @@ def consolidator_menu() -> None:
             return
 
         with console.status("[bold green]Uniendo hojas..."):
-            rows = _merge_sheets(filepath, output, skip_header=(has_header == "s"))
+            rows, final_output = _merge_sheets(filepath, output, skip_header=(has_header == "s"))
 
         if rows:
-            console.print(f"\n[bold green]Archivo creado: {output} ({rows} filas)[/bold green]")
+            console.print(f"\n[bold green]Archivo creado: {final_output} ({rows} filas)[/bold green]")
 
     elif mode == "0":
         return

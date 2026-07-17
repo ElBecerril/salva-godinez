@@ -1,8 +1,10 @@
 """Verificador de USB: diagnostico de estado, velocidad y autenticidad."""
 
+import errno
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import time
@@ -160,8 +162,27 @@ def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
     """
     _FAKE_TEST_CAP = 256 * 1024 * 1024  # limite de prueba: 256 MB
     chunk_size = 256 * 1024  # 256 KB por punto verificado
+    _FREE_SPACE_MARGIN = 8 * 1024 * 1024  # margen de seguridad: 8 MB
 
     test_size = min(reported_size, _FAKE_TEST_CAP) if reported_size else 0
+
+    # Si la USB esta casi llena, escribir test_size bytes puede fallar con
+    # OSError (sin espacio) y antes eso se reportaba como "posible USB
+    # falsa", lo cual es enganoso. Se acota la prueba al espacio libre
+    # real, dejando un margen de seguridad.
+    try:
+        free_space = shutil.disk_usage(drive).free
+    except OSError:
+        free_space = None
+
+    if free_space is not None:
+        usable = max(free_space - _FREE_SPACE_MARGIN, 0)
+        test_size = min(test_size, usable) if test_size else 0
+        if usable < chunk_size:
+            return {
+                "authentic": None,
+                "detail": "No se pudo completar la prueba por falta de espacio libre en la unidad",
+            }
 
     if test_size >= chunk_size * 2:
         offsets_fraction = [0.0, 0.10, 0.50, 0.90]
@@ -215,6 +236,11 @@ def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
                 "detail": "Los datos leidos no coinciden en uno o mas puntos — posible USB falsa",
             }
     except OSError as e:
+        if e.errno == errno.ENOSPC:
+            return {
+                "authentic": None,
+                "detail": "No se pudo completar la prueba por falta de espacio libre en la unidad",
+            }
         return {"authentic": False, "detail": f"Error durante la prueba: {e}"}
     finally:
         try:
@@ -283,7 +309,9 @@ def usb_health_menu() -> None:
     with console.status("[bold green]Verificando integridad de datos..."):
         fake = _detect_fake_usb(drive, reported_size=info["size"])
 
-    if fake["authentic"]:
+    if fake["authentic"] is None:
+        console.print(f"  [bold yellow]Aviso:[/bold yellow] {fake['detail']}")
+    elif fake["authentic"]:
         console.print(f"  [bold green]OK:[/bold green] {fake['detail']}")
     else:
         console.print(f"  [bold red]Advertencia:[/bold red] {fake['detail']}")

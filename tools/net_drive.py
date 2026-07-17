@@ -2,6 +2,7 @@
 
 import subprocess
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 from utils import console
@@ -55,16 +56,15 @@ def _parse_net_use_output() -> list[dict]:
             if len(part) == 2 and part[0].isalpha() and part[1] == ":":
                 drive_letter = part.upper()
                 status = " ".join(parts[:i]) if i > 0 else ""
-                # Buscar la ruta UNC despues de la letra, uniendo partes
-                # hasta el tipo de red ("Microsoft Windows Network", etc.)
+                # Buscar la ruta UNC despues de la letra. No se corta por
+                # palabras clave del tipo de red ("Microsoft Windows
+                # Network", "Red de Microsoft Windows", etc.) porque esas
+                # palabras cambian segun el idioma de Windows. Las rutas
+                # UNC no llevan espacios, asi que el token que empieza con
+                # \\ es la ruta completa, tanto en espanol como en ingles.
                 for j in range(i + 1, len(parts)):
                     if parts[j].startswith("\\\\"):
-                        unc_parts = [parts[j]]
-                        for k in range(j + 1, len(parts)):
-                            if parts[k] in ("Microsoft", "Web", "Client"):
-                                break
-                            unc_parts.append(parts[k])
-                        remote_path = " ".join(unc_parts)
+                        remote_path = parts[j]
                         break
                 break
 
@@ -92,9 +92,12 @@ def _show_mapped_drives() -> None:
     table.add_column("Ruta remota")
     table.add_column("Estado")
 
+    _OK_STATUSES = {"", "OK", "CORRECTO", "CONNECTED", "DISPONIBLE"}
+
     for d in drives:
-        status_style = "green" if d["status"].upper() == "OK" else "yellow"
-        table.add_row(d["letter"], d["remote"], f"[{status_style}]{d['status']}[/{status_style}]")
+        status_style = "green" if d["status"].strip().upper() in _OK_STATUSES else "yellow"
+        status_text = escape(d["status"])
+        table.add_row(d["letter"], escape(d["remote"]), f"[{status_style}]{status_text}[/{status_style}]")
 
     console.print(table)
 

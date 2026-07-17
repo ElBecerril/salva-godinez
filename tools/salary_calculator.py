@@ -100,18 +100,21 @@ def salary_calculator_menu() -> None:
     imss = calculate_imss_deductions(monthly_gross)
     total_imss = sum(imss.values())
 
-    # 2. Base gravable = bruto - IMSS
-    taxable_base = monthly_gross - total_imss
+    # 2. Base gravable = bruto (las cuotas obrero IMSS no son deducibles de
+    # la base del ISR de sueldos, Art. 96 LISR; el IMSS solo se resta al
+    # calcular el neto, ver punto 4)
+    taxable_base = monthly_gross
 
     # 3. Calcular ISR
     isr = calculate_isr(taxable_base)
     isr_total = isr.get("isr_total", 0)
 
     # 3b. Subsidio al empleo (beneficia a sueldos bajos, se resta del ISR a cargo
-    # sin poder hacer el ISR negativo; si el subsidio excede el ISR, la diferencia
-    # se entrega en efectivo al trabajador via nomina)
+    # sin poder hacer el ISR negativo; bajo el esquema 2026 de monto unico, si
+    # el subsidio excede el ISR el excedente NO se entrega en efectivo al
+    # trabajador, simplemente el ISR neto queda en cero)
     subsidio_empleo = calculate_subsidio_empleo(monthly_gross)
-    isr_neto = isr_total - subsidio_empleo
+    isr_neto = max(isr_total - subsidio_empleo, 0)
 
     # 4. Sueldo neto
     net_salary = monthly_gross - total_imss - isr_neto

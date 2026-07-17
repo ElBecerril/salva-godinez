@@ -55,6 +55,7 @@ def calculate_aguinaldo(daily_salary: float, days_worked: int) -> dict:
     Returns:
         dict con bruto, exento (30 UMA), gravado
     """
+    days_worked = min(days_worked, 365)
     proportional = (days_worked / 365) * AGUINALDO_MIN_DAYS * daily_salary
     exempt = UMA_DAILY * 30  # 30 dias de UMA exentos
     taxable = max(0, proportional - exempt)
@@ -83,17 +84,26 @@ def calculate_finiquito(daily_salary: float, years: int, days_worked: int) -> di
     """Calcula finiquito (renuncia voluntaria).
 
     Incluye: aguinaldo proporcional + vacaciones proporcionales + prima vacacional.
+    Si la antiguedad es >= 15 anos, incluye ademas prima de antiguedad
+    (Art. 162-III LFT: la renuncia voluntaria solo genera este derecho a
+    partir de 15 anos de servicio).
     """
     ag = calculate_aguinaldo(daily_salary, days_worked)
     vac = calculate_vacaciones(daily_salary, years, days_worked)
     vac_salary = vac["dias"] * daily_salary
 
-    total = ag["bruto"] + vac_salary + vac["prima_bruta"]
+    # Prima de antiguedad: 12 dias por ano, tope de 2 veces el SALARIO MINIMO
+    # general diario (Art. 162/486 LFT) — NO 2 veces la UMA.
+    seniority_daily = min(daily_salary, SALARIO_MINIMO_DAILY * 2)
+    seniority = seniority_daily * 12 * years if years >= 15 else 0.0
+
+    total = ag["bruto"] + vac_salary + vac["prima_bruta"] + seniority
     return {
         "aguinaldo": ag["bruto"],
         "vacaciones_dias": vac["dias"],
         "vacaciones_pago": vac_salary,
         "prima_vacacional": vac["prima_bruta"],
+        "prima_antiguedad": seniority,
         "total": total,
     }
 
@@ -105,15 +115,28 @@ def calculate_liquidacion(daily_salary: float, years: int, days_worked: int) -> 
     """
     fin = calculate_finiquito(daily_salary, years, days_worked)
 
+    # SDI (Salario Diario Integrado, Art. 89 LFT) con factor de integracion
+    # minimo, usado para la indemnizacion de 20 dias/ano.
+    sdi = daily_salary * (365 + AGUINALDO_MIN_DAYS + _get_vacation_days(years) * 0.25) / 365
+
+    # Los 3 meses constitucionales se dejan con el salario diario simple (no
+    # SDI): es un punto legalmente debatido (algunos criterios de la SCJN
+    # usan SDI para todo, otros solo para el 20 dias/ano); aqui se opta por
+    # el criterio mas conservador para los 3 meses.
     three_months = daily_salary * 90
-    twenty_per_year = daily_salary * 20 * years
+    twenty_per_year = sdi * 20 * years
 
     # Prima de antiguedad: 12 dias por ano, tope de 2 veces el SALARIO MINIMO
-    # general diario (Art. 162/486 LFT) — NO 2 veces la UMA.
+    # general diario (Art. 162/486 LFT) — NO 2 veces la UMA. En despido
+    # (a diferencia de la renuncia) se paga sin importar la antiguedad, por
+    # lo que aqui se recalcula en vez de reusar la de calculate_finiquito
+    # (que solo aplica desde 15 anos) para no perderla ni duplicarla.
     seniority_daily = min(daily_salary, SALARIO_MINIMO_DAILY * 2)
     seniority = seniority_daily * 12 * years
 
-    total = fin["total"] + three_months + twenty_per_year + seniority
+    total = (
+        fin["total"] - fin["prima_antiguedad"] + three_months + twenty_per_year + seniority
+    )
     return {
         **fin,
         "tres_meses": three_months,
@@ -189,6 +212,8 @@ def _option_finiquito() -> None:
     table.add_row("Aguinaldo proporcional", _fmt(result["aguinaldo"]))
     table.add_row(f"Vacaciones ({result['vacaciones_dias']:.1f} dias)", _fmt(result["vacaciones_pago"]))
     table.add_row("Prima vacacional", _fmt(result["prima_vacacional"]))
+    if result["prima_antiguedad"] > 0:
+        table.add_row("Prima de antiguedad (>=15 anos)", _fmt(result["prima_antiguedad"]))
     table.add_row("[bold]Total finiquito[/bold]", f"[bold]{_fmt(result['total'])}[/bold]")
     console.print(table)
     console.print(DISCLAIMER)

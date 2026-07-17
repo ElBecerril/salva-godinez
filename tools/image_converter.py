@@ -78,7 +78,21 @@ def _convert_image(Image, src: str, target_ext: str, output_dir: str) -> str | N
     out_path = _safe_output_path(output_dir, base_name, target_ext)
 
     try:
+        from PIL import ImageOps
+
         img = Image.open(src)
+
+        # Imagenes multipagina/animadas (GIF, TIFF): solo se convierte el
+        # primer frame, avisamos al usuario para que no se sorprenda.
+        if getattr(img, "n_frames", 1) > 1:
+            console.print(
+                f"  [yellow]{os.path.basename(src)} tiene {img.n_frames} frames/paginas; "
+                "solo se convertira el primero.[/yellow]"
+            )
+
+        # Respeta la orientacion EXIF (fotos de celular vienen rotadas por
+        # metadata, no por los pixeles reales).
+        img = ImageOps.exif_transpose(img)
 
         # RGBA → RGB para formatos que no soportan transparencia
         if target_ext in (".jpg", ".bmp") and img.mode in ("RGBA", "P", "LA"):

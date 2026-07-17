@@ -4,7 +4,7 @@ import ctypes
 import os
 import time
 
-from rich.prompt import Prompt
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from tools import format_size, is_admin
@@ -179,11 +179,17 @@ def disk_cleaner_menu() -> None:
 
     console.print(f"\n[bold]Total estimado (sin papelera): {format_size(total)}[/bold]")
 
-    # Preguntar cuales limpiar
+    # Preguntar cuales limpiar. Sin default: un Enter en vacio no selecciona
+    # nada, para evitar que un usuario apurado borre todo por accidente
+    # (incluida la papelera, que es irreversible).
     to_clean = Prompt.ask(
         "[bold]Numeros a limpiar (separados por coma, o 'todos')[/bold]",
-        default="todos",
+        default="",
     ).strip().lower()
+
+    if not to_clean:
+        console.print("[yellow]No se selecciono nada. Cancelado.[/yellow]")
+        return
 
     if to_clean == "todos":
         selected = set(range(len(categories)))
@@ -193,6 +199,36 @@ def disk_cleaner_menu() -> None:
         except ValueError:
             console.print("[red]Entrada invalida.[/red]")
             return
+
+    # Las categorias que borran de forma permanente e irreversible
+    # (papelera de reciclaje y descargas antiguas via os.remove) requieren
+    # una confirmacion explicita adicional, separada de la seleccion de
+    # numeros de arriba. Temporales y cache de Windows Update son
+    # regenerables por Windows, asi que no la necesitan.
+    permanent_names = []
+    for idx in sorted(selected):
+        if idx < 0 or idx >= len(categories):
+            continue
+        name, count, size, cat_type = categories[idx]
+        if cat_type == "recycle":
+            permanent_names.append("Papelera de reciclaje (vaciarla es irreversible)")
+        elif cat_type == "downloads":
+            permanent_names.append(f"{name} ({count} archivo(s), {format_size(size)})")
+
+    if permanent_names:
+        console.print("\n[bold red]Esto borra PERMANENTEMENTE y no se puede deshacer:[/bold red]")
+        for pname in permanent_names:
+            console.print(f"  - {pname}")
+        proceed_permanent = Confirm.ask(
+            "[bold red]Confirmas el borrado permanente de lo anterior?[/bold red]",
+            default=False,
+        )
+        if not proceed_permanent:
+            selected = {
+                idx for idx in selected
+                if 0 <= idx < len(categories) and categories[idx][3] not in ("recycle", "downloads")
+            }
+            console.print("[yellow]Se omitieron las categorias de borrado permanente.[/yellow]")
 
     total_freed = 0
     total_removed = 0

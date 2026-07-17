@@ -12,22 +12,23 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      # Actions pineadas por SHA de commit (no por tag movible) por seguridad
+      # de cadena de suministro. El comentario indica la version legible.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
       - name: Instalar dependencias
         run: |
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller==6.21.0
 
       - name: Compilar SalvaGodinez.exe
         run: pyinstaller SalvaGodinez.spec
 
       - name: Publicar release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: dist/SalvaGodinez.exe
           generate_release_notes: true
