@@ -78,7 +78,7 @@ def check_port(host: str, port: int, timeout: int = 3) -> bool:
 
 def ping_checker_menu() -> None:
     """Menu del verificador de conexion."""
-    console.print("\n[bold cyan]Verificador de Conexion[/bold cyan]\n")
+    console.print("\n[bold cyan]Probar si la Impresora Responde[/bold cyan]\n")
 
     host = Prompt.ask("[bold]IP o nombre del equipo[/bold]").strip()
     if not host:

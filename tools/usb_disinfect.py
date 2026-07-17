@@ -124,7 +124,7 @@ def unhide_folders(drive: str) -> None:
 
 def usb_disinfect_menu() -> None:
     """Interfaz principal del desinfectante de USB."""
-    console.print("\n[bold cyan]Desinfectante de USB[/bold cyan]\n")
+    console.print("\n[bold cyan]Quitar Virus de la USB[/bold cyan]\n")
 
     drives = get_removable_drives()
     if not drives:

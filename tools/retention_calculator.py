@@ -90,7 +90,7 @@ def retention_calculator_menu() -> None:
                 "[bold]1[/bold] - Honorarios (persona fisica)\n"
                 "[bold]2[/bold] - RESICO (personas fisicas)\n"
                 "[bold]0[/bold] - Volver",
-                title="[bold yellow]Calculadora de Retenciones[/bold yellow]",
+                title="[bold yellow]Retenciones de Honorarios[/bold yellow]",
                 box=box.ROUNDED,
             )
         )

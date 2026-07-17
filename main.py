@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.3.2"
+__version__ = "2.3.3"
 
 import sys
 import os
@@ -83,11 +83,11 @@ def show_main_menu() -> str:
     console.print(BANNER.format(version=__version__))
     console.print(
         Panel(
-            "[bold]1[/bold] - Office (El Rescatista)\n"
-            "[bold]2[/bold] - Impresoras (El Doctor)\n"
-            "[bold]3[/bold] - USB y Red (El Escudo)\n"
-            "[bold]4[/bold] - Sistema (El Conserje)\n"
-            "[bold]5[/bold] - Utilidades\n"
+            "[bold]1[/bold] - Recuperar y arreglar archivos (Word/Excel)\n"
+            "[bold]2[/bold] - Arreglar impresoras\n"
+            "[bold]3[/bold] - USB, WiFi y Red\n"
+            "[bold]4[/bold] - Limpieza y mantenimiento\n"
+            "[bold]5[/bold] - Calculadoras y herramientas\n"
             "[bold]0[/bold] - Salir",
             title="[bold yellow]Menu Principal[/bold yellow]",
             box=box.ROUNDED,
@@ -96,18 +96,18 @@ def show_main_menu() -> str:
     return Prompt.ask("\n[bold cyan]Selecciona una opcion[/bold cyan]", default="0")
 
 
-# ─── Sub-menu 1: Office (El Rescatista) ──────────────────────
+# ─── Sub-menu 1: Recuperar y arreglar archivos (Word/Excel) ──────────────────────
 
 def show_office_submenu() -> str:
     console.print(
         Panel(
-            "[bold]1[/bold] - Rescate de Archivos Office\n"
-            "[bold]2[/bold] - Limpiador de Celdas\n"
-            "[bold]3[/bold] - Consolidador de Libros\n"
-            "[bold]4[/bold] - Comparador de Excel\n"
-            "[bold]5[/bold] - Desbloquear Archivo\n"
+            "[bold]1[/bold] - Recuperar archivos perdidos\n"
+            "[bold]2[/bold] - Quitar espacios que rompen formulas\n"
+            "[bold]3[/bold] - Unir varios Excel en uno\n"
+            "[bold]4[/bold] - Comparar dos archivos de Excel\n"
+            "[bold]5[/bold] - Desbloquear archivo en uso\n"
             "[bold]0[/bold] - Volver",
-            title="[bold yellow]Office (El Rescatista)[/bold yellow]",
+            title="[bold yellow]Recuperar y arreglar archivos (Word/Excel)[/bold yellow]",
             box=box.ROUNDED,
         )
     )
@@ -137,17 +137,17 @@ def office_menu() -> None:
             Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
 
 
-# ─── Sub-menu 2: Impresoras (El Doctor) ──────────────────────
+# ─── Sub-menu 2: Arreglar impresoras ──────────────────────
 
 def show_printers_submenu() -> str:
     console.print(
         Panel(
-            "[bold]1[/bold] - Reset de Spooler\n"
-            "[bold]2[/bold] - Limpiador de Fantasmas\n"
-            "[bold]3[/bold] - Verificador de Conexion\n"
-            "[bold]4[/bold] - Compartir en Red\n"
+            "[bold]1[/bold] - Destrabar impresora atascada\n"
+            "[bold]2[/bold] - Quitar impresoras duplicadas\n"
+            "[bold]3[/bold] - Probar si la impresora responde\n"
+            "[bold]4[/bold] - Compartir impresora en red\n"
             "[bold]0[/bold] - Volver",
-            title="[bold yellow]Impresoras (El Doctor)[/bold yellow]",
+            title="[bold yellow]Arreglar impresoras[/bold yellow]",
             box=box.ROUNDED,
         )
     )
@@ -175,19 +175,19 @@ def printers_menu() -> None:
             Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
 
 
-# ─── Sub-menu 3: USB y Red (El Escudo) ───────────────────────
+# ─── Sub-menu 3: USB, WiFi y Red ───────────────────────
 
 def show_usb_net_submenu() -> str:
     console.print(
         Panel(
-            "[bold]1[/bold] - Desinfectante de USB\n"
-            "[bold]2[/bold] - Verificador de USB\n"
-            "[bold]3[/bold] - Respaldo Rapido a USB\n"
-            "[bold]4[/bold] - Recuperador de WiFi\n"
-            "[bold]5[/bold] - Expulsion Segura USB\n"
-            "[bold]6[/bold] - Mapeo de Unidades de Red\n"
+            "[bold]1[/bold] - Quitar virus de la USB\n"
+            "[bold]2[/bold] - Revisar estado de la USB\n"
+            "[bold]3[/bold] - Respaldar archivos a USB\n"
+            "[bold]4[/bold] - Ver contrasenas WiFi guardadas\n"
+            "[bold]5[/bold] - Expulsar USB con seguridad\n"
+            "[bold]6[/bold] - Conectar carpetas de red\n"
             "[bold]0[/bold] - Volver",
-            title="[bold yellow]USB y Red (El Escudo)[/bold yellow]",
+            title="[bold yellow]USB, WiFi y Red[/bold yellow]",
             box=box.ROUNDED,
         )
     )
@@ -219,15 +219,15 @@ def usb_net_menu() -> None:
             Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
 
 
-# ─── Sub-menu 4: Sistema (El Conserje) ───────────────────────
+# ─── Sub-menu 4: Limpieza y mantenimiento ───────────────────────
 
 def show_system_submenu() -> str:
     console.print(
         Panel(
-            "[bold]1[/bold] - Info del Sistema\n"
-            "[bold]2[/bold] - Liberador de Espacio\n"
+            "[bold]1[/bold] - Ver datos del equipo (nombre e IP)\n"
+            "[bold]2[/bold] - Liberar espacio en disco\n"
             "[bold]0[/bold] - Volver",
-            title="[bold yellow]Sistema (El Conserje)[/bold yellow]",
+            title="[bold yellow]Limpieza y mantenimiento[/bold yellow]",
             box=box.ROUNDED,
         )
     )
@@ -256,14 +256,14 @@ def system_menu() -> None:
 def show_utilities_submenu() -> str:
     console.print(
         Panel(
-            "[bold]1[/bold] - Editor de PDF\n"
-            "[bold]2[/bold] - Generador de Contrasenas\n"
-            "[bold]3[/bold] - Simulador de Prestaciones\n"
-            "[bold]4[/bold] - Conversor de Imagenes\n"
-            "[bold]5[/bold] - Calculadora de Sueldo Neto\n"
-            "[bold]6[/bold] - Calculadora de Retenciones\n"
+            "[bold]1[/bold] - Editar PDF (unir, dividir, proteger)\n"
+            "[bold]2[/bold] - Generar contrasenas seguras\n"
+            "[bold]3[/bold] - Calcular finiquito y prestaciones\n"
+            "[bold]4[/bold] - Convertir imagenes (JPG, PNG, etc.)\n"
+            "[bold]5[/bold] - Calcular sueldo neto\n"
+            "[bold]6[/bold] - Retenciones de honorarios\n"
             "[bold]0[/bold] - Volver",
-            title="[bold yellow]Utilidades[/bold yellow]",
+            title="[bold yellow]Calculadoras y herramientas[/bold yellow]",
             box=box.ROUNDED,
         )
     )
@@ -295,7 +295,7 @@ def utilities_menu() -> None:
             Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
 
 
-# ─── Sub-menu: Rescatista de Archivos Office ──────────────────
+# ─── Sub-menu: Buscar archivos de Office perdidos ──────────────────
 
 def show_office_rescue_menu() -> str:
     console.print(
@@ -307,7 +307,7 @@ def show_office_rescue_menu() -> str:
             "[bold]5[/bold] - Revisar archivos recientes de Windows\n"
             "[bold]6[/bold] - Busqueda completa (todas las opciones)\n"
             "[bold]0[/bold] - Volver",
-            title="[bold yellow]Rescatista de Archivos Office[/bold yellow]",
+            title="[bold yellow]Buscar archivos de Office perdidos[/bold yellow]",
             box=box.ROUNDED,
         )
     )

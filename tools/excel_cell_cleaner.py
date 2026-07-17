@@ -95,7 +95,7 @@ def clean_file(filepath: str) -> dict:
 
 def cell_cleaner_menu() -> None:
     """Menu del limpiador de celdas."""
-    console.print("\n[bold cyan]Limpiador de Celdas Excel[/bold cyan]\n")
+    console.print("\n[bold cyan]Quitar Espacios que Rompen Formulas[/bold cyan]\n")
 
     filepath = Prompt.ask("[bold]Ruta del archivo Excel[/bold]").strip().strip('"')
     if not filepath or not os.path.isfile(filepath):

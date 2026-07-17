@@ -80,7 +80,7 @@ def _parse_net_use_output() -> list[dict]:
 
 def _show_mapped_drives() -> None:
     """Muestra las unidades de red mapeadas en una tabla."""
-    console.print("\n[bold cyan]Unidades de Red Mapeadas[/bold cyan]\n")
+    console.print("\n[bold cyan]Carpetas de Red Conectadas[/bold cyan]\n")
 
     drives = _parse_net_use_output()
     if not drives:
@@ -104,7 +104,7 @@ def _show_mapped_drives() -> None:
 
 def _map_new_drive() -> None:
     """Mapea una nueva unidad de red."""
-    console.print("\n[bold cyan]Mapear Nueva Unidad de Red[/bold cyan]\n")
+    console.print("\n[bold cyan]Conectar una Carpeta de Red[/bold cyan]\n")
 
     letter = Prompt.ask("[bold]Letra de unidad[/bold] (ej: Z)").strip().upper()
     if not letter or not letter[0].isalpha():
@@ -160,7 +160,7 @@ def _map_new_drive() -> None:
 
 def _disconnect_drive() -> None:
     """Desconecta una unidad de red mapeada."""
-    console.print("\n[bold cyan]Desconectar Unidad de Red[/bold cyan]\n")
+    console.print("\n[bold cyan]Desconectar una Carpeta de Red[/bold cyan]\n")
 
     drives = _parse_net_use_output()
     if not drives:
@@ -204,10 +204,10 @@ def net_drive_menu() -> None:
     """Sub-menu de mapeo de unidades de red."""
     while True:
         console.print(
-            "\n[bold cyan]Unidades de Red[/bold cyan]\n"
-            "  [bold]1[/bold] - Ver unidades mapeadas\n"
-            "  [bold]2[/bold] - Mapear nueva unidad\n"
-            "  [bold]3[/bold] - Desconectar unidad\n"
+            "\n[bold cyan]Carpetas de Red[/bold cyan]\n"
+            "  [bold]1[/bold] - Ver carpetas conectadas\n"
+            "  [bold]2[/bold] - Conectar una carpeta de red\n"
+            "  [bold]3[/bold] - Desconectar una carpeta\n"
             "  [bold]0[/bold] - Volver"
         )
         choice = Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")

@@ -180,7 +180,7 @@ def consolidator_menu() -> None:
             "[bold]1[/bold] - Unir archivos (varios .xlsx → un workbook)\n"
             "[bold]2[/bold] - Unir hojas (hojas de un archivo → una sola hoja)\n"
             "[bold]0[/bold] - Volver",
-            title="[bold yellow]Consolidador de Libros Excel[/bold yellow]",
+            title="[bold yellow]Unir Varios Excel en Uno[/bold yellow]",
             box=box.ROUNDED,
         )
     )

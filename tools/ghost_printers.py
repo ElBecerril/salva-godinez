@@ -124,7 +124,7 @@ def _remove_printer(name: str) -> bool:
 
 def ghost_printers_menu() -> None:
     """Menu del limpiador de impresoras fantasma."""
-    console.print("\n[bold cyan]Limpiador de Impresoras Fantasma[/bold cyan]\n")
+    console.print("\n[bold cyan]Quitar Impresoras Duplicadas[/bold cyan]\n")
 
     try:
         with console.status("[bold green]Obteniendo lista de impresoras..."):

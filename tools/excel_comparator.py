@@ -123,7 +123,7 @@ def _generate_diff_report(path1: str, path2: str, comparison: dict, output: str)
 
 def comparator_menu() -> None:
     """Menu del comparador de Excel."""
-    console.print("\n[bold cyan]Comparador de Excel[/bold cyan]\n")
+    console.print("\n[bold cyan]Comparar dos Archivos de Excel[/bold cyan]\n")
 
     path1 = Prompt.ask("[bold]Ruta del primer archivo[/bold]").strip().strip('"')
     if not os.path.isfile(path1):

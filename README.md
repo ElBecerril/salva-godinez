@@ -17,49 +17,49 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.3.2
+**by El_Becerril** | v2.3.3
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
 ## Modulos
 
-### Office (El Rescatista)
+### Recuperar y arreglar archivos (Word/Excel)
 
-- **Recuperacion de Archivos** - Busqueda automatica de archivos temporales (.asd, .tmp, .xlb) de Word, Excel y PowerPoint tras cierres inesperados
-- **Limpiador de Celdas** - Eliminacion de espacios dobles o invisibles que rompen las formulas de Excel
-- **Consolidador de Libros** - Unir varias hojas o archivos de Excel en uno solo de forma automatica
-- **Comparador de Excel** - Comparar dos versiones de un archivo y marcar las diferencias celda por celda
-- **Desbloquear Archivos en Uso** - Detectar que proceso tiene abierto un archivo y ofrecer cerrarlo
+- **Recuperar archivos perdidos** - Busqueda automatica de archivos temporales (.asd, .tmp, .xlb) de Word, Excel y PowerPoint tras cierres inesperados
+- **Quitar espacios que rompen formulas** - Eliminacion de espacios dobles o invisibles que rompen las formulas de Excel
+- **Unir varios Excel en uno** - Unir varias hojas o archivos de Excel en uno solo de forma automatica
+- **Comparar dos archivos de Excel** - Comparar dos versiones de un archivo y marcar las diferencias celda por celda
+- **Desbloquear archivo en uso** - Detectar que proceso tiene abierto un archivo y ofrecer cerrarlo
 
-### Impresoras (El Doctor)
+### Arreglar impresoras
 
-- **Reset de Cola (Spooler)** `admin` - Boton de panico para limpiar documentos trabados y reiniciar el servicio de impresion
-- **Limpiador de Fantasmas** `admin` - Identificacion y eliminacion de impresoras duplicadas o inactivas (Copia 1, Copia 2, etc.)
-- **Verificador de Conexion** - Prueba de comunicacion (Ping) para saber si la impresora de red responde
-- **Compartir en Red** `admin` - Compartir o dejar de compartir impresoras en la red local
+- **Destrabar impresora atascada** `admin` - Boton de panico para limpiar documentos trabados y reiniciar el servicio de impresion
+- **Quitar impresoras duplicadas** `admin` - Identificacion y eliminacion de impresoras duplicadas o inactivas (Copia 1, Copia 2, etc.)
+- **Probar si la impresora responde** - Prueba de comunicacion (Ping) para saber si la impresora de red responde
+- **Compartir impresora en red** `admin` - Compartir o dejar de compartir impresoras en la red local
 
-### USB y Red (El Escudo)
+### USB, WiFi y Red
 
-- **Desinfectante de USB** - Eliminacion de virus de "acceso directo" y recuperacion de carpetas ocultas por malware
-- **Verificador de USB** - Diagnostico de estado: filesystem corrupto, deteccion de USBs falsas, errores de lectura/escritura
-- **Respaldo Rapido a USB** - Copiar carpetas importantes (Escritorio, Documentos) a USB con barra de progreso
-- **Recuperador de Contrasena WiFi** `admin` - Mostrar las claves WiFi guardadas en el equipo
-- **Expulsion Segura USB** - Expulsar unidades USB de forma segura (mismo mecanismo que el Explorador de Windows)
-- **Mapeo de Unidades de Red** - Ver, conectar y desconectar unidades de red mapeadas
+- **Quitar virus de la USB** - Eliminacion de virus de "acceso directo" y recuperacion de carpetas ocultas por malware
+- **Revisar estado de la USB** - Diagnostico de estado: filesystem corrupto, deteccion de USBs falsas, errores de lectura/escritura
+- **Respaldar archivos a USB** - Copiar carpetas importantes (Escritorio, Documentos) a USB con barra de progreso
+- **Ver contrasenas WiFi guardadas** `admin` - Mostrar las claves WiFi guardadas en el equipo
+- **Expulsar USB con seguridad** - Expulsar unidades USB de forma segura (mismo mecanismo que el Explorador de Windows)
+- **Conectar carpetas de red** - Ver, conectar y desconectar carpetas de red compartidas
 
-### Sistema (El Conserje)
+### Limpieza y mantenimiento
 
-- **Info del Sistema** - Muestra rapida del nombre del equipo y la direccion IP (datos que siempre pide el area de Sistemas)
-- **Liberador de Espacio** `admin` - Limpiar temporales, cache de Windows Update y descargas viejas para liberar disco
+- **Ver datos del equipo (nombre e IP)** - Muestra rapida del nombre del equipo y la direccion IP (datos que siempre pide el area de Sistemas)
+- **Liberar espacio en disco** `admin` - Limpiar temporales, cache de Windows Update y descargas viejas para liberar disco
 
-### Utilidades
+### Calculadoras y herramientas
 
-- **Editor de PDF** - Unir, dividir, rotar, eliminar, reordenar paginas, extraer texto, convertir imagenes, proteger/desproteger y limpiar metadatos
-- **Generador de Contrasenas** - Crear contrasenas seguras y copiarlas al portapapeles
-- **Simulador de Prestaciones** - Estimacion de aguinaldo, vacaciones, finiquito y liquidacion segun la LFT
-- **Conversor de Imagenes** - Convertir imagenes entre PNG, JPG, BMP, WEBP e ICO con barra de progreso
-- **Calculadora de Sueldo Neto** - Desglose de deducciones IMSS e ISR para calcular el sueldo neto mensual
-- **Calculadora de Retenciones** - Calculo de retenciones para Honorarios y regimen RESICO
+- **Editar PDF (unir, dividir, proteger)** - Unir, dividir, rotar, eliminar, reordenar paginas, extraer texto, convertir imagenes, proteger/desproteger y limpiar metadatos
+- **Generar contrasenas seguras** - Crear contrasenas seguras y copiarlas al portapapeles
+- **Calcular finiquito y prestaciones** - Estimacion de aguinaldo, vacaciones, finiquito y liquidacion segun la LFT
+- **Convertir imagenes (JPG, PNG, etc.)** - Convertir imagenes entre PNG, JPG, BMP, WEBP e ICO con barra de progreso
+- **Calcular sueldo neto** - Desglose de deducciones IMSS e ISR para calcular el sueldo neto mensual
+- **Retenciones de honorarios** - Calculo de retenciones para Honorarios y regimen RESICO
 
 > `admin` = Requiere ejecutar como administrador. Sin permisos de admin la herramienta lo indica y funciona de forma limitada o se omite.
 
@@ -82,13 +82,13 @@ python main.py
 
 | # | Categoria | Herramientas |
 |---|-----------|--------------|
-| 1 | Office (El Rescatista) | Rescate de Archivos, Limpiador de Celdas, Consolidador, Comparador, Desbloquear |
-| 2 | Impresoras (El Doctor) | Reset de Spooler `admin`, Limpiador de Fantasmas `admin`, Verificador de Conexion, Compartir en Red `admin` |
-| 3 | USB y Red (El Escudo) | Desinfectante USB, Verificador USB, Respaldo Rapido, Recuperador WiFi `admin`, Expulsion Segura, Mapeo de Red |
-| 4 | Sistema (El Conserje) | Info del Sistema, Liberador de Espacio `admin` |
-| 5 | Utilidades | Editor de PDF, Generador de Contrasenas, Simulador de Prestaciones, Conversor de Imagenes, Calculadora de Sueldo Neto, Calculadora de Retenciones |
+| 1 | Recuperar y arreglar archivos (Word/Excel) | Recuperar archivos perdidos, Quitar espacios en celdas, Unir Excel, Comparar Excel, Desbloquear archivo |
+| 2 | Arreglar impresoras | Destrabar impresora `admin`, Quitar duplicadas `admin`, Probar conexion, Compartir en red `admin` |
+| 3 | USB, WiFi y Red | Quitar virus USB, Revisar USB, Respaldar a USB, Ver claves WiFi `admin`, Expulsar USB, Conectar carpetas de red |
+| 4 | Limpieza y mantenimiento | Ver datos del equipo, Liberar espacio `admin` |
+| 5 | Calculadoras y herramientas | Editar PDF, Generar contrasenas, Finiquito y prestaciones, Convertir imagenes, Sueldo neto, Retenciones |
 
-### Rescatista de Archivos - Estrategias de busqueda
+### Buscar archivos de Office perdidos - Estrategias de busqueda
 
 | # | Estrategia | Que busca |
 |---|-----------|-----------|

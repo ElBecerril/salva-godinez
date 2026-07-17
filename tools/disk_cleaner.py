@@ -132,7 +132,7 @@ def _empty_recycle_bin() -> bool:
 
 def disk_cleaner_menu() -> None:
     """Menu del liberador de espacio."""
-    console.print("\n[bold cyan]Liberador de Espacio[/bold cyan]\n")
+    console.print("\n[bold cyan]Liberar Espacio en Disco[/bold cyan]\n")
 
     # Escanear categorias
     with console.status("[bold green]Escaneando archivos temporales..."):

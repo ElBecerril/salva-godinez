@@ -2,6 +2,32 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.3.3] - 2026-07-17
+
+Version de usabilidad: nombres de menu mas claros para gente sin
+conocimientos tecnicos, e icono propio en el ejecutable.
+
+### Cambiado
+- **Nombres de menu orientados al problema**, sin jerga tecnica. Las
+  categorias pasan de apodos ("El Rescatista", "El Doctor", "El Escudo",
+  "El Conserje") a nombres descriptivos: "Recuperar y arreglar archivos
+  (Word/Excel)", "Arreglar impresoras", "USB, WiFi y Red", "Limpieza y
+  mantenimiento", "Calculadoras y herramientas"
+- Sub-items renombrados a lo que el usuario quiere lograr, no al mecanismo
+  tecnico: "Reset de Spooler" -> "Destrabar impresora atascada"; "Limpiador
+  de Fantasmas" -> "Quitar impresoras duplicadas"; "Consolidador de Libros"
+  -> "Unir varios Excel en uno"; "Mapeo de Unidades de Red" -> "Conectar
+  carpetas de red"; "Verificador de Conexion" -> "Probar si la impresora
+  responde"; "Limpiador de Celdas" -> "Quitar espacios que rompen formulas";
+  "Recuperador de WiFi" -> "Ver contrasenas WiFi guardadas"; y mas
+- Los encabezados internos de cada herramienta y el README se sincronizaron
+  con los nombres nuevos
+
+### Agregado
+- **Icono propio** del ejecutable (taza de cafe, acorde al banner), en
+  resoluciones 16/32/48/64/128/256 para verse nitido en barra de tareas y
+  escritorio (antes usaba el icono generico de Python)
+
 ## [2.3.2] - 2026-07-17
 
 Segunda auditoria completa (ver `AUDITORIA_2026-07-17.md`): 5 agentes en

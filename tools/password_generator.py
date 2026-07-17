@@ -47,7 +47,7 @@ def copy_to_clipboard(text: str) -> bool:
 
 def password_generator_menu() -> None:
     """Interfaz interactiva para generar contrasenas."""
-    console.print("\n[bold cyan]Generador de Contrasenas Seguras[/bold cyan]\n")
+    console.print("\n[bold cyan]Generar Contrasenas Seguras[/bold cyan]\n")
 
     length_str = Prompt.ask(
         "[bold]Longitud de la contrasena[/bold]", default="16"

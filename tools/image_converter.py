@@ -131,7 +131,7 @@ def image_converter_menu() -> None:
     if not Image:
         return
 
-    console.print("\n[bold cyan]Conversor de Imagenes[/bold cyan]\n")
+    console.print("\n[bold cyan]Convertir Imagenes[/bold cyan]\n")
     console.print("[dim]Formatos soportados: PNG, JPG, BMP, WEBP, ICO[/dim]\n")
 
     path = Prompt.ask("[bold]Ruta del archivo o carpeta[/bold]").strip().strip('"')

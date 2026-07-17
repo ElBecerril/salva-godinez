@@ -251,7 +251,7 @@ def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
 
 def usb_health_menu() -> None:
     """Menu del verificador de USB."""
-    console.print("\n[bold cyan]Verificador de USB[/bold cyan]\n")
+    console.print("\n[bold cyan]Revisar Estado de la USB[/bold cyan]\n")
 
     drives = get_removable_drives()
     if not drives:

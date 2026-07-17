@@ -99,7 +99,7 @@ def _eject_drive(drive_letter: str) -> None:
 
 def usb_eject_menu() -> None:
     """Menu de expulsion segura de USB."""
-    console.print("\n[bold cyan]Expulsion Segura de USB[/bold cyan]\n")
+    console.print("\n[bold cyan]Expulsar USB con Seguridad[/bold cyan]\n")
 
     drives = get_removable_drives()
     if not drives:
