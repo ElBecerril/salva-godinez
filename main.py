@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.3.3"
+__version__ = "2.3.4"
 
 import sys
 import os
@@ -300,60 +300,35 @@ def utilities_menu() -> None:
 def show_office_rescue_menu() -> str:
     console.print(
         Panel(
-            "[bold]1[/bold] - Buscar por nombre de archivo\n"
-            "[bold]2[/bold] - Buscar todos los Office recientes (ultimos 30 dias)\n"
-            "[bold]3[/bold] - Revisar papelera de reciclaje\n"
-            "[bold]4[/bold] - Revisar archivos temporales / autorecuperacion\n"
-            "[bold]5[/bold] - Revisar archivos recientes de Windows\n"
-            "[bold]6[/bold] - Busqueda completa (todas las opciones)\n"
+            "[bold]1[/bold] - Buscar mi archivo por nombre  [green](recomendado)[/green]\n"
+            "[bold]2[/bold] - Ver todos los Office recientes (ultimos 30 dias)\n"
+            "\n"
+            "[dim]Busqueda avanzada (revisar un solo lugar):[/dim]\n"
+            "[bold]3[/bold] - Solo en la Papelera de reciclaje\n"
+            "[bold]4[/bold] - Solo en temporales / autorecuperacion\n"
+            "[bold]5[/bold] - Solo en archivos recientes de Windows\n"
             "[bold]0[/bold] - Volver",
             title="[bold yellow]Buscar archivos de Office perdidos[/bold yellow]",
             box=box.ROUNDED,
         )
     )
-    return Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
+    return Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="1")
 
 
 def ask_name() -> str:
-    return Prompt.ask(
-        "[bold]Nombre (o parte del nombre) del archivo[/bold]"
-    ).strip()
-
-
-def option_search_by_name() -> None:
-    name = ask_name()
-    if not name:
-        console.print("[red]Debes ingresar un nombre.[/red]")
-        return
-
-    all_results = []
-
-    with console.status("[bold green]Buscando en papelera de reciclaje..."):
-        all_results.extend(search_recycle_bin(name))
-
-    with console.status("[bold green]Buscando en archivos temporales / autorecuperacion..."):
-        all_results.extend(search_temp_files(name))
-
-    with console.status("[bold green]Revisando archivos recientes de Windows..."):
-        all_results.extend(search_recent_files(name))
-
-    console.print("[bold yellow]Buscando en todos los discos (esto puede tardar)...[/bold yellow]")
-    with console.status("[bold green]Escaneando discos...") as status:
-        def progress(path):
-            display = path if len(path) < 60 else "..." + path[-57:]
-            status.update(f"[bold green]Escaneando:[/bold green] {display}")
-        all_results.extend(search_by_name(name, progress_callback=progress))
-
-    console.print(
-        "[bold yellow]Buscando en shadow copies (VSS), esto puede tardar "
-        "varios minutos en discos con muchos archivos...[/bold yellow]"
-    )
-    with console.status("[bold green]Revisando shadow copies (VSS), por favor espera..."):
-        all_results.extend(search_shadow_copies(name))
-
-    all_results = _deduplicate(all_results)
-    show_results(all_results, title=f"Resultados para '{name}'")
-    offer_restore(all_results)
+    """Pide el nombre a buscar. Reintenta si esta vacio; '0' cancela."""
+    while True:
+        name = Prompt.ask(
+            "[bold]Nombre (o parte del nombre) del archivo[/bold] "
+            "[dim](o 0 para volver)[/dim]"
+        ).strip()
+        if name == "0":
+            return ""
+        if name:
+            return name
+        console.print(
+            "[yellow]Escribe al menos una parte del nombre, o 0 para volver.[/yellow]"
+        )
 
 
 def option_recent_office() -> None:
@@ -401,7 +376,6 @@ def option_recent_windows() -> None:
 def option_full_search() -> None:
     name = ask_name()
     if not name:
-        console.print("[red]Debes ingresar un nombre.[/red]")
         return
 
     all_results = []
@@ -432,15 +406,15 @@ def option_full_search() -> None:
             console.print(f"  [green]+{len(results)}[/green] encontrado(s) en discos")
 
     console.print(
-        "[bold yellow]Buscando en shadow copies (VSS), esto puede tardar "
-        "varios minutos en discos con muchos archivos...[/bold yellow]"
+        "[bold yellow]Buscando en las copias de seguridad automaticas de Windows, "
+        "esto puede tardar varios minutos...[/bold yellow]"
     )
-    with console.status("[bold green]Revisando shadow copies (VSS), por favor espera..."):
+    with console.status("[bold green]Revisando copias de seguridad de Windows, por favor espera..."):
         results = search_shadow_copies(name)
         all_results.extend(results)
         if results:
             console.print(
-                f"  [green]+{len(results)}[/green] encontrado(s) en Shadow Copies"
+                f"  [green]+{len(results)}[/green] encontrado(s) en copias de seguridad"
             )
 
     all_results = _deduplicate(all_results)
@@ -455,7 +429,7 @@ def office_rescue_menu() -> None:
         choice = show_office_rescue_menu()
 
         if choice == "1":
-            option_search_by_name()
+            option_full_search()
         elif choice == "2":
             option_recent_office()
         elif choice == "3":
@@ -464,8 +438,6 @@ def office_rescue_menu() -> None:
             option_temp_files()
         elif choice == "5":
             option_recent_windows()
-        elif choice == "6":
-            option_full_search()
         elif choice == "0":
             break
         else:

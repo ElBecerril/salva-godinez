@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.3.3
+**by El_Becerril** | v2.3.4
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -67,9 +67,28 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 
 Baja el `.exe` de la [ultima release](https://github.com/ElBecerril/salva-godinez/releases/latest) y ejecutalo directamente, no requiere instalacion. Al abrir, SalvaGodinez verifica automaticamente si hay una version nueva disponible.
 
+### "Windows protegio tu PC" — como abrirlo la primera vez
+
+La primera vez que lo abras, Windows te puede mostrar una pantalla azul que dice
+**"Windows protegio tu PC"** y parece que bloqueo el programa. **Es normal y no
+significa que tenga virus.** Sale porque SalvaGodinez es una app nueva y todavia
+no tiene "firma" digital pagada — a Windows le pasa lo mismo con casi cualquier
+programa gratuito recien salido. Para abrirlo:
+
+1. En esa ventana azul, haz clic en **"Mas informacion"** (el texto chico, abajo
+   del mensaje).
+2. Aparece un boton nuevo: **"Ejecutar de todas formas"**. Haz clic ahi.
+3. Listo, el programa abre. Windows ya no te lo vuelve a preguntar.
+
+> Si en vez de eso tu antivirus te dice que "elimino" o "puso en cuarentena" el
+> archivo, es un **falso positivo** (le pasa a muchos programas empaquetados en un
+> solo `.exe`). Puedes restaurarlo desde el propio antivirus y agregarlo a la lista
+> de permitidos. Si quieres estar 100% seguro de que el archivo es el original,
+> compara su codigo **SHA-256** con el que aparece en las notas de cada release.
+
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.3.2: segunda auditoria completa de seguridad y correctitud (borrado seguro, PDFs cifrados, calculos fiscales, locale espanol), ver [CHANGELOG](CHANGELOG.md).
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.3.4: menos jerga tecnica en pantalla, busqueda de archivos perdidos mas directa e instrucciones para el aviso de SmartScreen al abrir el .exe, ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 

@@ -97,7 +97,7 @@ def search_shadow_copies(name_filter: str, original_path: str = "") -> list[dict
                         "ruta": shadow_file,
                         "tamano": _format_size(stat.st_size),
                         "fecha": shadow_date,
-                        "origen": "Shadow Copy (VSS)",
+                        "origen": "Copia de seguridad de Windows",
                     })
                 except OSError:
                     pass
@@ -132,7 +132,7 @@ def search_shadow_copies(name_filter: str, original_path: str = "") -> list[dict
                                     "ruta": filepath,
                                     "tamano": _format_size(stat.st_size),
                                     "fecha": shadow_date,
-                                    "origen": "Shadow Copy (VSS)",
+                                    "origen": "Copia de seguridad de Windows",
                                 })
                             except OSError:
                                 continue

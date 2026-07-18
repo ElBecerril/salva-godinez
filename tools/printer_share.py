@@ -72,7 +72,7 @@ def _show_shared_printers() -> None:
     table = Table()
     table.add_column("#", style="bold cyan", width=4, justify="right")
     table.add_column("Nombre", style="white")
-    table.add_column("Driver", style="dim")
+    table.add_column("Controlador", style="dim")
     table.add_column("Compartida", justify="center")
     table.add_column("Nombre en Red", style="cyan")
 

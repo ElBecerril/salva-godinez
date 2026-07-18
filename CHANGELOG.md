@@ -2,6 +2,30 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.3.4] - 2026-07-18
+
+Version de usabilidad: menos jerga tecnica visible, busqueda de archivos
+perdidos mas directa, e instrucciones para abrir el .exe cuando Windows lo
+marca como desconocido.
+
+### Cambiado
+- **Menos jerga tecnica en pantalla**: "shadow copies (VSS)" ahora se llama
+  "copias de seguridad automaticas de Windows" (en los mensajes de busqueda y
+  en la columna de origen de cada resultado); la columna "Driver" de las
+  tablas de impresoras pasa a "Controlador"
+- **Buscar archivos perdidos mas directo**: la opcion 1 es ahora "Buscar mi
+  archivo por nombre (recomendado)", que revisa todos los lugares de una vez;
+  las busquedas de un solo lugar (papelera, temporales, recientes) quedan
+  agrupadas bajo "Busqueda avanzada". Se elimino una opcion que duplicaba a
+  la busqueda completa
+- Al pedir el nombre del archivo, si se deja vacio ahora se vuelve a preguntar
+  y se ofrece "0 para volver", en vez de sacar al usuario del flujo
+
+### Agregado
+- Instrucciones en el README para abrir el .exe cuando aparece "Windows
+  protegio tu PC" (SmartScreen), y que hacer si el antivirus lo marca como
+  falso positivo
+
 ## [2.3.3] - 2026-07-17
 
 Version de usabilidad: nombres de menu mas claros para gente sin
@@ -30,7 +54,7 @@ conocimientos tecnicos, e icono propio en el ejecutable.
 
 ## [2.3.2] - 2026-07-17
 
-Segunda auditoria completa (ver `AUDITORIA_2026-07-17.md`): 5 agentes en
+Segunda auditoria completa (interna): 5 agentes en
 paralelo por area + verificacion manual y funcional de los fixes. Sin
 vectores de inyeccion (cero shell=True/eval); todos los fixes de la auditoria
 previa siguen en pie.
@@ -95,8 +119,7 @@ previa siguen en pie.
 
 Auditoria completa del proyecto (bugs reales, riesgo de perdida de datos y
 formulas fiscales/laborales incorrectas), con verificacion adversarial y
-correccion de todos los hallazgos criticos, altos y medios. Ver
-`AUDITORIA_2026-07-15.md` para el detalle completo.
+correccion de todos los hallazgos criticos, altos y medios.
 
 ### Seguridad
 - USB Desinfectante: el prompt de "eliminar amenazas" ya no borra por

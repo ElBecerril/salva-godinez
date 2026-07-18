@@ -141,7 +141,7 @@ def ghost_printers_menu() -> None:
     table = Table(title="Impresoras instaladas")
     table.add_column("#", style="bold cyan", width=4, justify="right")
     table.add_column("Nombre", style="white")
-    table.add_column("Driver", style="dim")
+    table.add_column("Controlador", style="dim")
     table.add_column("Puerto", style="dim")
     table.add_column("Estado", style="yellow")
 
