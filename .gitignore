@@ -8,4 +8,5 @@ dist/
 *.exe
 .claude/
 CLAUDE.md
+AUDITORIA_*.md
 nul
