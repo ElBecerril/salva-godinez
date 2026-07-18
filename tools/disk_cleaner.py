@@ -130,6 +130,31 @@ def _empty_recycle_bin() -> bool:
         return False
 
 
+class _SHQUERYRBINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", ctypes.c_uint32),
+        ("i64Size", ctypes.c_int64),
+        ("i64NumItems", ctypes.c_int64),
+    ]
+
+
+def _query_recycle_bin() -> tuple[int, int]:
+    """Consulta (bytes, num_archivos) de la papelera SIN vaciarla.
+
+    Usa SHQueryRecycleBinW con pszRootPath=None (consulta todas las unidades).
+    Retorna (0, 0) si esta vacia o si la consulta falla.
+    """
+    try:
+        info = _SHQUERYRBINFO()
+        info.cbSize = ctypes.sizeof(info)
+        result = ctypes.windll.shell32.SHQueryRecycleBinW(None, ctypes.byref(info))
+        if result == 0:  # S_OK
+            return int(info.i64Size), int(info.i64NumItems)
+    except (AttributeError, OSError):
+        pass
+    return 0, 0
+
+
 def disk_cleaner_menu() -> None:
     """Menu del liberador de espacio."""
     console.print("\n[bold cyan]Liberar Espacio en Disco[/bold cyan]\n")
@@ -143,6 +168,9 @@ def disk_cleaner_menu() -> None:
 
     with console.status("[bold green]Escaneando descargas antiguas..."):
         dl_size, dl_count, dl_files = _scan_old_downloads()
+
+    with console.status("[bold green]Escaneando papelera de reciclaje..."):
+        recycle_size, recycle_count = _query_recycle_bin()
 
     # Tabla resumen
     table = Table(title="Espacio recuperable")
@@ -167,8 +195,11 @@ def disk_cleaner_menu() -> None:
         categories.append((f"Descargas antiguas (>{OLD_DOWNLOAD_DAYS} dias)", dl_count, dl_size, "downloads"))
         table.add_row(str(len(categories)), f"Descargas antiguas (>{OLD_DOWNLOAD_DAYS} dias)", str(dl_count), format_size(dl_size))
 
-    categories.append(("Papelera de reciclaje", 0, 0, "recycle"))
-    table.add_row(str(len(categories)), "Papelera de reciclaje", "-", "-")
+    categories.append(("Papelera de reciclaje", recycle_count, recycle_size, "recycle"))
+    if recycle_count > 0:
+        table.add_row(str(len(categories)), "Papelera de reciclaje", str(recycle_count), format_size(recycle_size))
+    else:
+        table.add_row(str(len(categories)), "Papelera de reciclaje", "-", "-")
 
     console.print(table)
 
@@ -236,7 +267,7 @@ def disk_cleaner_menu() -> None:
     for idx in sorted(selected):
         if idx < 0 or idx >= len(categories):
             continue
-        name, _, _, cat_type = categories[idx]
+        name, count, size, cat_type = categories[idx]
         console.print(f"\n[bold yellow]Limpiando: {name}...[/bold yellow]")
 
         if cat_type == "temp":
@@ -254,6 +285,8 @@ def disk_cleaner_menu() -> None:
             total_removed += removed
         elif cat_type == "recycle":
             if _empty_recycle_bin():
+                total_freed += size
+                total_removed += count
                 console.print("  [green]Papelera vaciada.[/green]")
             else:
                 console.print("  [dim]La papelera ya estaba vacia o no se pudo vaciar.[/dim]")

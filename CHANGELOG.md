@@ -2,6 +2,23 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.3.5] - 2026-07-18
+
+Correccion de dos bugs reportados en uso real.
+
+### Corregido
+- **Liberar espacio / Papelera**: el resumen mostraba "Archivos eliminados: 0"
+  y "Espacio liberado: 0.0 B" aunque la papelera si se vaciaba (la API de
+  vaciado no devuelve conteo). Ahora se consulta el tamano y el numero de
+  archivos de la papelera (SHQueryRecycleBin) antes de vaciarla, y el resumen
+  refleja lo que realmente se libero; la tabla tambien muestra cuanto ocupa la
+  papelera antes de limpiar
+- **Expulsar USB con seguridad**: no expulsaba la unidad y, en Windows en
+  espanol, abria la carpeta en vez de expulsar (el verbo "Eject" del Shell no
+  coincide con el localizado). Se reemplazo por la secuencia estandar de
+  Windows (bloquear, desmontar y expulsar via DeviceIoControl); si la unidad
+  esta en uso, ahora lo indica claramente
+
 ## [2.3.4] - 2026-07-18
 
 Version de usabilidad: menos jerga tecnica visible, busqueda de archivos
