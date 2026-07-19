@@ -3,6 +3,7 @@
 import os
 import subprocess
 
+from rich.prompt import Confirm
 
 from tools import is_admin
 from utils import console
@@ -20,6 +21,31 @@ def reset_spooler() -> None:
             "[dim]Ejecuta el programa como administrador e intenta de nuevo.[/dim]"
         )
         return
+
+    # Contar los trabajos en cola para advertir antes de borrarlos: limpiar la
+    # cola cancela impresiones pendientes de TODOS los usuarios de la PC y es
+    # irreversible, asi que exige una confirmacion explicita.
+    pending = 0
+    if os.path.isdir(SPOOL_PATH):
+        try:
+            pending = sum(1 for _ in os.listdir(SPOOL_PATH))
+        except OSError:
+            pending = 0
+
+    if pending:
+        console.print(
+            f"\n[bold red]La cola de impresion tiene {pending} archivo(s) pendiente(s).[/bold red]"
+        )
+        console.print(
+            "[red]Limpiarla cancela las impresiones en espera de TODOS los usuarios de "
+            "esta PC y no se puede deshacer.[/red]"
+        )
+        if not Confirm.ask(
+            "[bold red]Continuar y limpiar la cola de impresion?[/bold red]",
+            default=False,
+        ):
+            console.print("[dim]Operacion cancelada. No se toco la cola.[/dim]")
+            return
 
     console.print("[bold yellow]Deteniendo servicio de impresion...[/bold yellow]")
     try:

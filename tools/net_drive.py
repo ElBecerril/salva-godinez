@@ -26,7 +26,7 @@ def _parse_net_use_output() -> list[dict]:
     try:
         result = _run_net_use([])
     except (subprocess.TimeoutExpired, OSError) as e:
-        console.print(f"[red]Error al ejecutar net use: {e}[/red]")
+        console.print(f"[red]Error al ejecutar net use: {escape(str(e))}[/red]")
         return []
 
     if result.returncode != 0:
@@ -147,15 +147,15 @@ def _map_new_drive() -> None:
                 result = _run_net_use(args)
 
         if result.returncode == 0:
-            console.print(f"\n[bold green]Unidad {letter} mapeada a {remote}[/bold green]")
+            console.print(f"\n[bold green]Unidad {letter} mapeada a {escape(remote)}[/bold green]")
         else:
             error = (getattr(result, "stderr", "") or "").strip() or \
                     (getattr(result, "stdout", "") or "").strip()
-            console.print(f"[red]Error al mapear: {error}[/red]")
+            console.print(f"[red]Error al mapear: {escape(error)}[/red]")
     except subprocess.TimeoutExpired:
         console.print("[red]Timeout al intentar conectar. El servidor puede no estar accesible.[/red]")
     except OSError as e:
-        console.print(f"[red]Error del sistema: {e}[/red]")
+        console.print(f"[red]Error del sistema: {escape(str(e))}[/red]")
 
 
 def _disconnect_drive() -> None:
@@ -169,7 +169,7 @@ def _disconnect_drive() -> None:
 
     console.print("[bold]Unidades mapeadas:[/bold]")
     for i, d in enumerate(drives, 1):
-        console.print(f"  [cyan]{i}[/cyan] - {d['letter']} -> {d['remote']}")
+        console.print(f"  [cyan]{i}[/cyan] - {d['letter']} -> {escape(d['remote'])}")
 
     choice = Prompt.ask(
         "\n[bold]Selecciona la unidad a desconectar[/bold]",
@@ -178,7 +178,7 @@ def _disconnect_drive() -> None:
     drive = drives[int(choice) - 1]
 
     confirm = Prompt.ask(
-        f"[bold]Desconectar {drive['letter']} ({drive['remote']}) ?[/bold]",
+        f"[bold]Desconectar {drive['letter']} ({escape(drive['remote'])}) ?[/bold]",
         choices=["s", "n"], default="s",
     )
     if confirm != "s":
@@ -193,11 +193,11 @@ def _disconnect_drive() -> None:
             console.print(f"\n[bold green]Unidad {drive['letter']} desconectada.[/bold green]")
         else:
             error = result.stderr.strip() or result.stdout.strip()
-            console.print(f"[red]Error al desconectar: {error}[/red]")
+            console.print(f"[red]Error al desconectar: {escape(error)}[/red]")
     except subprocess.TimeoutExpired:
         console.print("[red]Timeout al intentar desconectar.[/red]")
     except OSError as e:
-        console.print(f"[red]Error del sistema: {e}[/red]")
+        console.print(f"[red]Error del sistema: {escape(str(e))}[/red]")
 
 
 def net_drive_menu() -> None:

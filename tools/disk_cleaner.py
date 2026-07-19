@@ -204,7 +204,7 @@ def disk_cleaner_menu() -> None:
     console.print(table)
 
     total = temp_size + update_size + dl_size
-    if total == 0 and not categories:
+    if total == 0 and recycle_count == 0:
         console.print("\n[bold green]No hay archivos para limpiar.[/bold green]")
         return
 

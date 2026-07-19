@@ -5,6 +5,7 @@ import ctypes.wintypes
 import os
 import subprocess
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -135,7 +136,7 @@ def _fallback_find_locking(filepath: str) -> dict:
         )
         result = subprocess.run(
             ["powershell", "-NoProfile", "-Command", cmd],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         if result.stdout.strip():
@@ -154,7 +155,7 @@ def _kill_process(pid: int) -> bool:
     try:
         result = subprocess.run(
             ["taskkill", "/PID", str(pid), "/F"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         return result.returncode == 0
@@ -192,13 +193,13 @@ def file_unlocker_menu() -> None:
             )
         return
 
-    table = Table(title=f"Procesos usando: {os.path.basename(filepath)}")
+    table = Table(title=f"Procesos usando: {escape(os.path.basename(filepath))}")
     table.add_column("#", style="bold cyan", width=4, justify="right")
     table.add_column("PID", style="bold")
     table.add_column("Proceso", style="yellow")
 
     for i, p in enumerate(processes, 1):
-        table.add_row(str(i), str(p["pid"]), p["nombre"])
+        table.add_row(str(i), str(p["pid"]), escape(p["nombre"]))
 
     console.print(table)
 
@@ -212,9 +213,9 @@ def file_unlocker_menu() -> None:
     killed = 0
     for p in processes:
         if _kill_process(p["pid"]):
-            console.print(f"  [green]Cerrado:[/green] {p['nombre']} (PID {p['pid']})")
+            console.print(f"  [green]Cerrado:[/green] {escape(p['nombre'])} (PID {p['pid']})")
             killed += 1
         else:
-            console.print(f"  [red]No se pudo cerrar:[/red] {p['nombre']} (PID {p['pid']})")
+            console.print(f"  [red]No se pudo cerrar:[/red] {escape(p['nombre'])} (PID {p['pid']})")
 
     console.print(f"\n[bold green]{killed} proceso(s) cerrado(s).[/bold green]")

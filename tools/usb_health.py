@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import time
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -29,7 +30,7 @@ def _get_usb_info(drive: str) -> dict:
              f"Get-Volume -DriveLetter {letter} | Select-Object "
              f"FileSystemLabel, FileSystem, Size, SizeRemaining, HealthStatus "
              f"| ConvertTo-Json -Compress"],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         if result.returncode == 0 and result.stdout.strip():
@@ -90,7 +91,7 @@ def _check_filesystem(drive: str) -> dict:
     try:
         result = subprocess.run(
             ["chkdsk", drive.rstrip("\\")],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         output = result.stdout + result.stderr
@@ -278,7 +279,7 @@ def usb_health_menu() -> None:
     table = Table(title=f"USB: {drive}")
     table.add_column("Propiedad", style="bold")
     table.add_column("Valor")
-    table.add_row("Etiqueta", info["label"])
+    table.add_row("Etiqueta", escape(info["label"]))
     table.add_row("Sistema de archivos", info["filesystem"])
     table.add_row("Tamano total", format_size(info["size"]))
     table.add_row("Espacio libre", format_size(info["free"]))
@@ -329,4 +330,4 @@ def usb_health_menu() -> None:
             console.print("[bold green]Filesystem sin errores detectados.[/bold green]")
         else:
             console.print("[bold red]Se detectaron posibles errores en el filesystem.[/bold red]")
-            console.print(f"[dim]{chk['output'][:500]}[/dim]")
+            console.print(f"[dim]{escape(chk['output'][:500])}[/dim]")

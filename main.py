@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.3.5"
+__version__ = "2.3.6"
 
 import sys
 import os
@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from rich.panel import Panel
 from rich.prompt import Prompt
+from rich.markup import escape
 from rich import box
 
 # Searchers (modulo de rescate de archivos Office)
@@ -336,7 +337,7 @@ def option_recent_office() -> None:
     with console.status("[bold green]Escaneando discos...") as status:
         def progress(path):
             display = path if len(path) < 60 else "..." + path[-57:]
-            status.update(f"[bold green]Escaneando:[/bold green] {display}")
+            status.update(f"[bold green]Escaneando:[/bold green] {escape(display)}")
         results = search_recent_excel(progress_callback=progress)
 
     show_results(results, title="Archivos Office recientes (ultimos 30 dias)")
@@ -399,7 +400,7 @@ def option_full_search() -> None:
     with console.status("[bold green]Escaneando discos...") as status:
         def progress(path):
             display = path if len(path) < 60 else "..." + path[-57:]
-            status.update(f"[bold green]Escaneando:[/bold green] {display}")
+            status.update(f"[bold green]Escaneando:[/bold green] {escape(display)}")
         results = search_by_name(name, progress_callback=progress)
         all_results.extend(results)
         if results:
@@ -419,7 +420,7 @@ def option_full_search() -> None:
 
     all_results = _deduplicate(all_results)
     console.print()
-    show_results(all_results, title=f"Busqueda completa para '{name}'")
+    show_results(all_results, title=f"Busqueda completa para '{escape(name)}'")
     offer_restore(all_results)
 
 

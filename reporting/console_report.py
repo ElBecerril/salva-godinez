@@ -6,6 +6,7 @@ import shutil
 from rich.table import Table
 from rich.panel import Panel
 from rich.prompt import Prompt
+from rich.markup import escape
 from utils import console
 
 
@@ -34,11 +35,11 @@ def show_results(results: list[dict], title: str = "Resultados") -> None:
     for i, r in enumerate(results, 1):
         table.add_row(
             str(i),
-            r.get("nombre", "?"),
-            r.get("ruta", "?"),
-            r.get("tamano", "?"),
-            r.get("fecha", "?"),
-            r.get("origen", "?"),
+            escape(str(r.get("nombre", "?"))),
+            escape(str(r.get("ruta", "?"))),
+            escape(str(r.get("tamano", "?"))),
+            escape(str(r.get("fecha", "?"))),
+            escape(str(r.get("origen", "?"))),
         )
 
     console.print(table)
@@ -81,7 +82,7 @@ def offer_restore(results: list[dict]) -> None:
 
     if not os.path.isfile(source):
         console.print(
-            f"[red]El archivo ya no existe en:[/red] {source}"
+            f"[red]El archivo ya no existe en:[/red] {escape(str(source))}"
         )
         return
 
@@ -91,7 +92,7 @@ def offer_restore(results: list[dict]) -> None:
     )
 
     if not os.path.isdir(dest_dir):
-        console.print(f"[red]La carpeta no existe:[/red] {dest_dir}")
+        console.print(f"[red]La carpeta no existe:[/red] {escape(str(dest_dir))}")
         return
 
     dest_path = os.path.join(dest_dir, nombre)
@@ -107,7 +108,7 @@ def offer_restore(results: list[dict]) -> None:
     try:
         shutil.copy2(source, dest_path)
         console.print(
-            f"\n[bold green]Archivo copiado exitosamente a:[/bold green] {dest_path}\n"
+            f"\n[bold green]Archivo copiado exitosamente a:[/bold green] {escape(str(dest_path))}\n"
         )
     except OSError as e:
-        console.print(f"[red]Error al copiar:[/red] {e}")
+        console.print(f"[red]Error al copiar:[/red] {escape(str(e))}")

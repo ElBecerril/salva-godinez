@@ -8,6 +8,7 @@ from datetime import datetime
 from rich.progress import Progress, BarColumn, TextColumn, TransferSpeedColumn
 from rich.prompt import Prompt
 from rich.table import Table
+from rich.markup import escape
 
 from tools import get_removable_drives, format_size
 from config import BACKUP_SOURCES
@@ -176,7 +177,9 @@ def usb_backup_menu() -> None:
     if failed:
         console.print(f"  Archivos que fallaron: [bold red]{len(failed)}[/bold red]")
         for src_file, error in failed[:10]:
-            console.print(f"    [red]{os.path.basename(src_file)}: {error}[/red]")
+            console.print(
+                f"    [red]{escape(os.path.basename(src_file))}: {escape(str(error))}[/red]"
+            )
         if len(failed) > 10:
             console.print(f"    [dim]... y {len(failed) - 10} archivo(s) mas[/dim]")
     console.print(f"  Ubicacion: [bold]{dest_base}[/bold]")

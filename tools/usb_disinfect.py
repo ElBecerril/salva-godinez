@@ -3,6 +3,7 @@
 import os
 import subprocess
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -92,10 +93,10 @@ def clean_usb(drive: str, threats: list[dict]) -> int:
         filepath = threat["archivo"]
         try:
             os.remove(filepath)
-            console.print(f"  [green]Eliminado:[/green] {os.path.basename(filepath)}")
+            console.print(f"  [green]Eliminado:[/green] {escape(os.path.basename(filepath))}")
             removed += 1
         except OSError as e:
-            console.print(f"  [red]No se pudo eliminar {os.path.basename(filepath)}: {e}[/red]")
+            console.print(f"  [red]No se pudo eliminar {escape(os.path.basename(filepath))}: {escape(str(e))}[/red]")
     return removed
 
 
@@ -105,7 +106,7 @@ def unhide_folders(drive: str) -> None:
     try:
         result = subprocess.run(
             ["attrib", "-h", "-s", "-r", "/s", "/d", f"{drive}*.*"],
-            capture_output=True, text=True, timeout=60,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         if result.returncode == 0:
@@ -158,7 +159,7 @@ def usb_disinfect_menu() -> None:
         table.add_column("Riesgo", style="red")
 
         for i, t in enumerate(threats, 1):
-            table.add_row(str(i), os.path.basename(t["archivo"]), t["tipo"], t["riesgo"])
+            table.add_row(str(i), escape(os.path.basename(t["archivo"])), t["tipo"], t["riesgo"])
 
         console.print()
         console.print(table)

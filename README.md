@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.3.5
+**by El_Becerril** | v2.3.6
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -88,7 +88,7 @@ programa gratuito recien salido. Para abrirlo:
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.3.5: corregidos dos bugs de uso real — la papelera ahora reporta bien lo que libera, y la expulsion de USB funciona de forma segura (antes no expulsaba y abria la carpeta), ver [CHANGELOG](CHANGELOG.md).
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.3.6: version de robustez — la app ya no se cae por nombres de archivo con caracteres especiales, la cola de impresion pide confirmacion antes de limpiar, y varios comandos toleran acentos en Windows en espanol, ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 

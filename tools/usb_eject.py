@@ -172,7 +172,7 @@ def usb_eject_menu() -> None:
 
     confirm = Prompt.ask(
         f"[bold]Expulsar {drive} ?[/bold]",
-        choices=["s", "n"], default="s",
+        choices=["s", "n"], default="n",
     )
     if confirm != "s":
         console.print("[dim]Operacion cancelada.[/dim]")

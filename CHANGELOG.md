@@ -2,6 +2,34 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.3.6] - 2026-07-19
+
+Version de robustez a partir de una auditoria completa: se blindan los puntos
+donde un dato inesperado (un corchete en un nombre de archivo, un acento en la
+salida de Windows) podia tumbar una herramienta, y se agrega una confirmacion
+que faltaba antes de un borrado.
+
+### Seguridad
+- **Limpiar la cola de impresion** (destrabar impresora) ahora pide una
+  confirmacion explicita antes de borrar: cancela las impresiones pendientes de
+  TODOS los usuarios de la PC y es irreversible; antes lo hacia sin preguntar
+
+### Corregido
+- **Crash por caracteres especiales en nombres**: un archivo, carpeta, USB o
+  etiqueta con un corchete (`[`) en el nombre tumbaba la vista por el markup de
+  la consola. Se blindaron todos los puntos que muestran datos externos: el
+  reporte de archivos encontrados (el flujo principal), el desinfectante de USB,
+  el estado de USB, el desbloqueo de archivos, el respaldo a USB y las unidades
+  de red
+- **Crash por acentos en Windows en espanol**: cinco comandos de sistema
+  (desbloqueo de archivos, estado de USB, desinfeccion) podian fallar al leer
+  salida con caracteres no-ASCII; ahora la decodifican de forma tolerante
+- El mensaje "no hay archivos para limpiar" del liberador de espacio vuelve a
+  aparecer cuando de verdad no queda nada (papelera incluida)
+
+### Cambiado
+- La confirmacion de "Expulsar USB" ya no viene con "si" por defecto
+
 ## [2.3.5] - 2026-07-18
 
 Correccion de dos bugs reportados en uso real.
