@@ -25,7 +25,7 @@ _DISCLAIMER_TEXTO = re.sub(r"\[/?[a-z]+\]", "", DISCLAIMER)
 
 
 class PanelSueldo(ToolPanel):
-    TITULO = "Calculadora de Sueldo Neto"
+    TITULO = "Calcular sueldo neto"
     DESCRIPCION = (
         "Escribe el salario bruto mensual y calcula el desglose de ISR, "
         "subsidio al empleo y cuotas IMSS hasta llegar al sueldo neto."

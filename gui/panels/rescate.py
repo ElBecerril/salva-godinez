@@ -32,7 +32,7 @@ from searchers.full_search import (
 
 
 class PanelRescate(ToolPanel):
-    TITULO = "Rescatar archivos perdidos"
+    TITULO = "Recuperar archivos perdidos"
     DESCRIPCION = (
         "Escribe el nombre (o parte del nombre) de un archivo de Word o "
         "Excel que hayas perdido. Se busca en la papelera de reciclaje, en "

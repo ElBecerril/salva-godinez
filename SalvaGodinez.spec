@@ -1,5 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_submodules
+
 
 a = Analysis(
     ['main.py'],
@@ -8,15 +10,10 @@ a = Analysis(
     datas=[],
     # main.py importa la GUI de forma perezosa (solo con --gui), asi que el
     # analisis estatico de PyInstaller podria no arrastrar el paquete entero.
-    # Se listan a mano para que tkinter y las pantallas viajen en el .exe.
-    hiddenimports=[
-        'gui.app',
-        'gui.base',
-        'gui.theme',
-        'gui.panels.espacio',
-        'gui.panels.rescate',
-        'gui.panels.sueldo',
-    ],
+    # Se recolecta TODO `gui` en vez de listar pantalla por pantalla: son 23 y
+    # olvidar una en esta lista solo se descubre cuando el .exe ya esta en la
+    # calle y esa pantalla truena al abrirse.
+    hiddenimports=collect_submodules('gui'),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

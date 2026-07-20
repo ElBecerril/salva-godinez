@@ -33,7 +33,7 @@ from tools.disk_cleaner import (
 
 
 class PanelEspacio(ToolPanel):
-    TITULO = "Liberar espacio"
+    TITULO = "Liberar espacio en disco"
     DESCRIPCION = (
         "Busca archivos que ya no sirven y ocupan lugar en tu computadora. "
         "Nada se borra hasta que tu lo marques y lo confirmes."
@@ -47,8 +47,6 @@ class PanelEspacio(ToolPanel):
         self._vars: dict[str, tk.BooleanVar] = {}
         self._filas: dict[str, ttk.Label] = {}
         self._archivos_dl: dict[str, tk.BooleanVar] = {}
-        # Evita el rebote infinito entre las dos sincronizaciones de casillas.
-        self._sincronizando = False
 
         barra = ttk.Frame(self.body, style="Panel.TFrame")
         barra.pack(fill="x")
@@ -142,11 +140,15 @@ class PanelEspacio(ToolPanel):
                 style="Subtitle.TLabel",
             ).pack(anchor="w", pady=(6, 0))
         if dl_count:
-            self._fila(
-                "downloads", f"Descargas de hace mas de {OLD_DOWNLOAD_DAYS} dias",
-                dl_count, dl_size,
-                "Los eliges uno por uno y van a la Papelera, asi que puedes recuperarlos.",
-            )
+            # SIN casilla propia: las descargas se eligen archivo por archivo en
+            # la lista de abajo, que va inmediatamente despues de este
+            # encabezado. Tener casilla aqui Y casilla por archivo confundia:
+            # dos controles identicos que significan cosas distintas, y el
+            # usuario (incluido el autor) marcaba los archivos y la app
+            # respondia "no marcaste nada".
+            self._encabezado_descargas(dl_count, dl_size)
+            self._lista_descargas(dl_files)
+
         if rb_count:
             self._fila(
                 "recycle", "Vaciar la papelera de reciclaje", rb_count, rb_size,
@@ -165,9 +167,6 @@ class PanelEspacio(ToolPanel):
         )
         self._btn_limpiar.pack(side="left")
 
-        if dl_count:
-            self._lista_descargas(dl_files)
-
     def _fila(self, clave, titulo, count, size, ayuda, peligroso=False) -> None:
         marco = ttk.Frame(self.zona, style="Panel.TFrame")
         marco.pack(fill="x", pady=(10, 0))
@@ -180,11 +179,27 @@ class PanelEspacio(ToolPanel):
         ttk.Checkbutton(
             marco, variable=var,
             text=f"{titulo}  —  {count} archivo(s), {format_size(size)}",
-            command=(self._sincronizar_desde_categoria if clave == "downloads" else None),
         ).pack(anchor="w")
         ttk.Label(
             marco, text=f"     {ayuda}", style="Subtitle.TLabel",
             foreground=theme.DANGER if peligroso else theme.FG_SOFT,
+        ).pack(anchor="w")
+
+    def _encabezado_descargas(self, count: int, size: int) -> None:
+        """Encabezado de las descargas: informa, no se marca."""
+        marco = ttk.Frame(self.zona, style="Panel.TFrame")
+        marco.pack(fill="x", pady=(14, 0))
+        ttk.Label(
+            marco,
+            text=(f"Descargas de hace mas de {OLD_DOWNLOAD_DAYS} dias  —  "
+                  f"{count} archivo(s), {format_size(size)}"),
+            style="Section.TLabel",
+        ).pack(anchor="w")
+        ttk.Label(
+            marco,
+            text="     Palomea las que quieras quitar. Van a la Papelera, asi que "
+                 "puedes recuperarlas si te arrepientes.",
+            style="Subtitle.TLabel",
         ).pack(anchor="w")
 
     def _lista_descargas(self, dl_files: list[str]) -> None:
@@ -192,10 +207,18 @@ class PanelEspacio(ToolPanel):
         import time
 
         caja = ttk.Frame(self.zona, style="Panel.TFrame")
-        caja.pack(fill="both", expand=True, pady=(12, 0), padx=(24, 0))
-        ttk.Label(
-            caja, text="Cuales descargas mandar a la Papelera:", style="Panel.TLabel",
-        ).pack(anchor="w")
+        caja.pack(fill="both", expand=True, pady=(6, 0), padx=(24, 0))
+
+        # "Marcar todas / Ninguna": patron que la gente ya conoce de su correo,
+        # y que no se confunde con una casilla que significa otra cosa.
+        atajos = ttk.Frame(caja, style="Panel.TFrame")
+        atajos.pack(anchor="w", pady=(0, 4))
+        ttk.Button(
+            atajos, text="Marcar todas", command=lambda: self._marcar_descargas(True),
+        ).pack(side="left")
+        ttk.Button(
+            atajos, text="Ninguna", command=lambda: self._marcar_descargas(False),
+        ).pack(side="left", padx=(8, 0))
 
         lienzo = tk.Canvas(caja, height=150, bg=theme.BG_PANEL, highlightthickness=1,
                            highlightbackground=theme.BORDER)
@@ -218,7 +241,6 @@ class PanelEspacio(ToolPanel):
             ttk.Checkbutton(
                 interior, variable=var,
                 text=f"{os.path.basename(ruta)}   ({detalle})",
-                command=self._sincronizar_desde_archivos,
             ).pack(anchor="w", padx=8)
 
     # ------------------------------------------------------------------
@@ -230,29 +252,10 @@ class PanelEspacio(ToolPanel):
     # ambos sentidos para que lo que se ve en pantalla sea exactamente lo que
     # la app va a hacer.
 
-    def _sincronizar_desde_categoria(self) -> None:
-        """Marcar/desmarcar la categoria arrastra a todos los archivos."""
-        if self._sincronizando:
-            return
-        self._sincronizando = True
-        try:
-            valor = self._vars["downloads"].get()
-            for var in self._archivos_dl.values():
-                var.set(valor)
-        finally:
-            self._sincronizando = False
-
-    def _sincronizar_desde_archivos(self) -> None:
-        """Marcar un archivo marca la categoria; desmarcar el ultimo la apaga."""
-        if self._sincronizando:
-            return
-        self._sincronizando = True
-        try:
-            if "downloads" in self._vars:
-                hay_alguno = any(v.get() for v in self._archivos_dl.values())
-                self._vars["downloads"].set(hay_alguno)
-        finally:
-            self._sincronizando = False
+    def _marcar_descargas(self, valor: bool) -> None:
+        """Marca o desmarca todas las descargas de golpe."""
+        for var in self._archivos_dl.values():
+            var.set(valor)
 
     # ------------------------------------------------------------------
     # Limpieza
@@ -274,18 +277,11 @@ class PanelEspacio(ToolPanel):
         # categoria se haya quedado sin marcar. Antes esto contestaba "no
         # marcaste nada" con la lista llena de palomitas, y parecia que la app
         # estaba rota.
-        if elegidas_dl and "downloads" not in marcadas and "downloads" in self._vars:
+        if elegidas_dl:
             marcadas.append("downloads")
 
         if not marcadas:
             self.estado.info("No marcaste nada, asi que no toque nada.")
-            return
-
-        if "downloads" in marcadas and not elegidas_dl:
-            self.estado.alerta(
-                "Marcaste las descargas antiguas pero no elegiste ninguna de la lista "
-                "de abajo. Palomea las que quieras mandar a la Papelera."
-            )
             return
 
         # La papelera es lo unico irreversible: confirmacion propia y separada,
