@@ -11,6 +11,60 @@ from utils import console
 
 
 
+# --- Logica (sin UI) ---
+
+def calculate_honorarios(subtotal: float) -> dict:
+    """Calcula retenciones para pagos por Honorarios (persona fisica).
+
+    Returns:
+        dict con subtotal, iva, isr_retenido, iva_retenido, total
+    """
+    iva = subtotal * IVA_RATE
+    isr_retenido = subtotal * ISR_RETENTION_RATE
+    iva_retenido = iva * IVA_RETENTION_FRACTION
+    total = subtotal + iva - isr_retenido - iva_retenido
+    return {
+        "subtotal": subtotal,
+        "iva": iva,
+        "isr_retenido": isr_retenido,
+        "iva_retenido": iva_retenido,
+        "total": total,
+    }
+
+
+def calculate_resico(income: float) -> dict:
+    """Calcula ISR para RESICO personas fisicas.
+
+    RESICO PF (Art. 113-E LISR) NO es un calculo marginal: se aplica una
+    TASA FIJA sobre el INGRESO TOTAL segun el rango en el que cae, no una
+    cuota fija mas un porcentaje sobre el excedente.
+
+    Returns:
+        dict con lim_inf, lim_sup, tasa, isr_total, tasa_efectiva, neto
+        (o {"error": "..."} si no se encontro el rango).
+    """
+    try:
+        bracket = _find_bracket(income, RESICO_MONTHLY_TABLE)
+    except ValueError as e:
+        return {"error": str(e)}
+
+    lim_inf, lim_sup, _cuota_fija_no_usada, tasa = bracket
+    isr_total = income * tasa
+    tasa_efectiva = (isr_total / income) * 100 if income > 0 else 0
+    neto = income - isr_total
+
+    return {
+        "lim_inf": lim_inf,
+        "lim_sup": lim_sup,
+        "tasa": tasa,
+        "isr_total": isr_total,
+        "tasa_efectiva": tasa_efectiva,
+        "neto": neto,
+    }
+
+
+# --- Interfaz de consola ---
+
 def _option_honorarios() -> None:
     """Calculo de retenciones para pagos por Honorarios (persona fisica)."""
     console.print("\n[bold cyan]Retenciones por Honorarios[/bold cyan]\n")
@@ -19,10 +73,11 @@ def _option_honorarios() -> None:
     if not subtotal:
         return
 
-    iva = subtotal * IVA_RATE
-    isr_retenido = subtotal * ISR_RETENTION_RATE
-    iva_retenido = iva * IVA_RETENTION_FRACTION
-    total = subtotal + iva - isr_retenido - iva_retenido
+    result = calculate_honorarios(subtotal)
+    iva = result["iva"]
+    isr_retenido = result["isr_retenido"]
+    iva_retenido = result["iva_retenido"]
+    total = result["total"]
 
     table = Table(title="Honorarios - Desglose", box=box.SIMPLE_HEAVY)
     table.add_column("Concepto", style="bold")
@@ -53,16 +108,17 @@ def _option_resico() -> None:
     if not income:
         return
 
-    try:
-        bracket = _find_bracket(income, RESICO_MONTHLY_TABLE)
-    except ValueError as e:
-        console.print(f"[red]No se encontro el rango fiscal para ese monto: {e}[/red]")
+    result = calculate_resico(income)
+    if "error" in result:
+        console.print(f"[red]No se encontro el rango fiscal para ese monto: {result['error']}[/red]")
         return
 
-    lim_inf, lim_sup, _cuota_fija_no_usada, tasa = bracket
-    isr_total = income * tasa
-    tasa_efectiva = (isr_total / income) * 100 if income > 0 else 0
-    neto = income - isr_total
+    lim_inf = result["lim_inf"]
+    lim_sup = result["lim_sup"]
+    tasa = result["tasa"]
+    isr_total = result["isr_total"]
+    tasa_efectiva = result["tasa_efectiva"]
+    neto = result["neto"]
 
     rango_sup = "en adelante" if lim_sup == float("inf") else _fmt(lim_sup)
 

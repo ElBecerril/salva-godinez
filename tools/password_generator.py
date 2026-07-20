@@ -8,6 +8,8 @@ from rich.prompt import Prompt
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
 
 def generate_password(length: int = 16, use_symbols: bool = True) -> str:
     """Genera una contrasena segura usando el modulo secrets."""
@@ -43,6 +45,9 @@ def copy_to_clipboard(text: str) -> bool:
         return process.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
         return False
+
+
+# --- Interfaz de consola ---
 
 
 def password_generator_menu() -> None:

@@ -8,6 +8,8 @@ from tools._fiscal_helpers import DISCLAIMER, ask_float as _ask_float, fmt as _f
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
 # Tope legal de cotizacion IMSS: 25 UMA mensuales (Art. 28 LSS, reformado 2021).
 # Se usa el mismo factor mensual (30.4) que ya usa el resto de este archivo
 # para convertir el UMA diario a UMA mensual.
@@ -76,11 +78,11 @@ def calculate_isr(taxable_base: float) -> dict:
 
     Returns:
         dict con limite_inferior, excedente, tasa, impuesto_marginal, cuota_fija, isr_total
+        (o {"isr_total": 0, "error": "..."} si no se encontro un bracket).
     """
     try:
         bracket = _find_bracket(taxable_base, ISR_MONTHLY_TABLE)
     except ValueError as e:
-        console.print(f"[red]No se pudo calcular el ISR: {e}[/red]")
         return {"isr_total": 0, "error": str(e)}
 
     lim_inf, _, cuota_fija, tasa = bracket
@@ -96,6 +98,8 @@ def calculate_isr(taxable_base: float) -> dict:
         "isr_total": impuesto_marginal + cuota_fija,
     }
 
+
+# --- Interfaz de consola ---
 
 def salary_calculator_menu() -> None:
     """Calculadora de sueldo neto mensual."""
@@ -116,6 +120,8 @@ def salary_calculator_menu() -> None:
 
     # 3. Calcular ISR
     isr = calculate_isr(taxable_base)
+    if "error" in isr:
+        console.print(f"[red]No se pudo calcular el ISR: {isr['error']}[/red]")
     isr_total = isr.get("isr_total", 0)
 
     # 3b. Subsidio al empleo (beneficia a sueldos bajos, se resta del ISR a cargo

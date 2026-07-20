@@ -12,6 +12,8 @@ from tools import is_admin
 from utils import ps_escape, console
 
 
+# --- Logica (sin UI) ---
+
 
 class PrinterQueryError(Exception):
     """Error real al consultar impresoras (no confundir con 'sin impresoras')."""
@@ -120,6 +122,9 @@ def _remove_printer(name: str) -> bool:
         return result.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
         return False
+
+
+# --- Interfaz de consola ---
 
 
 def ghost_printers_menu() -> None:

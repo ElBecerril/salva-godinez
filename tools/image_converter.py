@@ -18,29 +18,31 @@ SUPPORTED_FORMATS = {
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".webp", ".ico", ".tiff", ".tif", ".gif"}
 
 
+# --- Logica (sin UI) ---
+
+
 def _get_pillow():
-    """Import lazy de Pillow para no crashear si no esta instalado."""
+    """Import lazy de Pillow. Devuelve el modulo Image, o None si no esta instalado."""
     try:
         from PIL import Image
         return Image
     except ImportError:
-        console.print(
-            "[bold red]Pillow no esta instalado.[/bold red]\n"
-            "[dim]Ejecuta: pip install Pillow[/dim]"
-        )
         return None
 
 
-def _collect_images(path: str) -> list[str]:
-    """Recolecta archivos de imagen de un archivo o directorio."""
+def _collect_images(path: str) -> dict:
+    """Recolecta archivos de imagen de un archivo o directorio.
+
+    Returns:
+        dict con: images (lista de rutas), error (mensaje de error o None).
+    """
     path = path.strip().strip('"')
 
     if os.path.isfile(path):
         ext = os.path.splitext(path)[1].lower()
         if ext in IMAGE_EXTENSIONS:
-            return [path]
-        console.print(f"[red]El archivo no es una imagen soportada: {ext}[/red]")
-        return []
+            return {"images": [path], "error": None}
+        return {"images": [], "error": f"El archivo no es una imagen soportada: {ext}"}
 
     if os.path.isdir(path):
         images = []
@@ -48,10 +50,9 @@ def _collect_images(path: str) -> list[str]:
             ext = os.path.splitext(fname)[1].lower()
             if ext in IMAGE_EXTENSIONS:
                 images.append(os.path.join(path, fname))
-        return images
+        return {"images": images, "error": None}
 
-    console.print("[red]Ruta no encontrada.[/red]")
-    return []
+    return {"images": [], "error": "Ruta no encontrada."}
 
 
 def _safe_output_path(output_dir: str, base_name: str, ext: str) -> str:
@@ -68,14 +69,16 @@ def _safe_output_path(output_dir: str, base_name: str, ext: str) -> str:
         counter += 1
 
 
-def _convert_image(Image, src: str, target_ext: str, output_dir: str) -> str | None:
+def _convert_image(Image, src: str, target_ext: str, output_dir: str) -> dict:
     """Convierte una imagen al formato destino.
 
     Returns:
-        Ruta del archivo creado, o None si fallo.
+        dict con: ok, output (ruta creada o None), multiframe (n_frames si >1,
+        si no None), error (mensaje o None).
     """
     base_name = os.path.splitext(os.path.basename(src))[0]
     out_path = _safe_output_path(output_dir, base_name, target_ext)
+    multiframe = None
 
     try:
         from PIL import ImageOps
@@ -85,10 +88,7 @@ def _convert_image(Image, src: str, target_ext: str, output_dir: str) -> str | N
         # Imagenes multipagina/animadas (GIF, TIFF): solo se convierte el
         # primer frame, avisamos al usuario para que no se sorprenda.
         if getattr(img, "n_frames", 1) > 1:
-            console.print(
-                f"  [yellow]{os.path.basename(src)} tiene {img.n_frames} frames/paginas; "
-                "solo se convertira el primero.[/yellow]"
-            )
+            multiframe = img.n_frames
 
         # Respeta la orientacion EXIF (fotos de celular vienen rotadas por
         # metadata, no por los pixeles reales).
@@ -118,24 +118,34 @@ def _convert_image(Image, src: str, target_ext: str, output_dir: str) -> str | N
             save_kwargs["sizes"] = [(img.width, img.height)]
 
         img.save(out_path, **save_kwargs)
-        return out_path
+        return {"ok": True, "output": out_path, "multiframe": multiframe, "error": None}
 
     except Exception as e:
-        console.print(f"  [red]Error con {os.path.basename(src)}: {e}[/red]")
-        return None
+        return {"ok": False, "output": None, "multiframe": multiframe, "error": str(e)}
+
+
+# --- Interfaz de consola ---
 
 
 def image_converter_menu() -> None:
     """Menu del conversor de imagenes."""
     Image = _get_pillow()
     if not Image:
+        console.print(
+            "[bold red]Pillow no esta instalado.[/bold red]\n"
+            "[dim]Ejecuta: pip install Pillow[/dim]"
+        )
         return
 
     console.print("\n[bold cyan]Convertir Imagenes[/bold cyan]\n")
     console.print("[dim]Formatos soportados: PNG, JPG, BMP, WEBP, ICO[/dim]\n")
 
     path = Prompt.ask("[bold]Ruta del archivo o carpeta[/bold]").strip().strip('"')
-    images = _collect_images(path)
+    collected = _collect_images(path)
+    images = collected["images"]
+
+    if collected["error"]:
+        console.print(f"[red]{collected['error']}[/red]")
 
     if not images:
         console.print("[yellow]No se encontraron imagenes para convertir.[/yellow]")
@@ -177,9 +187,15 @@ def image_converter_menu() -> None:
 
         for src in images:
             result = _convert_image(Image, src, target_ext, output_dir)
-            if result:
+            if result["multiframe"]:
+                console.print(
+                    f"  [yellow]{os.path.basename(src)} tiene {result['multiframe']} frames/paginas; "
+                    "solo se convertira el primero.[/yellow]"
+                )
+            if result["ok"]:
                 converted += 1
             else:
+                console.print(f"  [red]Error con {os.path.basename(src)}: {result['error']}[/red]")
                 failed += 1
             progress.advance(task)
 

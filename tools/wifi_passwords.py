@@ -8,6 +8,8 @@ from rich.table import Table
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
 
 def _mask(password: str) -> str:
     """Enmascara una contrasena con un placeholder de longitud fija.
@@ -71,6 +73,9 @@ def get_wifi_passwords() -> list[dict]:
         pass
 
     return results
+
+
+# --- Interfaz de consola ---
 
 
 def show_wifi_passwords() -> None:

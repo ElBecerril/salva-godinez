@@ -9,6 +9,8 @@ from rich.table import Table
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
 
 def get_system_info() -> dict:
     """Recopila informacion basica del sistema."""
@@ -28,6 +30,9 @@ def get_system_info() -> dict:
     info["usuario"] = os.environ.get("USERNAME", os.environ.get("USER", "Desconocido"))
     info["dominio"] = os.environ.get("USERDOMAIN", "N/A")
     return info
+
+
+# --- Interfaz de consola ---
 
 
 def show_system_info() -> None:

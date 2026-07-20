@@ -8,6 +8,12 @@ from rich.table import Table
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
+
+class NetUseError(Exception):
+    """Fallo real al ejecutar 'net use' (timeout o error de SO)."""
+
 
 def _run_net_use(args: list[str]) -> subprocess.CompletedProcess:
     """Ejecuta 'net use' con los argumentos dados."""
@@ -26,8 +32,7 @@ def _parse_net_use_output() -> list[dict]:
     try:
         result = _run_net_use([])
     except (subprocess.TimeoutExpired, OSError) as e:
-        console.print(f"[red]Error al ejecutar net use: {escape(str(e))}[/red]")
-        return []
+        raise NetUseError(str(e)) from e
 
     if result.returncode != 0:
         return []
@@ -78,11 +83,19 @@ def _parse_net_use_output() -> list[dict]:
     return drives
 
 
+# --- Interfaz de consola ---
+
+
 def _show_mapped_drives() -> None:
     """Muestra las unidades de red mapeadas en una tabla."""
     console.print("\n[bold cyan]Carpetas de Red Conectadas[/bold cyan]\n")
 
-    drives = _parse_net_use_output()
+    try:
+        drives = _parse_net_use_output()
+    except NetUseError as e:
+        console.print(f"[red]Error al ejecutar net use: {escape(str(e))}[/red]")
+        drives = []
+
     if not drives:
         console.print("[yellow]No hay unidades de red mapeadas.[/yellow]")
         return
@@ -162,7 +175,12 @@ def _disconnect_drive() -> None:
     """Desconecta una unidad de red mapeada."""
     console.print("\n[bold cyan]Desconectar una Carpeta de Red[/bold cyan]\n")
 
-    drives = _parse_net_use_output()
+    try:
+        drives = _parse_net_use_output()
+    except NetUseError as e:
+        console.print(f"[red]Error al ejecutar net use: {escape(str(e))}[/red]")
+        drives = []
+
     if not drives:
         console.print("[yellow]No hay unidades de red mapeadas para desconectar.[/yellow]")
         return

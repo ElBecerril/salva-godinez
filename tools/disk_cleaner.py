@@ -13,6 +13,8 @@ from config import TEMP_CLEAN_PATHS, WINDOWS_UPDATE_CACHE, DOWNLOADS_PATH, OLD_D
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
 
 def _scan_dir(path: str) -> tuple[int, int]:
     """Escanea un directorio y retorna (tamano_total, num_archivos)."""
@@ -103,66 +105,6 @@ def _clean_dir(path: str) -> tuple[int, int]:
         except OSError:
             pass
     return freed, removed
-
-
-def _choose_downloads(file_list: list[str]) -> list[str]:
-    """Muestra las descargas antiguas y deja elegir cuales mandar a la papelera.
-
-    Antes se borraba la lista completa a ciegas: el usuario nunca veia QUE se
-    iba a borrar. Aqui se listan una por una y se puede seleccionar.
-
-    Returns:
-        Lista de rutas elegidas (vacia si el usuario cancela).
-    """
-    if not file_list:
-        return []
-
-    table = Table(title="Descargas antiguas encontradas")
-    table.add_column("#", style="bold cyan", width=4, justify="right")
-    table.add_column("Archivo", style="bold white", max_width=50)
-    table.add_column("Tamano", justify="right", style="yellow")
-    table.add_column("Ultima vez usado", style="dim")
-
-    for i, filepath in enumerate(file_list, 1):
-        try:
-            stat = os.stat(filepath)
-            size = format_size(stat.st_size)
-            fecha = time.strftime("%d/%m/%Y", time.localtime(stat.st_mtime))
-        except OSError:
-            size = "?"
-            fecha = "?"
-        table.add_row(str(i), escape(os.path.basename(filepath)), size, fecha)
-
-    console.print()
-    console.print(table)
-    console.print(
-        "[dim]Se mandan a la Papelera de reciclaje, asi que puedes "
-        "recuperarlos si te arrepientes.[/dim]"
-    )
-
-    choice = Prompt.ask(
-        "[bold]Cuales mandas a la papelera? (numeros separados por coma, "
-        "'todos', o Enter para cancelar)[/bold]",
-        default="",
-    ).strip().lower()
-
-    if not choice:
-        console.print("[yellow]No se toco ninguna descarga.[/yellow]")
-        return []
-
-    if choice == "todos":
-        return list(file_list)
-
-    try:
-        indices = {int(x.strip()) - 1 for x in choice.split(",")}
-    except ValueError:
-        console.print("[red]Entrada invalida. No se toco ninguna descarga.[/red]")
-        return []
-
-    chosen = [file_list[i] for i in sorted(indices) if 0 <= i < len(file_list)]
-    if not chosen:
-        console.print("[yellow]Ningun numero valido. No se toco nada.[/yellow]")
-    return chosen
 
 
 class _SHFILEOPSTRUCTW(ctypes.Structure):
@@ -268,6 +210,69 @@ def _query_recycle_bin() -> tuple[int, int]:
     except (AttributeError, OSError):
         pass
     return 0, 0
+
+
+# --- Interfaz de consola ---
+
+
+def _choose_downloads(file_list: list[str]) -> list[str]:
+    """Muestra las descargas antiguas y deja elegir cuales mandar a la papelera.
+
+    Antes se borraba la lista completa a ciegas: el usuario nunca veia QUE se
+    iba a borrar. Aqui se listan una por una y se puede seleccionar.
+
+    Returns:
+        Lista de rutas elegidas (vacia si el usuario cancela).
+    """
+    if not file_list:
+        return []
+
+    table = Table(title="Descargas antiguas encontradas")
+    table.add_column("#", style="bold cyan", width=4, justify="right")
+    table.add_column("Archivo", style="bold white", max_width=50)
+    table.add_column("Tamano", justify="right", style="yellow")
+    table.add_column("Ultima vez usado", style="dim")
+
+    for i, filepath in enumerate(file_list, 1):
+        try:
+            stat = os.stat(filepath)
+            size = format_size(stat.st_size)
+            fecha = time.strftime("%d/%m/%Y", time.localtime(stat.st_mtime))
+        except OSError:
+            size = "?"
+            fecha = "?"
+        table.add_row(str(i), escape(os.path.basename(filepath)), size, fecha)
+
+    console.print()
+    console.print(table)
+    console.print(
+        "[dim]Se mandan a la Papelera de reciclaje, asi que puedes "
+        "recuperarlos si te arrepientes.[/dim]"
+    )
+
+    choice = Prompt.ask(
+        "[bold]Cuales mandas a la papelera? (numeros separados por coma, "
+        "'todos', o Enter para cancelar)[/bold]",
+        default="",
+    ).strip().lower()
+
+    if not choice:
+        console.print("[yellow]No se toco ninguna descarga.[/yellow]")
+        return []
+
+    if choice == "todos":
+        return list(file_list)
+
+    try:
+        indices = {int(x.strip()) - 1 for x in choice.split(",")}
+    except ValueError:
+        console.print("[red]Entrada invalida. No se toco ninguna descarga.[/red]")
+        return []
+
+    chosen = [file_list[i] for i in sorted(indices) if 0 <= i < len(file_list)]
+    if not chosen:
+        console.print("[yellow]Ningun numero valido. No se toco nada.[/yellow]")
+    return chosen
 
 
 def disk_cleaner_menu() -> None:

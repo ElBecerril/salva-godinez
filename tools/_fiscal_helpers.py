@@ -4,30 +4,7 @@ from rich.prompt import Prompt
 from utils import console
 
 
-DISCLAIMER = (
-    "[yellow]Esto es una ESTIMACION informativa, NO es lo que legalmente te "
-    "deben ni una asesoria oficial.[/yellow]\n"
-    "[dim]No considera casos especiales (comisiones, salario variable, bonos, "
-    "convenios de empresa, antiguedad interrumpida u otros). Para tu caso real, "
-    "gratis y oficial:\n"
-    "  - Laboral (finiquito, liquidacion, despido): PROFEDET - profedet.gob.mx\n"
-    "  - Impuestos (ISR, RESICO, retenciones): SAT - sat.gob.mx[/dim]"
-)
-
-
-def ask_float(prompt: str) -> float | None:
-    """Pide un numero flotante positivo al usuario."""
-    val = Prompt.ask(prompt).strip()
-    try:
-        result = float(val.replace(",", ""))
-        if result <= 0:
-            console.print("[red]El valor debe ser mayor a cero.[/red]")
-            return None
-        return result
-    except ValueError:
-        console.print("[red]Valor numerico invalido.[/red]")
-        return None
-
+# --- Logica (sin UI) ---
 
 def fmt(amount: float) -> str:
     """Formatea un monto como moneda: $1,234.56"""
@@ -61,3 +38,30 @@ def find_bracket(income: float, table: list[tuple]) -> tuple:
     # un error explicito en vez de un 0 silencioso por si la tabla esta mal
     # construida.
     raise ValueError(f"No se encontro un bracket para el ingreso {income} en la tabla proporcionada.")
+
+
+# --- Interfaz de consola ---
+
+DISCLAIMER = (
+    "[yellow]Esto es una ESTIMACION informativa, NO es lo que legalmente te "
+    "deben ni una asesoria oficial.[/yellow]\n"
+    "[dim]No considera casos especiales (comisiones, salario variable, bonos, "
+    "convenios de empresa, antiguedad interrumpida u otros). Para tu caso real, "
+    "gratis y oficial:\n"
+    "  - Laboral (finiquito, liquidacion, despido): PROFEDET - profedet.gob.mx\n"
+    "  - Impuestos (ISR, RESICO, retenciones): SAT - sat.gob.mx[/dim]"
+)
+
+
+def ask_float(prompt: str) -> float | None:
+    """Pide un numero flotante positivo al usuario."""
+    val = Prompt.ask(prompt).strip()
+    try:
+        result = float(val.replace(",", ""))
+        if result <= 0:
+            console.print("[red]El valor debe ser mayor a cero.[/red]")
+            return None
+        return result
+    except ValueError:
+        console.print("[red]Valor numerico invalido.[/red]")
+        return None

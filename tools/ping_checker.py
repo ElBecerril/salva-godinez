@@ -9,6 +9,8 @@ from rich.table import Table
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
 # Regex para la linea de estadisticas de paquetes (funciona en cualquier locale)
 # Busca 3 numeros que representan enviados, recibidos, perdidos
 _PKT_REGEX = re.compile(
@@ -74,6 +76,9 @@ def check_port(host: str, port: int, timeout: int = 3) -> bool:
             return True
     except (OSError, socket.timeout):
         return False
+
+
+# --- Interfaz de consola ---
 
 
 def ping_checker_menu() -> None:

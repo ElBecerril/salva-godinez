@@ -17,6 +17,9 @@ from utils import console
 
 
 
+
+# --- Logica (sin UI) ---
+
 def _get_vacation_days(years: int) -> int:
     """Dias de vacaciones segun antiguedad (LFT Art. 76, reforma "vacaciones
     dignas" 2023+)."""
@@ -34,19 +37,6 @@ def _get_vacation_days(years: int) -> int:
     last_lo, last_hi, last_days = VACATION_DAYS_RANGES_20PLUS[-1]
     extra_blocks = (years - last_hi + 4) // 5
     return last_days + extra_blocks * 2
-
-
-def _ask_int(prompt: str) -> int | None:
-    val = Prompt.ask(prompt).strip()
-    try:
-        result = int(val)
-        if result < 0:
-            console.print("[red]El valor no puede ser negativo.[/red]")
-            return None
-        return result
-    except ValueError:
-        console.print("[red]Valor numerico invalido.[/red]")
-        return None
 
 
 def calculate_aguinaldo(daily_salary: float, days_worked: int) -> dict:
@@ -144,6 +134,21 @@ def calculate_liquidacion(daily_salary: float, years: int, days_worked: int) -> 
         "prima_antiguedad": seniority,
         "total_liquidacion": total,
     }
+
+
+# --- Interfaz de consola ---
+
+def _ask_int(prompt: str) -> int | None:
+    val = Prompt.ask(prompt).strip()
+    try:
+        result = int(val)
+        if result < 0:
+            console.print("[red]El valor no puede ser negativo.[/red]")
+            return None
+        return result
+    except ValueError:
+        console.print("[red]Valor numerico invalido.[/red]")
+        return None
 
 
 def _option_aguinaldo() -> None:

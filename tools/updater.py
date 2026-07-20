@@ -25,6 +25,8 @@ GITHUB_API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 MAX_DOWNLOAD_SIZE = 200 * 1024 * 1024  # 200 MB
 
 
+# --- Logica (sin UI) ---
+
 
 def _parse_version(tag: str) -> tuple:
     """'v3.0.0' -> (3, 0, 0)"""
@@ -54,8 +56,54 @@ def _extract_sha256(body: str, filename: str) -> str | None:
     return None
 
 
-def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -> bool:
-    """Descarga un archivo a una ubicacion temporal con barra de progreso Rich.
+def fetch_latest_release() -> dict:
+    """Consulta la API de GitHub Releases por el ultimo release.
+
+    Returns:
+        {"ok": True, "data": <json decodificado>} o
+        {"ok": False, "error": str(e)}.
+    """
+    try:
+        req = urllib.request.Request(
+            GITHUB_API_URL,
+            headers={"User-Agent": "SalvaGodinez-Updater"},
+        )
+        resp = urllib.request.urlopen(req, timeout=5)
+        data = json.loads(resp.read().decode("utf-8"))
+        return {"ok": True, "data": data}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def check_update_available(current_version: str, release_data: dict) -> dict:
+    """Compara la version local contra la del release remoto.
+
+    Returns:
+        dict con "disponible" (bool) y "remote_tag" (str, puede ser "").
+    """
+    remote_tag = release_data.get("tag_name", "")
+    if not remote_tag:
+        return {"disponible": False, "remote_tag": ""}
+
+    local_tuple = _parse_version(current_version)
+    remote_tuple = _parse_version(remote_tag)
+
+    return {"disponible": remote_tuple > local_tuple, "remote_tag": remote_tag}
+
+
+def get_exe_asset(release_data: dict) -> dict | None:
+    """Devuelve el asset .exe del release, o None si no hay."""
+    assets = release_data.get("assets", [])
+    return next((a for a in assets if a["name"].endswith(".exe")), None)
+
+
+def download_update(
+    url: str,
+    filename: str,
+    expected_sha256: str | None = None,
+    progress_callback=None,
+) -> dict:
+    """Descarga un archivo a una ubicacion temporal, lo verifica y lo instala.
 
     El orden es deliberado por seguridad: se descarga primero a un archivo
     temporal (el Escritorio no se toca todavia), se verifica el SHA-256 y
@@ -66,10 +114,18 @@ def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -
     borran las versiones anteriores del Escritorio; asi, si el move falla,
     las versiones viejas siguen intactas.
 
+    Args:
+        url: URL de descarga del asset.
+        filename: nombre con el que se guardara en el Escritorio.
+        expected_sha256: hash de referencia extraido del Release, o None.
+        progress_callback: opcional, callable(written, total) invocado tras
+            cada chunk leido (total puede ser 0 si no se conoce).
+
     Returns:
-        True si la descarga se completo y quedo instalada en el Escritorio,
-        False si algo fallo (descarga, verificacion de hash, etc.). En ese
-        caso el Escritorio no se modifica.
+        dict con al menos "ok" (bool) y "reason" (str, codigo de motivo) y,
+        segun el caso, "dest", "actual_hash", "expected_sha256",
+        "removed_old" (lista de rutas eliminadas), "old_errors" (lista de
+        (ruta, error) para versiones anteriores que no se pudieron borrar).
     """
     desktop = os.path.join(os.path.expanduser("~"), "Desktop")
     dest = os.path.join(desktop, filename)
@@ -83,89 +139,79 @@ def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -
         total = int(resp.headers.get("Content-Length", 0))
 
         if total > MAX_DOWNLOAD_SIZE:
-            console.print(
-                f"[bold red]La descarga excede el tamano maximo permitido "
-                f"({MAX_DOWNLOAD_SIZE // (1024 * 1024)} MB segun Content-Length). "
-                "Se aborta por seguridad. El Escritorio no fue modificado.[/bold red]"
-            )
-            return False
+            return {
+                "ok": False,
+                "reason": "too_large_header",
+                "max_size": MAX_DOWNLOAD_SIZE,
+            }
 
         sha256 = hashlib.sha256()
         written = 0
 
-        with Progress(
-            "[progress.description]{task.description}",
-            BarColumn(),
-            DownloadColumn(),
-            TransferSpeedColumn(),
-        ) as progress:
-            task = progress.add_task("Descargando...", total=total or None)
-            with open(tmp_path, "wb") as f:
-                while True:
-                    chunk = resp.read(8192)
-                    if not chunk:
-                        break
-                    written += len(chunk)
-                    if written > MAX_DOWNLOAD_SIZE:
-                        console.print(
-                            f"[bold red]La descarga supero el tamano maximo permitido "
-                            f"({MAX_DOWNLOAD_SIZE // (1024 * 1024)} MB). "
-                            "Se aborta por seguridad. El Escritorio no fue modificado.[/bold red]"
-                        )
-                        return False
-                    f.write(chunk)
-                    sha256.update(chunk)
-                    progress.advance(task, len(chunk))
+        with open(tmp_path, "wb") as f:
+            while True:
+                chunk = resp.read(8192)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > MAX_DOWNLOAD_SIZE:
+                    return {
+                        "ok": False,
+                        "reason": "too_large_stream",
+                        "max_size": MAX_DOWNLOAD_SIZE,
+                    }
+                f.write(chunk)
+                sha256.update(chunk)
+                if progress_callback:
+                    progress_callback(written, total)
 
         actual_hash = sha256.hexdigest()
 
         if expected_sha256:
             if actual_hash != expected_sha256:
-                console.print(
-                    f"[bold red]Verificacion SHA-256 fallida![/bold red]\n"
-                    f"[red]Esperado: {expected_sha256}[/red]\n"
-                    f"[red]Obtenido: {actual_hash}[/red]\n"
-                    f"[red]La descarga se descarto por seguridad. El Escritorio no fue modificado.[/red]"
-                )
-                return False
-            console.print("[green]SHA-256 verificado correctamente.[/green]")
+                return {
+                    "ok": False,
+                    "reason": "hash_mismatch",
+                    "expected_sha256": expected_sha256,
+                    "actual_hash": actual_hash,
+                }
         else:
             # Sin hash de referencia en el Release no hay forma de verificar que
             # el .exe es el que el autor publico. Se rechaza (fail-closed) en vez
             # de instalar "con precaucion": un Release sin hash no debe llegar al
             # Escritorio del usuario.
-            console.print(
-                "[bold red]El Release no incluye un hash SHA-256 de referencia para "
-                "verificar la descarga.[/bold red]\n"
-                "[red]Por seguridad no se instala una actualizacion que no se puede "
-                "verificar; el Escritorio no fue modificado.[/red]\n"
-                "[dim]Descarga la version nueva manualmente desde el Release oficial en "
-                "GitHub si lo necesitas.[/dim]"
-            )
-            return False
+            return {"ok": False, "reason": "no_reference_hash"}
 
         # Solo ahora, con la descarga ya verificada, es seguro tocar el Escritorio.
         # Primero se mueve el archivo temporal a su destino final; solo si el
         # move fue exitoso se procede a borrar versiones anteriores del
         # Escritorio. Asi, si el move falla, las versiones viejas siguen ahi.
         shutil.move(tmp_path, dest)
-        console.print(f"[bold green]Guardado en:[/bold green] {dest}")
 
         current_exe = os.path.abspath(sys.executable) if getattr(sys, "frozen", False) else ""
         dest_abs = os.path.abspath(dest)
+        removed_old = []
+        old_errors = []
         for old in glob.glob(os.path.join(desktop, "SalvaGodinez*.exe")):
             old_abs = os.path.abspath(old)
             if old_abs != current_exe and old_abs != dest_abs:
                 try:
                     os.remove(old)
+                    removed_old.append(old)
                 except OSError as e:
-                    console.print(f"[yellow]No se pudo eliminar version anterior {old}: {e}[/yellow]")
+                    old_errors.append((old, str(e)))
 
-        return True
+        return {
+            "ok": True,
+            "reason": "installed",
+            "dest": dest,
+            "actual_hash": actual_hash,
+            "removed_old": removed_old,
+            "old_errors": old_errors,
+        }
 
     except Exception as e:
-        console.print(f"[bold red]Error al descargar la actualizacion: {e}[/bold red]")
-        return False
+        return {"ok": False, "reason": "exception", "error": str(e)}
     finally:
         if os.path.exists(tmp_path):
             try:
@@ -174,59 +220,118 @@ def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -
                 pass
 
 
+# --- Interfaz de consola ---
+
+
 def check_for_updates(current_version: str) -> None:
-    """Verifica si hay una version nueva en GitHub Releases."""
+    """Verifica si hay una version nueva en GitHub Releases.
+
+    Envoltura a prueba de todo: esta funcion se llama al ARRANCAR la app
+    (main.py), antes del try principal, asi que una excepcion aqui tumba la
+    app entera antes de que el usuario vea el menu. Buscar actualizaciones es
+    una comodidad, nunca una razon para que la herramienta no abra.
+    """
     try:
-        req = urllib.request.Request(
-            GITHUB_API_URL,
-            headers={"User-Agent": "SalvaGodinez-Updater"},
-        )
-        resp = urllib.request.urlopen(req, timeout=5)
-        data = json.loads(resp.read().decode("utf-8"))
-
-        remote_tag = data.get("tag_name", "")
-        if not remote_tag:
-            return
-
-        local_tuple = _parse_version(current_version)
-        remote_tuple = _parse_version(remote_tag)
-
-        if remote_tuple <= local_tuple:
-            return
-
-        console.print(
-            Panel(
-                f"[bold]Nueva version disponible:[/bold] {remote_tag}\n"
-                f"[dim]Tu version actual: v{current_version}[/dim]",
-                title="[bold yellow]Actualizacion disponible[/bold yellow]",
-                border_style="yellow",
-            )
-        )
-
-        if not Confirm.ask("[yellow]Deseas descargar la nueva version?[/yellow]", default=False):
-            return
-
-        assets = data.get("assets", [])
-        exe_asset = next((a for a in assets if a["name"].endswith(".exe")), None)
-
-        if not exe_asset:
-            console.print("[red]No se encontro archivo .exe en el Release.[/red]")
-            return
-
-        # Extraer hash SHA-256 del body del Release (si el autor lo incluyo)
-        release_body = data.get("body", "")
-        expected_hash = _extract_sha256(release_body, exe_asset["name"])
-
-        # Nota: _download_exe() descarga primero a un temporal, verifica el
-        # hash, mueve el archivo final al Escritorio y solo tras confirmar
-        # ese move borra versiones anteriores. Reporta sus propios errores;
-        # no los silencia.
-        filename = f"SalvaGodinez_{remote_tag}.exe"
-        _download_exe(exe_asset["browser_download_url"], filename, expected_hash)
-
+        _check_for_updates(current_version)
     except Exception as e:
+        console.print(f"[dim]No se pudo verificar actualizaciones: {e}[/dim]")
+
+
+def _check_for_updates(current_version: str) -> None:
+    """Implementacion de la verificacion. Ver check_for_updates()."""
+    release = fetch_latest_release()
+    if not release["ok"]:
         # Esto solo cubre la verificacion de si hay una version nueva
         # (llamada a la API de GitHub): sin internet, timeout, API error, etc.
-        # No cubre la descarga en si, que reporta sus propios errores arriba.
-        console.print(f"[dim]No se pudo verificar actualizaciones: {e}[/dim]")
+        # No cubre la descarga en si, que reporta sus propios errores abajo.
+        console.print(f"[dim]No se pudo verificar actualizaciones: {release['error']}[/dim]")
         return
+
+    data = release["data"]
+    status = check_update_available(current_version, data)
+    if not status["disponible"]:
+        return
+
+    remote_tag = status["remote_tag"]
+
+    console.print(
+        Panel(
+            f"[bold]Nueva version disponible:[/bold] {remote_tag}\n"
+            f"[dim]Tu version actual: v{current_version}[/dim]",
+            title="[bold yellow]Actualizacion disponible[/bold yellow]",
+            border_style="yellow",
+        )
+    )
+
+    if not Confirm.ask("[yellow]Deseas descargar la nueva version?[/yellow]", default=False):
+        return
+
+    exe_asset = get_exe_asset(data)
+    if not exe_asset:
+        console.print("[red]No se encontro archivo .exe en el Release.[/red]")
+        return
+
+    # Extraer hash SHA-256 del body del Release (si el autor lo incluyo)
+    release_body = data.get("body", "")
+    expected_hash = _extract_sha256(release_body, exe_asset["name"])
+
+    filename = f"SalvaGodinez_{remote_tag}.exe"
+
+    with Progress(
+        "[progress.description]{task.description}",
+        BarColumn(),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+    ) as progress:
+        task = progress.add_task("Descargando...", total=None)
+
+        def _on_progress(written: int, total: int) -> None:
+            if progress.tasks[0].total is None and total:
+                progress.update(task, total=total)
+            progress.update(task, completed=written)
+
+        result = download_update(
+            exe_asset["browser_download_url"],
+            filename,
+            expected_hash,
+            progress_callback=_on_progress,
+        )
+
+    if result["ok"]:
+        console.print("[green]SHA-256 verificado correctamente.[/green]")
+        console.print(f"[bold green]Guardado en:[/bold green] {result['dest']}")
+        for old, err in result.get("old_errors", []):
+            console.print(f"[yellow]No se pudo eliminar version anterior {old}: {err}[/yellow]")
+        return
+
+    reason = result.get("reason")
+    if reason == "too_large_header":
+        console.print(
+            f"[bold red]La descarga excede el tamano maximo permitido "
+            f"({result['max_size'] // (1024 * 1024)} MB segun Content-Length). "
+            "Se aborta por seguridad. El Escritorio no fue modificado.[/bold red]"
+        )
+    elif reason == "too_large_stream":
+        console.print(
+            f"[bold red]La descarga supero el tamano maximo permitido "
+            f"({result['max_size'] // (1024 * 1024)} MB). "
+            "Se aborta por seguridad. El Escritorio no fue modificado.[/bold red]"
+        )
+    elif reason == "hash_mismatch":
+        console.print(
+            f"[bold red]Verificacion SHA-256 fallida![/bold red]\n"
+            f"[red]Esperado: {result['expected_sha256']}[/red]\n"
+            f"[red]Obtenido: {result['actual_hash']}[/red]\n"
+            f"[red]La descarga se descarto por seguridad. El Escritorio no fue modificado.[/red]"
+        )
+    elif reason == "no_reference_hash":
+        console.print(
+            "[bold red]El Release no incluye un hash SHA-256 de referencia para "
+            "verificar la descarga.[/bold red]\n"
+            "[red]Por seguridad no se instala una actualizacion que no se puede "
+            "verificar; el Escritorio no fue modificado.[/red]\n"
+            "[dim]Descarga la version nueva manualmente desde el Release oficial en "
+            "GitHub si lo necesitas.[/dim]"
+        )
+    elif reason == "exception":
+        console.print(f"[bold red]Error al descargar la actualizacion: {result['error']}[/bold red]")

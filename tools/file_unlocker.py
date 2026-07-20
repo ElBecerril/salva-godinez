@@ -12,6 +12,8 @@ from rich.table import Table
 from utils import ps_escape, console
 
 
+# --- Logica (sin UI) ---
+
 
 def _find_locking_processes(filepath: str) -> dict:
     """Detecta procesos que tienen abierto un archivo usando Restart Manager API.
@@ -161,6 +163,9 @@ def _kill_process(pid: int) -> bool:
         return result.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
         return False
+
+
+# --- Interfaz de consola ---
 
 
 def file_unlocker_menu() -> None:

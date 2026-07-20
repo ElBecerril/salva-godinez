@@ -16,6 +16,9 @@ SUSPICIOUS_FILES = {"autorun.inf", "desktop.ini.exe", "recycler.exe", "ravmon.ex
 SUSPICIOUS_EXTENSIONS = {".exe", ".scr", ".bat", ".cmd", ".vbs", ".wsf", ".pif", ".com"}
 
 
+# --- Logica (sin UI) ---
+
+
 def _is_suspicious_lnk(lnk_path: str) -> bool:
     """Verifica si un .lnk apunta a un ejecutable (patron de virus USB)."""
     target = _read_lnk_target(lnk_path)
@@ -76,7 +79,7 @@ def scan_usb(drive: str, max_depth: int = 3) -> list[dict]:
     return threats
 
 
-def clean_usb(drive: str, threats: list[dict]) -> int:
+def clean_usb(drive: str, threats: list[dict]) -> list[dict]:
     """Elimina las amenazas detectadas con confirmacion.
 
     Solo borra las de riesgo Alto (autorun.inf, nombres de malware
@@ -85,24 +88,30 @@ def clean_usb(drive: str, threats: list[dict]) -> int:
     aqui — un .exe legitimo del usuario tiene la misma extension que uno
     malicioso, asi que borrarlas en bloque es demasiado agresivo. Esas
     quedan para revision manual (ver usb_disinfect_menu).
+
+    Retorna la lista de resultados por archivo:
+    [{"archivo": ruta, "ok": True}, {"archivo": ruta, "ok": False, "error": ...}, ...]
     """
-    removed = 0
+    results = []
     for threat in threats:
         if threat.get("riesgo") != "Alto":
             continue
         filepath = threat["archivo"]
         try:
             os.remove(filepath)
-            console.print(f"  [green]Eliminado:[/green] {escape(os.path.basename(filepath))}")
-            removed += 1
+            results.append({"archivo": filepath, "ok": True})
         except OSError as e:
-            console.print(f"  [red]No se pudo eliminar {escape(os.path.basename(filepath))}: {escape(str(e))}[/red]")
-    return removed
+            results.append({"archivo": filepath, "ok": False, "error": str(e)})
+    return results
 
 
-def unhide_folders(drive: str) -> None:
-    """Restaura carpetas ocultas por malware usando attrib."""
-    console.print(f"[bold yellow]Restaurando carpetas ocultas en {drive}...[/bold yellow]")
+def unhide_folders(drive: str) -> dict:
+    """Restaura carpetas ocultas por malware usando attrib.
+
+    Retorna {"ok": True} en exito; {"ok": False, "returncode": int,
+    "detail": str} si attrib devolvio error; o {"ok": False, "error": str}
+    si el subprocess no se pudo ejecutar.
+    """
     try:
         result = subprocess.run(
             ["attrib", "-h", "-s", "-r", "/s", "/d", f"{drive}*.*"],
@@ -110,17 +119,14 @@ def unhide_folders(drive: str) -> None:
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         if result.returncode == 0:
-            console.print("[green]Atributos restaurados correctamente.[/green]")
-        else:
-            detail = (result.stderr or result.stdout or "").strip()
-            console.print(
-                f"[red]attrib devolvio un error (codigo {result.returncode}). "
-                "Es posible que no todas las carpetas/archivos se hayan restaurado.[/red]"
-            )
-            if detail:
-                console.print(f"[dim]{detail}[/dim]")
+            return {"ok": True}
+        detail = (result.stderr or result.stdout or "").strip()
+        return {"ok": False, "returncode": result.returncode, "detail": detail}
     except (subprocess.TimeoutExpired, OSError) as e:
-        console.print(f"[red]Error al restaurar atributos: {e}[/red]")
+        return {"ok": False, "error": str(e)}
+
+
+# --- Interfaz de consola ---
 
 
 def usb_disinfect_menu() -> None:
@@ -176,7 +182,14 @@ def usb_disinfect_menu() -> None:
                 "[bold]Eliminar solo las de riesgo Alto?[/bold]", choices=["s", "n"], default="n"
             )
             if confirm == "s":
-                removed = clean_usb(drive, threats)
+                clean_results = clean_usb(drive, threats)
+                removed = 0
+                for r in clean_results:
+                    if r["ok"]:
+                        console.print(f"  [green]Eliminado:[/green] {escape(os.path.basename(r['archivo']))}")
+                        removed += 1
+                    else:
+                        console.print(f"  [red]No se pudo eliminar {escape(os.path.basename(r['archivo']))}: {escape(r['error'])}[/red]")
                 console.print(f"\n[bold green]{removed} amenaza(s) eliminada(s).[/bold green]")
 
         if medium_risk:
@@ -193,4 +206,16 @@ def usb_disinfect_menu() -> None:
         "[bold]Restaurar carpetas ocultas?[/bold]", choices=["s", "n"], default="n"
     )
     if restore == "s":
-        unhide_folders(drive)
+        console.print(f"[bold yellow]Restaurando carpetas ocultas en {drive}...[/bold yellow]")
+        result = unhide_folders(drive)
+        if result["ok"]:
+            console.print("[green]Atributos restaurados correctamente.[/green]")
+        elif "error" in result:
+            console.print(f"[red]Error al restaurar atributos: {result['error']}[/red]")
+        else:
+            console.print(
+                f"[red]attrib devolvio un error (codigo {result['returncode']}). "
+                "Es posible que no todas las carpetas/archivos se hayan restaurado.[/red]"
+            )
+            if result["detail"]:
+                console.print(f"[dim]{result['detail']}[/dim]")

@@ -10,6 +10,8 @@ from rich import box
 from utils import get_openpyxl as _get_openpyxl, console
 
 
+# --- Logica (sin UI) ---
+
 
 def _safe_output_path(path: str) -> str:
     """Evita sobrescribir un archivo existente agregando un sufijo numerico."""
@@ -25,27 +27,32 @@ def _safe_output_path(path: str) -> str:
         counter += 1
 
 
-def _merge_files(paths: list[str], output: str) -> tuple[int, str | None]:
+def _merge_files(paths: list[str], output: str) -> dict:
     """Modo 1: Unir archivos — cada archivo aporta sus hojas al workbook final.
 
     Returns:
-        Tupla (numero total de hojas copiadas, ruta final de salida o None si fallo).
+        dict con: ok, sheets, output, open_errors (lista de (nombre, error)),
+        forced_xlsx, output_conflict, save_error.
     """
     openpyxl = _get_openpyxl()
     if not openpyxl:
-        return 0, None
+        return {
+            "ok": False, "sheets": 0, "output": None, "open_errors": [],
+            "forced_xlsx": False, "output_conflict": False, "save_error": None,
+        }
 
     from copy import copy
 
     dest_wb = openpyxl.Workbook()
     dest_wb.remove(dest_wb.active)
     total_sheets = 0
+    open_errors: list[tuple[str, str]] = []
 
     for path in paths:
         try:
             src_wb = openpyxl.load_workbook(path, data_only=True)
         except (OSError, KeyError, zipfile.BadZipFile) as e:
-            console.print(f"  [red]No se pudo abrir {os.path.basename(path)}: {e}[/red]")
+            open_errors.append((os.path.basename(path), str(e)))
             continue
         base = os.path.splitext(os.path.basename(path))[0]
 
@@ -82,34 +89,36 @@ def _merge_files(paths: list[str], output: str) -> tuple[int, str | None]:
 
     # .xlsm de salida sin macros VBA reales queda corrupto: si el usuario
     # pidio .xlsm pero ninguna hoja de origen trajo VBA, forzamos .xlsx.
+    forced_xlsx = False
     if output.lower().endswith(".xlsm") and not getattr(dest_wb, "vba_archive", None):
-        console.print(
-            "[yellow]El archivo de salida se genero como .xlsx: ninguno de los archivos "
-            "de origen tenia macros VBA, un .xlsm sin macros queda corrupto.[/yellow]"
-        )
+        forced_xlsx = True
         output = os.path.splitext(output)[0] + ".xlsx"
 
     input_abspaths = {os.path.abspath(p) for p in paths}
     if os.path.abspath(output) in input_abspaths:
-        console.print(
-            "[red]La ruta de salida no puede ser igual a uno de los archivos de entrada "
-            "(se perderia el original). Elige otra ruta.[/red]"
-        )
         dest_wb.close()
-        return 0, None
+        return {
+            "ok": False, "sheets": 0, "output": None, "open_errors": open_errors,
+            "forced_xlsx": forced_xlsx, "output_conflict": True, "save_error": None,
+        }
     output = _safe_output_path(output)
 
     try:
         dest_wb.save(output)
     except OSError as e:
-        console.print(f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {e}[/red]")
         dest_wb.close()
-        return 0, None
+        return {
+            "ok": False, "sheets": 0, "output": None, "open_errors": open_errors,
+            "forced_xlsx": forced_xlsx, "output_conflict": False, "save_error": str(e),
+        }
     dest_wb.close()
-    return total_sheets, output
+    return {
+        "ok": True, "sheets": total_sheets, "output": output, "open_errors": open_errors,
+        "forced_xlsx": forced_xlsx, "output_conflict": False, "save_error": None,
+    }
 
 
-def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> tuple[int, str | None]:
+def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> dict:
     """Modo 2: Unir hojas — stack vertical de hojas en una sola.
 
     Args:
@@ -118,25 +127,29 @@ def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> tuple
             conservan todas las filas de todas las hojas.
 
     Returns:
-        Tupla (numero total de filas en la hoja final, ruta final de salida o None si fallo).
+        dict con: ok, rows, output, open_error, input_conflict, forced_xlsx, save_error.
     """
     openpyxl = _get_openpyxl()
     if not openpyxl:
-        return 0, None
+        return {
+            "ok": False, "rows": 0, "output": None, "open_error": None,
+            "input_conflict": False, "forced_xlsx": False, "save_error": None,
+        }
 
     try:
         src_wb = openpyxl.load_workbook(filepath, data_only=True)
     except (OSError, KeyError, zipfile.BadZipFile) as e:
-        console.print(f"  [red]No se pudo abrir el archivo: {e}[/red]")
-        return 0, None
+        return {
+            "ok": False, "rows": 0, "output": None, "open_error": str(e),
+            "input_conflict": False, "forced_xlsx": False, "save_error": None,
+        }
 
     if os.path.abspath(output) == os.path.abspath(filepath):
-        console.print(
-            "[red]La ruta de salida no puede ser igual al archivo de entrada "
-            "(se perderia el original). Elige otra ruta.[/red]"
-        )
         src_wb.close()
-        return 0, None
+        return {
+            "ok": False, "rows": 0, "output": None, "open_error": None,
+            "input_conflict": True, "forced_xlsx": False, "save_error": None,
+        }
 
     dest_wb = openpyxl.Workbook()
     dest_ws = dest_wb.active
@@ -155,22 +168,28 @@ def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> tuple
 
     src_wb.close()
 
+    forced_xlsx = False
     if output.lower().endswith(".xlsm") and not getattr(dest_wb, "vba_archive", None):
-        console.print(
-            "[yellow]El archivo de salida se genero como .xlsx: el resultado no tiene "
-            "macros VBA, un .xlsm sin macros queda corrupto.[/yellow]"
-        )
+        forced_xlsx = True
         output = os.path.splitext(output)[0] + ".xlsx"
     output = _safe_output_path(output)
 
     try:
         dest_wb.save(output)
     except OSError as e:
-        console.print(f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {e}[/red]")
         dest_wb.close()
-        return 0, None
+        return {
+            "ok": False, "rows": 0, "output": None, "open_error": None,
+            "input_conflict": False, "forced_xlsx": forced_xlsx, "save_error": str(e),
+        }
     dest_wb.close()
-    return current_row - 1, output
+    return {
+        "ok": True, "rows": current_row - 1, "output": output, "open_error": None,
+        "input_conflict": False, "forced_xlsx": forced_xlsx, "save_error": None,
+    }
+
+
+# --- Interfaz de consola ---
 
 
 def consolidator_menu() -> None:
@@ -222,10 +241,30 @@ def consolidator_menu() -> None:
         )
 
         with console.status("[bold green]Consolidando archivos..."):
-            sheets, final_output = _merge_files(paths, output)
+            result = _merge_files(paths, output)
 
-        if sheets:
-            console.print(f"\n[bold green]Consolidado creado: {final_output} ({sheets} hojas)[/bold green]")
+        for basename, err in result["open_errors"]:
+            console.print(f"  [red]No se pudo abrir {basename}: {err}[/red]")
+
+        if result["forced_xlsx"]:
+            console.print(
+                "[yellow]El archivo de salida se genero como .xlsx: ninguno de los archivos "
+                "de origen tenia macros VBA, un .xlsm sin macros queda corrupto.[/yellow]"
+            )
+
+        if result["output_conflict"]:
+            console.print(
+                "[red]La ruta de salida no puede ser igual a uno de los archivos de entrada "
+                "(se perderia el original). Elige otra ruta.[/red]"
+            )
+
+        if result["save_error"]:
+            console.print(
+                f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {result['save_error']}[/red]"
+            )
+
+        if result["sheets"]:
+            console.print(f"\n[bold green]Consolidado creado: {result['output']} ({result['sheets']} hojas)[/bold green]")
 
     elif mode == "2":
         console.print("\n[bold cyan]Unir hojas en una sola[/bold cyan]\n")
@@ -267,10 +306,30 @@ def consolidator_menu() -> None:
             return
 
         with console.status("[bold green]Uniendo hojas..."):
-            rows, final_output = _merge_sheets(filepath, output, skip_header=(has_header == "s"))
+            result = _merge_sheets(filepath, output, skip_header=(has_header == "s"))
 
-        if rows:
-            console.print(f"\n[bold green]Archivo creado: {final_output} ({rows} filas)[/bold green]")
+        if result["open_error"]:
+            console.print(f"  [red]No se pudo abrir el archivo: {result['open_error']}[/red]")
+
+        if result["input_conflict"]:
+            console.print(
+                "[red]La ruta de salida no puede ser igual al archivo de entrada "
+                "(se perderia el original). Elige otra ruta.[/red]"
+            )
+
+        if result["forced_xlsx"]:
+            console.print(
+                "[yellow]El archivo de salida se genero como .xlsx: el resultado no tiene "
+                "macros VBA, un .xlsm sin macros queda corrupto.[/yellow]"
+            )
+
+        if result["save_error"]:
+            console.print(
+                f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {result['save_error']}[/red]"
+            )
+
+        if result["rows"]:
+            console.print(f"\n[bold green]Archivo creado: {result['output']} ({result['rows']} filas)[/bold green]")
 
     elif mode == "0":
         return

@@ -11,6 +11,8 @@ from tools import is_admin
 from utils import ps_escape, console
 
 
+# --- Logica (sin UI) ---
+
 
 class PrinterQueryError(Exception):
     """Error real al consultar impresoras (no confundir con 'sin impresoras')."""
@@ -52,6 +54,51 @@ def _get_printers() -> list[dict]:
     if isinstance(data, dict):
         data = [data]
     return data
+
+
+def _filter_unshared(printers: list[dict]) -> list[dict]:
+    """Devuelve solo las impresoras que NO estan compartidas."""
+    return [p for p in printers if not p.get("Shared", False)]
+
+
+def _filter_shared(printers: list[dict]) -> list[dict]:
+    """Devuelve solo las impresoras que SI estan compartidas."""
+    return [p for p in printers if p.get("Shared", False)]
+
+
+def _set_printer_shared(name: str, shared: bool, share_name: str = "") -> dict:
+    """Comparte o deja de compartir una impresora via PowerShell.
+
+    Devuelve un dict {"ok": bool, "error_kind": str, "message": str}.
+    error_kind es uno de: "", "timeout", "os", "cmd" (comando fallo con
+    returncode != 0). No imprime nada; el llamador decide como mostrarlo.
+    """
+    if shared:
+        cmd = (f'Set-Printer -Name "{ps_escape(name)}" -Shared $true '
+               f'-ShareName "{ps_escape(share_name)}"')
+    else:
+        cmd = f'Set-Printer -Name "{ps_escape(name)}" -Shared $false'
+
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", cmd],
+            capture_output=True, text=True, timeout=15,
+            encoding="utf-8", errors="replace",
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error_kind": "timeout", "message": ""}
+    except OSError as e:
+        return {"ok": False, "error_kind": "os", "message": str(e)}
+
+    if result.returncode == 0:
+        return {"ok": True, "error_kind": "", "message": ""}
+
+    error = result.stderr.strip() or result.stdout.strip()
+    return {"ok": False, "error_kind": "cmd", "message": error}
+
+
+# --- Interfaz de consola ---
 
 
 def _show_shared_printers() -> None:
@@ -111,7 +158,7 @@ def _share_printer() -> None:
         return
 
     # Filtrar impresoras no compartidas
-    unshared = [p for p in printers if not p.get("Shared", False)]
+    unshared = _filter_unshared(printers)
     if not unshared:
         console.print("[yellow]Todas las impresoras ya estan compartidas.[/yellow]")
         return
@@ -135,28 +182,20 @@ def _share_printer() -> None:
         console.print("[red]Nombre de red invalido.[/red]")
         return
 
-    try:
-        with console.status("[bold green]Compartiendo impresora..."):
-            result = subprocess.run(
-                ["powershell", "-NoProfile", "-Command",
-                 f'Set-Printer -Name "{ps_escape(name)}" -Shared $true -ShareName "{ps_escape(share_name)}"'],
-                capture_output=True, text=True, timeout=15,
-                encoding="utf-8", errors="replace",
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
+    with console.status("[bold green]Compartiendo impresora..."):
+        result = _set_printer_shared(name, True, share_name)
 
-        if result.returncode == 0:
-            console.print(
-                f"\n[bold green]Impresora '{escape(name)}' compartida como "
-                f"'{escape(share_name)}'.[/bold green]"
-            )
-        else:
-            error = result.stderr.strip() or result.stdout.strip()
-            console.print(f"[red]Error al compartir: {escape(error)}[/red]")
-    except subprocess.TimeoutExpired:
+    if result["ok"]:
+        console.print(
+            f"\n[bold green]Impresora '{escape(name)}' compartida como "
+            f"'{escape(share_name)}'.[/bold green]"
+        )
+    elif result["error_kind"] == "timeout":
         console.print("[red]Timeout al intentar compartir la impresora.[/red]")
-    except OSError as e:
-        console.print(f"[red]Error del sistema: {e}[/red]")
+    elif result["error_kind"] == "os":
+        console.print(f"[red]Error del sistema: {result['message']}[/red]")
+    else:
+        console.print(f"[red]Error al compartir: {escape(result['message'])}[/red]")
 
 
 def _unshare_printer() -> None:
@@ -179,7 +218,7 @@ def _unshare_printer() -> None:
         return
 
     # Filtrar impresoras compartidas
-    shared = [p for p in printers if p.get("Shared", False)]
+    shared = _filter_shared(printers)
     if not shared:
         console.print("[yellow]No hay impresoras compartidas.[/yellow]")
         return
@@ -204,25 +243,17 @@ def _unshare_printer() -> None:
         console.print("[dim]Operacion cancelada.[/dim]")
         return
 
-    try:
-        with console.status("[bold green]Quitando comparticion..."):
-            result = subprocess.run(
-                ["powershell", "-NoProfile", "-Command",
-                 f'Set-Printer -Name "{ps_escape(name)}" -Shared $false'],
-                capture_output=True, text=True, timeout=15,
-                encoding="utf-8", errors="replace",
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
+    with console.status("[bold green]Quitando comparticion..."):
+        result = _set_printer_shared(name, False)
 
-        if result.returncode == 0:
-            console.print(f"\n[bold green]Impresora '{escape(name)}' ya no esta compartida.[/bold green]")
-        else:
-            error = result.stderr.strip() or result.stdout.strip()
-            console.print(f"[red]Error: {escape(error)}[/red]")
-    except subprocess.TimeoutExpired:
+    if result["ok"]:
+        console.print(f"\n[bold green]Impresora '{escape(name)}' ya no esta compartida.[/bold green]")
+    elif result["error_kind"] == "timeout":
         console.print("[red]Timeout al intentar modificar la impresora.[/red]")
-    except OSError as e:
-        console.print(f"[red]Error del sistema: {e}[/red]")
+    elif result["error_kind"] == "os":
+        console.print(f"[red]Error del sistema: {result['message']}[/red]")
+    else:
+        console.print(f"[red]Error: {escape(result['message'])}[/red]")
 
 
 def printer_share_menu() -> None:

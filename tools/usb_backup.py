@@ -15,6 +15,8 @@ from config import BACKUP_SOURCES
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
 
 def _calculate_backup_size(sources: list[str]) -> tuple[int, int]:
     """Calcula tamano total y numero de archivos a respaldar.
@@ -38,8 +40,17 @@ def _calculate_backup_size(sources: list[str]) -> tuple[int, int]:
     return total, count
 
 
-def _copy_with_progress(sources: list[str], dest_base: str) -> tuple[int, int, list[tuple[str, str]]]:
-    """Copia archivos con barra de progreso Rich.
+def _copy_files(
+    sources: list[str],
+    dest_base: str,
+    progress_callback=None,
+) -> tuple[int, int, list[tuple[str, str]]]:
+    """Copia archivos de las carpetas origen a dest_base.
+
+    Si se provee progress_callback, se llama con los bytes avanzados
+    (0 en caso de fallo) despues de procesar cada archivo, para que la
+    capa de interfaz pueda actualizar una barra de progreso sin que esta
+    funcion dependa de rich.
 
     Returns:
         (files_copied, files_skipped, failed) donde failed es una lista de
@@ -50,54 +61,48 @@ def _copy_with_progress(sources: list[str], dest_base: str) -> tuple[int, int, l
     skipped = 0
     failed: list[tuple[str, str]] = []
 
-    # Contar total para progreso
-    total_size, total_files = _calculate_backup_size(sources)
+    for source in sources:
+        if not os.path.isdir(source):
+            continue
+        source_name = os.path.basename(source)
 
-    with Progress(
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        TransferSpeedColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Copiando...", total=total_size)
+        for dirpath, _, filenames in os.walk(source):
+            rel_dir = os.path.relpath(dirpath, source)
+            dest_dir = os.path.join(dest_base, source_name, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
 
-        for source in sources:
-            if not os.path.isdir(source):
-                continue
-            source_name = os.path.basename(source)
+            for fname in filenames:
+                src_file = os.path.join(dirpath, fname)
+                dst_file = os.path.join(dest_dir, fname)
 
-            for dirpath, _, filenames in os.walk(source):
-                rel_dir = os.path.relpath(dirpath, source)
-                dest_dir = os.path.join(dest_base, source_name, rel_dir)
-                os.makedirs(dest_dir, exist_ok=True)
+                try:
+                    src_size = os.path.getsize(src_file)
 
-                for fname in filenames:
-                    src_file = os.path.join(dirpath, fname)
-                    dst_file = os.path.join(dest_dir, fname)
+                    # Skip si es identico (mismo tamano y fecha)
+                    if os.path.exists(dst_file):
+                        dst_stat = os.stat(dst_file)
+                        src_stat = os.stat(src_file)
+                        if (dst_stat.st_size == src_stat.st_size and
+                                abs(dst_stat.st_mtime - src_stat.st_mtime) < 2):
+                            skipped += 1
+                            if progress_callback:
+                                progress_callback(src_size)
+                            continue
 
-                    try:
-                        src_size = os.path.getsize(src_file)
-
-                        # Skip si es identico (mismo tamano y fecha)
-                        if os.path.exists(dst_file):
-                            dst_stat = os.stat(dst_file)
-                            src_stat = os.stat(src_file)
-                            if (dst_stat.st_size == src_stat.st_size and
-                                    abs(dst_stat.st_mtime - src_stat.st_mtime) < 2):
-                                skipped += 1
-                                progress.advance(task, src_size)
-                                continue
-
-                        shutil.copy2(src_file, dst_file)
-                        copied += 1
-                        progress.advance(task, src_size)
-                    except OSError as e:
-                        progress.advance(task, 0)
-                        failed.append((src_file, str(e)))
-                        continue
+                    shutil.copy2(src_file, dst_file)
+                    copied += 1
+                    if progress_callback:
+                        progress_callback(src_size)
+                except OSError as e:
+                    if progress_callback:
+                        progress_callback(0)
+                    failed.append((src_file, str(e)))
+                    continue
 
     return copied, skipped, failed
+
+
+# --- Interfaz de consola ---
 
 
 def usb_backup_menu() -> None:
@@ -165,7 +170,18 @@ def usb_backup_menu() -> None:
     if confirm != "s":
         return
 
-    copied, skipped, failed = _copy_with_progress(valid_sources, dest_base)
+    with Progress(
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TransferSpeedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Copiando...", total=total_bytes)
+        copied, skipped, failed = _copy_files(
+            valid_sources, dest_base,
+            progress_callback=lambda n: progress.advance(task, n),
+        )
 
     if failed:
         console.print(f"\n[bold yellow]Respaldo completado con errores.[/bold yellow]")

@@ -10,6 +10,8 @@ from rich.table import Table
 from utils import get_openpyxl as _get_openpyxl, console
 
 
+# --- Logica (sin UI) ---
+
 
 # Caracteres invisibles a limpiar
 _INVISIBLE = re.compile(
@@ -49,11 +51,11 @@ def clean_file(filepath: str) -> dict:
     """Limpia celdas de texto en un archivo Excel.
 
     Returns:
-        dict con total_cells, cleaned_cells, changes (lista de diffs)
+        dict con ok, error, total_cells, cleaned_cells, changes (lista de diffs)
     """
     openpyxl = _get_openpyxl()
     if not openpyxl:
-        return {"total_cells": 0, "cleaned_cells": 0, "changes": []}
+        return {"ok": False, "error": None, "total_cells": 0, "cleaned_cells": 0, "changes": []}
 
     # .xlsm contiene macros VBA: si no se pasa keep_vba=True, openpyxl las
     # descarta al guardar y el archivo queda corrupto/sin macros.
@@ -61,8 +63,7 @@ def clean_file(filepath: str) -> dict:
     try:
         wb = openpyxl.load_workbook(filepath, keep_vba=is_xlsm)
     except (OSError, KeyError, zipfile.BadZipFile, openpyxl.utils.exceptions.InvalidFileException) as e:
-        console.print(f"[red]No se pudo abrir el archivo Excel (corrupto o formato invalido): {e}[/red]")
-        return {"total_cells": 0, "cleaned_cells": 0, "changes": []}
+        return {"ok": False, "error": str(e), "total_cells": 0, "cleaned_cells": 0, "changes": []}
     total = 0
     cleaned = 0
     changes = []
@@ -89,8 +90,11 @@ def clean_file(filepath: str) -> dict:
                         cell.value = new_val
                         cleaned += 1
 
-    return {"total_cells": total, "cleaned_cells": cleaned,
+    return {"ok": True, "error": None, "total_cells": total, "cleaned_cells": cleaned,
             "changes": changes, "_wb": wb}
+
+
+# --- Interfaz de consola ---
 
 
 def cell_cleaner_menu() -> None:
@@ -108,6 +112,11 @@ def cell_cleaner_menu() -> None:
 
     with console.status("[bold green]Analizando celdas..."):
         result = clean_file(filepath)
+
+    if not result.get("ok"):
+        if result.get("error"):
+            console.print(f"[red]No se pudo abrir el archivo Excel (corrupto o formato invalido): {result['error']}[/red]")
+        return
 
     wb = result.pop("_wb", None)
     console.print(f"\n  Celdas de texto analizadas: [bold]{result['total_cells']}[/bold]")

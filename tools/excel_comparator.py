@@ -9,6 +9,8 @@ from rich.table import Table
 from utils import get_openpyxl as _get_openpyxl, console
 
 
+# --- Logica (sin UI) ---
+
 
 def _safe_output_path(path: str) -> str:
     """Evita sobrescribir un archivo existente agregando un sufijo numerico."""
@@ -52,11 +54,11 @@ def compare_files(path1: str, path2: str) -> dict:
     """Compara dos archivos Excel.
 
     Returns:
-        dict con sheets_only_v1, sheets_only_v2, common_diffs {sheet: [diffs]}
+        dict con ok, error, sheets_only_v1, sheets_only_v2, common_diffs {sheet: [diffs]}
     """
     openpyxl = _get_openpyxl()
     if not openpyxl:
-        return {}
+        return {"ok": False, "error": None}
 
     wb1 = None
     wb2 = None
@@ -74,16 +76,14 @@ def compare_files(path1: str, path2: str) -> dict:
                 wb1.close()
             except Exception:
                 pass
-        console.print(
-            f"[red]No se pudo abrir uno de los archivos Excel "
-            f"(corrupto, extension incorrecta o formato invalido): {e}[/red]"
-        )
-        return {}
+        return {"ok": False, "error": str(e)}
 
     names1 = set(wb1.sheetnames)
     names2 = set(wb2.sheetnames)
 
     result = {
+        "ok": True,
+        "error": None,
         "sheets_only_v1": sorted(names1 - names2),
         "sheets_only_v2": sorted(names2 - names1),
         "common_diffs": {},
@@ -121,6 +121,9 @@ def _generate_diff_report(path1: str, path2: str, comparison: dict, output: str)
     wb1.close()
 
 
+# --- Interfaz de consola ---
+
+
 def comparator_menu() -> None:
     """Menu del comparador de Excel."""
     console.print("\n[bold cyan]Comparar dos Archivos de Excel[/bold cyan]\n")
@@ -138,7 +141,12 @@ def comparator_menu() -> None:
     with console.status("[bold green]Comparando archivos..."):
         result = compare_files(path1, path2)
 
-    if not result:
+    if not result.get("ok"):
+        if result.get("error"):
+            console.print(
+                f"[red]No se pudo abrir uno de los archivos Excel "
+                f"(corrupto, extension incorrecta o formato invalido): {result['error']}[/red]"
+            )
         return
 
     wb1 = result.pop("_wb1", None)

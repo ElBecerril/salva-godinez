@@ -9,6 +9,9 @@ from tools import get_removable_drives
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
+
 def _drive_still_present(drive: str) -> bool | None:
     """Verifica si la unidad sigue presente en el sistema.
 
@@ -25,7 +28,7 @@ def _drive_still_present(drive: str) -> bool | None:
         return None
 
 
-def _eject_drive(drive_letter: str) -> None:
+def _eject_drive(drive_letter: str) -> dict:
     """Expulsa una unidad USB de forma segura via DeviceIoControl.
 
     Sigue la secuencia canonica de Windows (KB165721): abrir el volumen,
@@ -33,6 +36,11 @@ def _eject_drive(drive_letter: str) -> None:
     y expulsarlo (EJECT). Es fiable y no depende de verbos localizados del
     Shell (InvokeVerb("Eject") abria la carpeta en Windows en espanol en vez
     de expulsar).
+
+    No imprime nada: devuelve un dict {"status": ..., "drive": drive, ...}
+    para que la capa de interfaz decida que mostrar. Valores posibles de
+    "status": "no_windows", "open_error" (con "error"), "access_denied",
+    "in_use", "ejected", "unverified", "still_present".
     """
     # Normalizar: solo la letra con ':'
     drive = drive_letter.rstrip("\\")
@@ -40,8 +48,7 @@ def _eject_drive(drive_letter: str) -> None:
     try:
         kernel32 = ctypes.windll.kernel32
     except (AttributeError, OSError):
-        console.print("[red]La expulsion segura solo esta disponible en Windows.[/red]")
-        return
+        return {"status": "no_windows", "drive": drive}
 
     # HANDLE es de 64 bits; sin esto ctypes lo trunca a int y rompe la
     # comparacion con INVALID_HANDLE_VALUE.
@@ -63,15 +70,10 @@ def _eject_drive(drive_letter: str) -> None:
             volume_path, generic_rw, share_rw, None, open_existing, 0, None
         )
     except OSError as e:
-        console.print(f"[red]Error del sistema al abrir {drive}: {e}[/red]")
-        return
+        return {"status": "open_error", "drive": drive, "error": str(e)}
 
     if not handle or handle == invalid_handle:
-        console.print(
-            f"[red]No se pudo acceder a {drive} para expulsarla.[/red]\n"
-            "[dim]Puede requerir permisos de administrador.[/dim]"
-        )
-        return
+        return {"status": "access_denied", "drive": drive}
 
     try:
         bytes_returned = ctypes.c_uint32(0)
@@ -89,11 +91,7 @@ def _eject_drive(drive_letter: str) -> None:
             time.sleep(0.3)
 
         if not locked:
-            console.print(
-                f"[red]No se pudo expulsar {drive}: la unidad esta en uso.[/red]\n"
-                "[dim]Cierra los archivos o programas que la usen e intenta de nuevo.[/dim]"
-            )
-            return
+            return {"status": "in_use", "drive": drive}
 
         # 2. Desmontar el sistema de archivos.
         kernel32.DeviceIoControl(
@@ -131,20 +129,14 @@ def _eject_drive(drive_letter: str) -> None:
             break
 
     if ejected_confirmed:
-        console.print(f"\n[bold green]Unidad {drive} expulsada correctamente.[/bold green]")
-        console.print("[dim]Ya puedes retirar el dispositivo de forma segura.[/dim]")
+        return {"status": "ejected", "drive": drive}
     elif verification_failed:
-        console.print(
-            f"\n[yellow]Se expulso {drive}, pero no fue posible verificar en este "
-            "sistema si la unidad realmente se solto. Verifica manualmente (p. ej. "
-            "en el explorador de archivos) antes de retirar el dispositivo.[/yellow]"
-        )
+        return {"status": "unverified", "drive": drive}
     else:
-        console.print(
-            f"\n[yellow]Se envio el comando de expulsion para {drive}, pero la unidad "
-            "todavia aparece en el sistema. Puede que siga en uso. No la retires "
-            "todavia; verifica manualmente.[/yellow]"
-        )
+        return {"status": "still_present", "drive": drive}
+
+
+# --- Interfaz de consola ---
 
 
 def usb_eject_menu() -> None:
@@ -179,4 +171,37 @@ def usb_eject_menu() -> None:
         return
 
     with console.status(f"[bold green]Expulsando {drive}..."):
-        _eject_drive(drive)
+        result = _eject_drive(drive)
+
+    status = result["status"]
+    ejected_drive = result["drive"]
+
+    if status == "no_windows":
+        console.print("[red]La expulsion segura solo esta disponible en Windows.[/red]")
+    elif status == "open_error":
+        console.print(f"[red]Error del sistema al abrir {ejected_drive}: {result['error']}[/red]")
+    elif status == "access_denied":
+        console.print(
+            f"[red]No se pudo acceder a {ejected_drive} para expulsarla.[/red]\n"
+            "[dim]Puede requerir permisos de administrador.[/dim]"
+        )
+    elif status == "in_use":
+        console.print(
+            f"[red]No se pudo expulsar {ejected_drive}: la unidad esta en uso.[/red]\n"
+            "[dim]Cierra los archivos o programas que la usen e intenta de nuevo.[/dim]"
+        )
+    elif status == "ejected":
+        console.print(f"\n[bold green]Unidad {ejected_drive} expulsada correctamente.[/bold green]")
+        console.print("[dim]Ya puedes retirar el dispositivo de forma segura.[/dim]")
+    elif status == "unverified":
+        console.print(
+            f"\n[yellow]Se expulso {ejected_drive}, pero no fue posible verificar en este "
+            "sistema si la unidad realmente se solto. Verifica manualmente (p. ej. "
+            "en el explorador de archivos) antes de retirar el dispositivo.[/yellow]"
+        )
+    else:  # still_present
+        console.print(
+            f"\n[yellow]Se envio el comando de expulsion para {ejected_drive}, pero la unidad "
+            "todavia aparece en el sistema. Puede que siga en uso. No la retires "
+            "todavia; verifica manualmente.[/yellow]"
+        )

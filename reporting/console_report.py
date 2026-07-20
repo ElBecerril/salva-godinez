@@ -10,6 +10,62 @@ from rich.markup import escape
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
+
+def resolve_restore_source(selected: dict) -> dict:
+    """Determina de donde copiar un resultado seleccionado y si es posible.
+
+    Para los archivos de la papelera, la ruta que se muestra es la ORIGINAL
+    (de donde se borro) y ahi ya no hay nada: el archivo vive renombrado
+    dentro de $Recycle.Bin. "ruta_fisica" es de donde si se puede copiar.
+
+    Returns:
+        dict con "ok" (bool), "nombre", "source" y, si ok es False, "error"
+        con codigo ("missing_fields" o "file_gone") y "ruta_mostrada" para
+        el mensaje (solo en "file_gone").
+    """
+    nombre = selected.get("nombre")
+    source = selected.get("ruta_fisica") or selected.get("ruta")
+
+    if not source or not nombre:
+        return {"ok": False, "error": "missing_fields"}
+
+    if not os.path.isfile(source):
+        return {
+            "ok": False,
+            "error": "file_gone",
+            "ruta_mostrada": selected.get("ruta", source),
+        }
+
+    return {"ok": True, "nombre": nombre, "source": source}
+
+
+def compute_unique_dest_path(dest_dir: str, nombre: str) -> str:
+    """Calcula la ruta destino evitando sobreescribir un archivo existente."""
+    dest_path = os.path.join(dest_dir, nombre)
+    if not os.path.exists(dest_path):
+        return dest_path
+
+    base, ext = os.path.splitext(nombre)
+    counter = 1
+    while os.path.exists(dest_path):
+        dest_path = os.path.join(dest_dir, f"{base}_recuperado{counter}{ext}")
+        counter += 1
+    return dest_path
+
+
+def copy_restored_file(source: str, dest_path: str) -> dict:
+    """Copia el archivo de source a dest_path. Devuelve dict con ok/error."""
+    try:
+        shutil.copy2(source, dest_path)
+        return {"ok": True, "dest": dest_path}
+    except OSError as e:
+        return {"ok": False, "error": str(e)}
+
+
+# --- Interfaz de consola ---
+
 
 def show_results(results: list[dict], title: str = "Resultados") -> None:
     """Muestra los resultados en una tabla Rich.
@@ -71,25 +127,23 @@ def offer_restore(results: list[dict]) -> None:
         return
 
     selected = results[idx - 1]
-    nombre = selected.get("nombre")
-    # Para los archivos de la papelera, la ruta que se muestra es la ORIGINAL
-    # (de donde se borro) y ahi ya no hay nada: el archivo vive renombrado
-    # dentro de $Recycle.Bin. "ruta_fisica" es de donde si se puede copiar.
-    source = selected.get("ruta_fisica") or selected.get("ruta")
+    resolved = resolve_restore_source(selected)
 
-    if not source or not nombre:
-        console.print(
-            "[red]El resultado seleccionado no tiene ruta o nombre validos.[/red]"
-        )
+    if not resolved["ok"]:
+        if resolved["error"] == "missing_fields":
+            console.print(
+                "[red]El resultado seleccionado no tiene ruta o nombre validos.[/red]"
+            )
+        else:  # "file_gone"
+            console.print(
+                f"[red]Ya no se puede recuperar este archivo.[/red] "
+                f"Puede que se haya vaciado la papelera o que ya no este en: "
+                f"{escape(str(resolved['ruta_mostrada']))}"
+            )
         return
 
-    if not os.path.isfile(source):
-        console.print(
-            f"[red]Ya no se puede recuperar este archivo.[/red] "
-            f"Puede que se haya vaciado la papelera o que ya no este en: "
-            f"{escape(str(selected.get('ruta', source)))}"
-        )
-        return
+    nombre = resolved["nombre"]
+    source = resolved["source"]
 
     dest_dir = Prompt.ask(
         "Carpeta destino (ej: C:\\Users\\TuUsuario\\Desktop)",
@@ -100,20 +154,12 @@ def offer_restore(results: list[dict]) -> None:
         console.print(f"[red]La carpeta no existe:[/red] {escape(str(dest_dir))}")
         return
 
-    dest_path = os.path.join(dest_dir, nombre)
+    dest_path = compute_unique_dest_path(dest_dir, nombre)
 
-    # Evitar sobreescribir
-    if os.path.exists(dest_path):
-        base, ext = os.path.splitext(nombre)
-        counter = 1
-        while os.path.exists(dest_path):
-            dest_path = os.path.join(dest_dir, f"{base}_recuperado{counter}{ext}")
-            counter += 1
-
-    try:
-        shutil.copy2(source, dest_path)
+    copy_result = copy_restored_file(source, dest_path)
+    if copy_result["ok"]:
         console.print(
-            f"\n[bold green]Archivo copiado exitosamente a:[/bold green] {escape(str(dest_path))}\n"
+            f"\n[bold green]Archivo copiado exitosamente a:[/bold green] {escape(str(copy_result['dest']))}\n"
         )
-    except OSError as e:
-        console.print(f"[red]Error al copiar:[/red] {escape(str(e))}")
+    else:
+        console.print(f"[red]Error al copiar:[/red] {escape(str(copy_result['error']))}")

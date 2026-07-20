@@ -17,6 +17,8 @@ from tools import get_removable_drives, format_size
 from utils import console
 
 
+# --- Logica (sin UI) ---
+
 
 def _get_usb_info(drive: str) -> dict:
     """Obtiene informacion de la unidad via PowerShell Get-Volume."""
@@ -248,6 +250,9 @@ def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
             os.remove(test_file)
         except OSError:
             pass
+
+
+# --- Interfaz de consola ---
 
 
 def usb_health_menu() -> None:
