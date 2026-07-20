@@ -19,18 +19,16 @@ Decisiones deliberadas, no accidentes:
 import tkinter as tk
 from tkinter import ttk
 
-from config import OLD_DOWNLOAD_DAYS, WINDOWS_UPDATE_CACHE
+from config import OLD_DOWNLOAD_DAYS
 from gui import theme
 from gui.base import ToolPanel, EstadoLabel
 from tools import format_size, is_admin
 from tools.disk_cleaner import (
-    _clean_dir,
-    _empty_recycle_bin,
     _query_recycle_bin,
     _scan_old_downloads,
     _scan_temp_files,
     _scan_update_cache,
-    _send_to_recycle_bin,
+    ejecutar_limpieza,
 )
 
 
@@ -159,10 +157,11 @@ class PanelEspacio(ToolPanel):
         # queda fuera de la ventana y la pantalla parece no tener accion.
         acciones = ttk.Frame(self.zona, style="Panel.TFrame")
         acciones.pack(side="bottom", fill="x", pady=(18, 0))
-        ttk.Button(
+        self._btn_limpiar = ttk.Button(
             acciones, text="Limpiar lo que marque", style="Danger.TButton",
             command=self._limpiar,
-        ).pack(side="left")
+        )
+        self._btn_limpiar.pack(side="left")
 
         if dl_count:
             self._lista_descargas(dl_files)
@@ -223,6 +222,13 @@ class PanelEspacio(ToolPanel):
     # ------------------------------------------------------------------
 
     def _limpiar(self) -> None:
+        # Guardia de reentrada. Deshabilitar el boton cubre el doble clic, pero
+        # eso es proteccion en la VISTA; esto lo cubre aunque la llamada entre
+        # por otro camino. Dos limpiezas a la vez sobre los mismos archivos se
+        # pisan y dan reportes sin sentido.
+        if getattr(self, "_limpiando", False):
+            return
+
         marcadas = [k for k, v in self._vars.items() if v.get()]
         if not marcadas:
             self.estado.info("No marcaste nada, asi que no toque nada.")
@@ -251,6 +257,10 @@ class PanelEspacio(ToolPanel):
                     self.estado.info("No se vacio la papelera. No toque nada.")
                     return
 
+        # Deshabilitar mientras corre: si no, un doble clic lanza DOS limpiezas
+        # simultaneas sobre los mismos archivos y los resultados se pisan.
+        self._limpiando = True
+        self._btn_limpiar.configure(state="disabled")
         self.estado.info("Limpiando...")
         self._ejecutar(marcadas, elegidas_dl)
 
@@ -258,63 +268,52 @@ class PanelEspacio(ToolPanel):
         temp_paths = self._temp[2]
         papelera_size, papelera_count = self._papelera
 
+        # El PLAN de borrado (que orden, que cuenta como liberado, que hacer si
+        # algo falla) NO se decide aqui: vive una sola vez en ejecutar_limpieza().
+        # Esta pantalla solo traduce las casillas marcadas a decisiones.
         def trabajo():
-            liberado = 0
-            borrados = 0
-            a_papelera = 0
-            notas = []
+            return ejecutar_limpieza(
+                limpiar_temp="temp" in marcadas,
+                limpiar_update="update" in marcadas,
+                descargas=elegidas_dl if "downloads" in marcadas else [],
+                vaciar_papelera="recycle" in marcadas,
+                temp_paths=temp_paths,
+                papelera_size=papelera_size,
+                papelera_count=papelera_count,
+            )
 
-            # ORDEN DELIBERADO: la papelera primero. Si se vaciara despues de
-            # mover las descargas, destruiriamos justo lo que acabamos de
-            # mandar ahi para que fuera recuperable.
-            if "recycle" in marcadas:
-                if _empty_recycle_bin():
-                    liberado += papelera_size
-                    borrados += papelera_count
-                else:
-                    notas.append("La papelera ya estaba vacia o no se pudo vaciar.")
-
-            if "temp" in marcadas:
-                for p in temp_paths:
-                    f, r = _clean_dir(p)
-                    liberado += f
-                    borrados += r
-
-            if "update" in marcadas:
-                f, r = _clean_dir(WINDOWS_UPDATE_CACHE)
-                liberado += f
-                borrados += r
-
-            if "downloads" in marcadas and elegidas_dl:
-                movido, cuantos = _send_to_recycle_bin(elegidas_dl)
-                if cuantos:
-                    # NO suma a liberado: sigue ocupando disco en la papelera.
-                    a_papelera += movido
-                    borrados += cuantos
-                else:
-                    notas.append(
-                        "No pude mover las descargas a la Papelera, asi que no borre "
-                        "ninguna: prefiero no liberar espacio antes que perderte un archivo."
-                    )
-
-            return liberado, borrados, a_papelera, notas
-
-        self.run_async(trabajo, self._limpieza_lista)
+        # destructivo=True: borra archivos del usuario, asi que el hilo no es
+        # daemon y la ventana no se deja cerrar hasta que termine.
+        self.run_async(trabajo, self._limpieza_lista, destructivo=True)
 
     def _limpieza_lista(self, ok: bool, res) -> None:
+        self._limpiando = False
+        # El boton vive dentro de self.zona, que _pintar_resultados() destruye
+        # y reconstruye; por eso se comprueba que siga existiendo.
+        if self._btn_limpiar.winfo_exists():
+            self._btn_limpiar.configure(state="normal")
+
         if not ok:
             self.estado.alerta(f"Algo fallo durante la limpieza: {res}")
             return
 
-        liberado, borrados, a_papelera, notas = res
-        partes = [f"Listo: {borrados} archivo(s) limpiados.",
-                  f"Espacio liberado: {format_size(liberado)}."]
-        if a_papelera:
+        partes = [
+            f"Listo: {res['limpiados']} archivo(s) limpiados.",
+            f"Espacio liberado: {format_size(res['liberado'])}.",
+        ]
+        if res["a_papelera"]:
             partes.append(
-                f"Otros {format_size(a_papelera)} estan en la Papelera: todavia ocupan "
-                "disco y se liberan al vaciarla, pero mientras tanto puedes recuperarlos."
+                f"Otros {format_size(res['a_papelera'])} estan en la Papelera: todavia "
+                "ocupan disco y se liberan al vaciarla, pero mientras tanto puedes "
+                "recuperarlos."
             )
-        partes.extend(notas)
+        if res["papelera_fallo"]:
+            partes.append("La papelera ya estaba vacia o no se pudo vaciar.")
+        if res["descargas_fallaron"]:
+            partes.append(
+                "No pude mover las descargas a la Papelera, asi que no borre ninguna: "
+                "prefiero no liberar espacio antes que perderte un archivo."
+            )
         self.estado.exito(" ".join(partes))
 
         # Re-analizar deja los numeros al dia sin que el usuario tenga que

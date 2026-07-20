@@ -215,6 +215,103 @@ def _query_recycle_bin() -> tuple[int, int]:
 # --- Interfaz de consola ---
 
 
+def ejecutar_limpieza(
+    limpiar_temp: bool = False,
+    limpiar_update: bool = False,
+    descargas: list[str] | None = None,
+    vaciar_papelera: bool = False,
+    temp_paths: list[str] | None = None,
+    papelera_size: int = 0,
+    papelera_count: int = 0,
+) -> dict:
+    """Ejecuta la limpieza. UNICO lugar donde vive el plan de borrado.
+
+    Esta funcion existe porque el orden de las operaciones y que cuenta como
+    espacio liberado son INVARIANTES DE SEGURIDAD, no detalles de pantalla. Si
+    cada interfaz (consola, GUI) arma su propio plan, tarde o temprano una de
+    las dos diverge y borra algo que no debia. La interfaz pregunta; aqui se
+    decide y se ejecuta.
+
+    Los parametros son decisiones YA CONFIRMADAS por el usuario en la capa de
+    interfaz: esta funcion no pregunta nada. Por eso todos los flags destructivos
+    tienen default False y `descargas` default None: llamarla sin argumentos no
+    borra absolutamente nada.
+
+    Args:
+        limpiar_temp: borrar archivos temporales (regenerables por Windows).
+        limpiar_update: borrar cache de Windows Update (regenerable).
+        descargas: rutas de descargas antiguas que el usuario eligio UNA POR
+            UNA. Van a la Papelera, no se borran.
+        vaciar_papelera: vaciar la papelera. IRREVERSIBLE.
+        temp_paths: rutas de temporales detectadas por _scan_temp_files().
+        papelera_size/papelera_count: lo que reporto _query_recycle_bin(), para
+            poder informar cuanto se libero al vaciarla.
+
+    Returns:
+        dict con:
+          liberado: bytes que de verdad se liberaron del disco.
+          a_papelera: bytes movidos a la Papelera. NO son espacio liberado: el
+            archivo sigue ocupando disco hasta que se vacie. Van aparte para no
+            mentirle al usuario.
+          limpiados: numero de archivos borrados o movidos.
+          descargas_movidas: cuantas descargas se mandaron a la Papelera. Va
+            aparte de `limpiados` para que la interfaz pueda decir exactamente
+            "3 archivos movidos a la Papelera" sin tener que adivinarlo.
+          papelera_vaciada: True si se vacio la papelera con exito.
+          papelera_fallo: True si se pidio vaciar la papelera y no se pudo.
+          descargas_fallaron: True si no se pudo mover a la Papelera; en ese
+            caso NO se borro nada (nunca hay fallback a borrado permanente).
+    """
+    liberado = 0
+    limpiados = 0
+    a_papelera = 0
+    descargas_movidas = 0
+    papelera_vaciada = False
+    papelera_fallo = False
+    descargas_fallaron = False
+
+    # ORDEN OBLIGATORIO: la papelera se vacia PRIMERO. Las descargas antiguas se
+    # mandan a la papelera, asi que vaciarla despues destruiria para siempre lo
+    # que acabamos de dejar ahi justo para que fuera recuperable.
+    if vaciar_papelera:
+        if _empty_recycle_bin():
+            liberado += papelera_size
+            limpiados += papelera_count
+            papelera_vaciada = True
+        else:
+            papelera_fallo = True
+
+    if limpiar_temp:
+        for path in temp_paths or []:
+            f, r = _clean_dir(path)
+            liberado += f
+            limpiados += r
+
+    if limpiar_update:
+        f, r = _clean_dir(WINDOWS_UPDATE_CACHE)
+        liberado += f
+        limpiados += r
+
+    if descargas:
+        movido, cuantos = _send_to_recycle_bin(descargas)
+        if cuantos:
+            a_papelera += movido
+            limpiados += cuantos
+            descargas_movidas = cuantos
+        else:
+            descargas_fallaron = True
+
+    return {
+        "liberado": liberado,
+        "a_papelera": a_papelera,
+        "limpiados": limpiados,
+        "descargas_movidas": descargas_movidas,
+        "papelera_vaciada": papelera_vaciada,
+        "papelera_fallo": papelera_fallo,
+        "descargas_fallaron": descargas_fallaron,
+    }
+
+
 def _choose_downloads(file_list: list[str]) -> list[str]:
     """Muestra las descargas antiguas y deja elegir cuales mandar a la papelera.
 
@@ -379,66 +476,54 @@ def disk_cleaner_menu() -> None:
             }
             console.print("[yellow]Se omitio el vaciado de la papelera.[/yellow]")
 
-    total_freed = 0
-    total_removed = 0
-    total_to_bin = 0  # bytes mandados a la papelera: NO son espacio liberado
-
-    # OJO con el ORDEN: las descargas antiguas se mandan a la papelera, asi que
-    # si el usuario eligio "todos" hay que VACIAR la papelera PRIMERO. Al reves,
-    # vaciariamos la papelera justo despues de haber dejado ahi las descargas y
-    # las destruiriamos para siempre — exactamente lo que este cambio evita.
-    def _order(idx: int) -> tuple[int, int]:
-        return (0 if categories[idx][3] == "recycle" else 1, idx)
-
+    # Traducir la seleccion por numeros a decisiones. El ORDEN de ejecucion y
+    # que cuenta como liberado NO se deciden aqui: eso vive en
+    # ejecutar_limpieza(), para que la consola y la GUI no tengan cada una su
+    # propia version de un invariante de seguridad.
     valid = [idx for idx in selected if 0 <= idx < len(categories)]
+    tipos = {categories[idx][3] for idx in valid}
 
-    for idx in sorted(valid, key=_order):
-        name, count, size, cat_type = categories[idx]
-        console.print(f"\n[bold yellow]Limpiando: {name}...[/bold yellow]")
+    elegidas_dl = []
+    if "downloads" in tipos:
+        elegidas_dl = _choose_downloads(dl_files)
 
-        if cat_type == "temp":
-            for path in temp_paths:
-                freed, removed = _clean_dir(path)
-                total_freed += freed
-                total_removed += removed
-        elif cat_type == "update":
-            freed, removed = _clean_dir(WINDOWS_UPDATE_CACHE)
-            total_freed += freed
-            total_removed += removed
-        elif cat_type == "downloads":
-            chosen = _choose_downloads(dl_files)
-            if chosen:
-                moved_bytes, removed = _send_to_recycle_bin(chosen)
-                if removed:
-                    # OJO: NO se suma a total_freed. Mandar algo a la papelera
-                    # NO libera espacio: el archivo sigue ocupando disco dentro
-                    # de $Recycle.Bin hasta que se vacie. Contarlo como
-                    # "liberado" seria mentirle al usuario.
-                    total_to_bin += moved_bytes
-                    total_removed += removed
-                    console.print(
-                        f"  [green]{removed} archivo(s) movido(s) a la Papelera "
-                        f"(puedes recuperarlos desde ahi).[/green]"
-                    )
-                else:
-                    console.print(
-                        "  [yellow]No se pudo mover a la Papelera; no se borro "
-                        "nada para no perder tus archivos.[/yellow]"
-                    )
-        elif cat_type == "recycle":
-            if _empty_recycle_bin():
-                total_freed += size
-                total_removed += count
-                console.print("  [green]Papelera vaciada.[/green]")
-            else:
-                console.print("  [dim]La papelera ya estaba vacia o no se pudo vaciar.[/dim]")
+    # Decir QUE se esta limpiando, no solo "limpiando": el usuario acaba de
+    # marcar varias categorias y necesita ver que se atendieron todas.
+    nombres = [categories[idx][0] for idx in sorted(valid)]
+    for nombre_cat in nombres:
+        console.print(f"\n[bold yellow]Limpiando: {nombre_cat}...[/bold yellow]")
+
+    resultado = ejecutar_limpieza(
+        limpiar_temp="temp" in tipos,
+        limpiar_update="update" in tipos,
+        descargas=elegidas_dl,
+        vaciar_papelera="recycle" in tipos,
+        temp_paths=temp_paths,
+        papelera_size=recycle_size,
+        papelera_count=recycle_count,
+    )
+
+    if resultado["papelera_vaciada"]:
+        console.print("  [green]Papelera vaciada.[/green]")
+    if resultado["papelera_fallo"]:
+        console.print("  [dim]La papelera ya estaba vacia o no se pudo vaciar.[/dim]")
+    if resultado["descargas_movidas"]:
+        console.print(
+            f"  [green]{resultado['descargas_movidas']} archivo(s) movido(s) a la "
+            f"Papelera (puedes recuperarlos desde ahi).[/green]"
+        )
+    if resultado["descargas_fallaron"]:
+        console.print(
+            "  [yellow]No se pudo mover a la Papelera; no se borro "
+            "nada para no perder tus archivos.[/yellow]"
+        )
 
     console.print(f"\n[bold green]Limpieza completada![/bold green]")
-    console.print(f"  Archivos limpiados: [bold]{total_removed}[/bold]")
-    console.print(f"  Espacio liberado: [bold]{format_size(total_freed)}[/bold]")
-    if total_to_bin:
+    console.print(f"  Archivos limpiados: [bold]{resultado['limpiados']}[/bold]")
+    console.print(f"  Espacio liberado: [bold]{format_size(resultado['liberado'])}[/bold]")
+    if resultado["a_papelera"]:
         console.print(
-            f"  En la Papelera: [bold]{format_size(total_to_bin)}[/bold] "
+            f"  En la Papelera: [bold]{format_size(resultado['a_papelera'])}[/bold] "
             f"[dim](todavia ocupan disco; se liberan al vaciar la papelera, "
             f"pero mientras tanto puedes recuperarlos)[/dim]"
         )

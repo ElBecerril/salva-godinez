@@ -64,7 +64,7 @@ class ToolPanel(ttk.Frame):
     # Trabajo en segundo plano
     # ------------------------------------------------------------------
 
-    def run_async(self, work, on_done, on_progress=None) -> None:
+    def run_async(self, work, on_done, on_progress=None, destructivo=False) -> None:
         """Corre work() en otro hilo y entrega el resultado en el hilo de la UI.
 
         Escanear el disco o hablar con PowerShell tarda segundos. Si eso corre
@@ -82,6 +82,12 @@ class ToolPanel(ttk.Frame):
                 Si ok es False, resultado es la excepcion.
             on_progress: opcional, callable(*args) invocado en el hilo de la UI
                 cada vez que work reporta avance.
+            destructivo: True si el trabajo BORRA o mueve archivos del usuario.
+                Cambia dos cosas: el hilo deja de ser daemon (Python no termina
+                hasta que acabe) y se le avisa a la ventana para que no se deje
+                cerrar mientras corre. Un hilo daemon muere de golpe al cerrar
+                la app, y morir a la mitad de un borrado deja al usuario con
+                media operacion hecha y sin saberlo.
         """
         cola: queue.Queue = queue.Queue()
 
@@ -105,22 +111,57 @@ class ToolPanel(ttk.Frame):
                     if tipo == "progress":
                         if on_progress:
                             on_progress(*carga)
-                    elif tipo == "done":
-                        on_done(True, carga)
-                        entregado = True
                     else:
-                        on_done(False, carga)
                         entregado = True
+                        # Bajar el contador ANTES de on_done: si la pantalla
+                        # falla al pintar el resultado, la ventana igual debe
+                        # poder cerrarse. Y va aqui, en el hilo de la UI, no en
+                        # el worker: llamar a winfo_toplevel() desde el hilo de
+                        # trabajo revienta con "main thread is not in main loop"
+                        # y dejaria el contador arriba para siempre — la ventana
+                        # nunca se volveria a dejar cerrar.
+                        if destructivo:
+                            self._fin_destructivo(raiz)
+                        # Si la pantalla ya no existe no hay a quien entregarle
+                        # el resultado, pero el contador YA bajo arriba, que es
+                        # lo que importa para poder cerrar la ventana.
+                        if self.winfo_exists():
+                            on_done(tipo == "done", carga)
             except queue.Empty:
                 pass
             if not entregado:
-                # Seguir sondeando hasta que el trabajo entregue algo.
-                self.after(80, _drenar)
+                # Se sondea desde la ventana RAIZ, no desde el panel: si el
+                # panel se destruye a medio trabajo, sus callbacks de after()
+                # dejan de dispararse EN SILENCIO (no lanza excepcion) y el
+                # contador se quedaria arriba para siempre, dejando la ventana
+                # imposible de cerrar. La raiz sobrevive a los paneles.
+                raiz.after(80, _drenar)
 
-        hilo = threading.Thread(target=_worker, daemon=True)
+        # Se resuelve UNA vez, aqui en el hilo de la UI: el sondeo se agenda
+        # sobre la raiz para que sobreviva a la destruccion del panel.
+        raiz = self.winfo_toplevel()
+
+        if destructivo:
+            self._inicio_destructivo(raiz)
+
+        hilo = threading.Thread(target=_worker, daemon=not destructivo)
         self._jobs.append(hilo)
         hilo.start()
-        self.after(80, _drenar)
+        raiz.after(80, _drenar)
+
+    # Contador de trabajos destructivos vivos, guardado en la ventana raiz para
+    # que esta pueda consultarlo antes de dejarse cerrar. Ambos metodos corren
+    # SIEMPRE en el hilo de la UI, asi que no hace falta candado.
+
+    # La raiz llega por parametro, ya resuelta desde run_async: pedirla con
+    # self.winfo_toplevel() fallaria justo en el caso que hay que cubrir, que
+    # es el panel destruido a medio trabajo.
+
+    def _inicio_destructivo(self, raiz) -> None:
+        raiz.jobs_destructivos = getattr(raiz, "jobs_destructivos", 0) + 1
+
+    def _fin_destructivo(self, raiz) -> None:
+        raiz.jobs_destructivos = max(getattr(raiz, "jobs_destructivos", 1) - 1, 0)
 
     # ------------------------------------------------------------------
     # Confirmaciones

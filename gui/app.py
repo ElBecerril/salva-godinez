@@ -6,7 +6,7 @@ evaluar si vale la pena portar las 23.
 """
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from gui import theme
 from gui.panels.sueldo import PanelSueldo
@@ -29,8 +29,30 @@ class App(tk.Tk):
         self._cache: dict[type, ttk.Frame] = {}
         self._botones: dict[type, ttk.Button] = {}
 
+        # Trabajos destructivos vivos. Los paneles lo suben y bajan via
+        # run_async(destructivo=True); aqui solo se consulta al cerrar.
+        self.jobs_destructivos = 0
+        self.protocol("WM_DELETE_WINDOW", self._al_cerrar)
+
         self._construir()
         self._mostrar(PANELES[0])
+
+    def _al_cerrar(self) -> None:
+        """No dejar cerrar la ventana a media operacion de borrado.
+
+        Cerrar mientras se borra dejaria la limpieza a la mitad sin que el
+        usuario se entere de que quedo incompleta.
+        """
+        if getattr(self, "jobs_destructivos", 0) > 0:
+            messagebox.showwarning(
+                "Espera un momento",
+                "Todavia se estan limpiando archivos.\n\n"
+                "Cerrar ahora dejaria la limpieza a medias. En cuanto termine "
+                "puedes cerrar sin problema.",
+                parent=self,
+            )
+            return
+        self.destroy()
 
     def _construir(self) -> None:
         contenedor = ttk.Frame(self)

@@ -26,6 +26,14 @@ from searchers.disk_search import search_by_name, search_recent_excel
 from searchers.temp_files import search_temp_files
 from searchers.recent_files import search_recent_files
 from searchers.shadow_copies import search_shadow_copies
+from searchers.full_search import (
+    search_everywhere,
+    ETAPA_PAPELERA,
+    ETAPA_TEMPORALES,
+    ETAPA_RECIENTES,
+    ETAPA_DISCO,
+    ETAPA_SHADOW,
+)
 from reporting.console_report import show_results, offer_restore
 
 # Tools — Fase 1
@@ -56,7 +64,7 @@ from tools.printer_share import printer_share_menu
 from tools.salary_calculator import salary_calculator_menu
 from tools.retention_calculator import retention_calculator_menu
 from tools.updater import check_for_updates
-from utils import deduplicate as _deduplicate, console
+from utils import console
 
 
 BANNER = r"""[bold cyan]
@@ -379,46 +387,47 @@ def option_full_search() -> None:
     if not name:
         return
 
-    all_results = []
+    # La secuencia (que se busca, en que orden, deduplicacion final) vive en
+    # searchers/full_search.py y es compartida con la GUI. Aca solo se traduce
+    # cada etapa al texto que esta pantalla siempre mostro. Ojo: este mapa NO
+    # sabe que etapa va despues de cual — ese orden lo decide full_search.py y
+    # solo el.
+    ETIQUETAS = {
+        ETAPA_PAPELERA: "Papelera de reciclaje",
+        ETAPA_TEMPORALES: "Archivos temporales / autorecuperacion",
+        ETAPA_RECIENTES: "Archivos recientes de Windows",
+        ETAPA_DISCO: "discos",
+        ETAPA_SHADOW: "copias de seguridad",
+    }
+    # Etapas que ademas anuncian su inicio en grande porque tardan mucho y el
+    # usuario podria creer que la app se colgo.
+    AVISOS_LARGOS = {
+        ETAPA_DISCO: "Escaneando todos los discos...",
+        ETAPA_SHADOW: (
+            "Buscando en las copias de seguridad automaticas de Windows, "
+            "esto puede tardar varios minutos..."
+        ),
+    }
 
-    steps = [
-        ("Papelera de reciclaje", lambda: search_recycle_bin(name)),
-        ("Archivos temporales / autorecuperacion", lambda: search_temp_files(name)),
-        ("Archivos recientes de Windows", lambda: search_recent_files(name)),
-    ]
+    with console.status("[bold green]Buscando...") as status:
 
-    for label, searcher in steps:
-        with console.status(f"[bold green]Buscando en {label}..."):
-            results = searcher()
-            all_results.extend(results)
-            if results:
-                console.print(
-                    f"  [green]+{len(results)}[/green] encontrado(s) en {label}"
-                )
-
-    console.print("[bold yellow]Escaneando todos los discos...[/bold yellow]")
-    with console.status("[bold green]Escaneando discos...") as status:
         def progress(path):
             display = path if len(path) < 60 else "..." + path[-57:]
             status.update(f"[bold green]Escaneando:[/bold green] {escape(display)}")
-        results = search_by_name(name, progress_callback=progress)
-        all_results.extend(results)
-        if results:
-            console.print(f"  [green]+{len(results)}[/green] encontrado(s) en discos")
 
-    console.print(
-        "[bold yellow]Buscando en las copias de seguridad automaticas de Windows, "
-        "esto puede tardar varios minutos...[/bold yellow]"
-    )
-    with console.status("[bold green]Revisando copias de seguridad de Windows, por favor espera..."):
-        results = search_shadow_copies(name)
-        all_results.extend(results)
-        if results:
-            console.print(
-                f"  [green]+{len(results)}[/green] encontrado(s) en copias de seguridad"
-            )
+        def on_stage(etapa: str, count) -> None:
+            etiqueta = ETIQUETAS.get(etapa, etapa)
+            if count is None:
+                if etapa in AVISOS_LARGOS:
+                    console.print(f"[bold yellow]{AVISOS_LARGOS[etapa]}[/bold yellow]")
+                status.update(f"[bold green]Buscando en {etiqueta}...")
+            elif count:
+                console.print(f"  [green]+{count}[/green] encontrado(s) en {etiqueta}")
 
-    all_results = _deduplicate(all_results)
+        all_results = search_everywhere(
+            name, progress_callback=progress, stage_callback=on_stage
+        )
+
     console.print()
     show_results(all_results, title=f"Busqueda completa para '{escape(name)}'")
     offer_restore(all_results)

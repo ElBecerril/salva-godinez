@@ -7,8 +7,9 @@ presenta el resultado.
 
 La combinacion de busquedas (papelera, temporales, recientes de Windows,
 disco completo, copias de seguridad) es la misma que option_full_search() en
-main.py, solo que aqui corre en segundo plano via run_async() para no
-congelar la ventana.
+main.py: ambas llaman a searchers.full_search.search_everywhere(), que vive
+en searchers/ y no tiene UI propia. Aqui esa llamada corre en segundo plano
+via run_async() para no congelar la ventana.
 """
 
 import tkinter as tk
@@ -20,12 +21,14 @@ from reporting.console_report import (
     copy_restored_file,
     resolve_restore_source,
 )
-from searchers.disk_search import search_by_name
-from searchers.recent_files import search_recent_files
-from searchers.recycle_bin import search_recycle_bin
-from searchers.shadow_copies import search_shadow_copies
-from searchers.temp_files import search_temp_files
-from utils import deduplicate
+from searchers.full_search import (
+    ETAPA_DISCO,
+    ETAPA_PAPELERA,
+    ETAPA_RECIENTES,
+    ETAPA_SHADOW,
+    ETAPA_TEMPORALES,
+    search_everywhere,
+)
 
 
 class PanelRescate(ToolPanel):
@@ -245,33 +248,37 @@ class PanelRescate(ToolPanel):
 # ----------------------------------------------------------------------
 
 
+# Texto que se muestra al ARRANCAR cada etapa. search_everywhere avisa el
+# inicio y el fin de cada una, asi que aqui solo hace falta mapear etapa ->
+# texto: esta pantalla NO sabe (ni debe saber) en que orden corren.
+_ETIQUETAS_INICIO = {
+    ETAPA_PAPELERA: "Buscando en la papelera de reciclaje...",
+    ETAPA_TEMPORALES: "Buscando en los archivos temporales y de autorecuperacion...",
+    ETAPA_RECIENTES: "Buscando en los archivos recientes de Windows...",
+    ETAPA_DISCO: "Escaneando el disco completo, esto puede tardar...",
+    ETAPA_SHADOW: (
+        "Buscando en las copias de seguridad automaticas de Windows, "
+        "esto puede tardar varios minutos..."
+    ),
+}
+
+
 def _buscar_en_todos_lados(nombre: str, progreso) -> list[dict]:
-    """Corre la misma combinacion de busquedas que option_full_search() en
-    main.py, reportando avance via el callback progreso(texto).
+    """Corre la busqueda completa compartida (searchers/full_search.py) y
+    traduce el avance a mensajes para la pantalla.
     """
-    todos: list[dict] = []
-
-    etapas = (
-        ("la papelera de reciclaje", search_recycle_bin),
-        ("los archivos temporales y de autorecuperacion", search_temp_files),
-        ("los archivos recientes de Windows", search_recent_files),
-    )
-    for etiqueta, buscador in etapas:
-        progreso(f"Buscando en {etiqueta}...")
-        todos.extend(buscador(nombre))
-
-    progreso("Escaneando el disco completo, esto puede tardar...")
 
     def _progreso_disco(ruta: str) -> None:
         texto = ruta if len(ruta) < 60 else "..." + ruta[-57:]
         progreso(f"Escaneando: {texto}")
 
-    todos.extend(search_by_name(nombre, progress_callback=_progreso_disco))
+    def _etapa(etapa: str, cantidad) -> None:
+        # cantidad is None => la etapa acaba de empezar.
+        if cantidad is None:
+            progreso(_ETIQUETAS_INICIO.get(etapa, "Buscando..."))
 
-    progreso(
-        "Buscando en las copias de seguridad automaticas de Windows, "
-        "esto puede tardar varios minutos..."
+    return search_everywhere(
+        nombre,
+        progress_callback=_progreso_disco,
+        stage_callback=_etapa,
     )
-    todos.extend(search_shadow_copies(nombre))
-
-    return deduplicate(todos)
