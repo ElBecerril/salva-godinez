@@ -4,6 +4,7 @@ import ctypes
 import os
 import time
 
+from rich.markup import escape
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
@@ -104,19 +105,133 @@ def _clean_dir(path: str) -> tuple[int, int]:
     return freed, removed
 
 
-def _clean_files(file_list: list[str]) -> tuple[int, int]:
-    """Elimina archivos especificos de una lista."""
-    freed = 0
-    removed = 0
-    for filepath in file_list:
+def _choose_downloads(file_list: list[str]) -> list[str]:
+    """Muestra las descargas antiguas y deja elegir cuales mandar a la papelera.
+
+    Antes se borraba la lista completa a ciegas: el usuario nunca veia QUE se
+    iba a borrar. Aqui se listan una por una y se puede seleccionar.
+
+    Returns:
+        Lista de rutas elegidas (vacia si el usuario cancela).
+    """
+    if not file_list:
+        return []
+
+    table = Table(title="Descargas antiguas encontradas")
+    table.add_column("#", style="bold cyan", width=4, justify="right")
+    table.add_column("Archivo", style="bold white", max_width=50)
+    table.add_column("Tamano", justify="right", style="yellow")
+    table.add_column("Ultima vez usado", style="dim")
+
+    for i, filepath in enumerate(file_list, 1):
         try:
-            size = os.path.getsize(filepath)
-            os.remove(filepath)
-            freed += size
-            removed += 1
+            stat = os.stat(filepath)
+            size = format_size(stat.st_size)
+            fecha = time.strftime("%d/%m/%Y", time.localtime(stat.st_mtime))
+        except OSError:
+            size = "?"
+            fecha = "?"
+        table.add_row(str(i), escape(os.path.basename(filepath)), size, fecha)
+
+    console.print()
+    console.print(table)
+    console.print(
+        "[dim]Se mandan a la Papelera de reciclaje, asi que puedes "
+        "recuperarlos si te arrepientes.[/dim]"
+    )
+
+    choice = Prompt.ask(
+        "[bold]Cuales mandas a la papelera? (numeros separados por coma, "
+        "'todos', o Enter para cancelar)[/bold]",
+        default="",
+    ).strip().lower()
+
+    if not choice:
+        console.print("[yellow]No se toco ninguna descarga.[/yellow]")
+        return []
+
+    if choice == "todos":
+        return list(file_list)
+
+    try:
+        indices = {int(x.strip()) - 1 for x in choice.split(",")}
+    except ValueError:
+        console.print("[red]Entrada invalida. No se toco ninguna descarga.[/red]")
+        return []
+
+    chosen = [file_list[i] for i in sorted(indices) if 0 <= i < len(file_list)]
+    if not chosen:
+        console.print("[yellow]Ningun numero valido. No se toco nada.[/yellow]")
+    return chosen
+
+
+class _SHFILEOPSTRUCTW(ctypes.Structure):
+    """Estructura de SHFileOperationW (shell32).
+
+    Los tipos son los de MSDN: fFlags es WORD (no DWORD). La alineacion por
+    defecto de ctypes coincide con la del struct real en Win32 y Win64, asi
+    que NO hay que forzar _pack_.
+    """
+
+    _fields_ = [
+        ("hwnd", ctypes.c_void_p),
+        ("wFunc", ctypes.c_uint),
+        ("pFrom", ctypes.c_wchar_p),
+        ("pTo", ctypes.c_wchar_p),
+        ("fFlags", ctypes.c_ushort),
+        ("fAnyOperationsAborted", ctypes.c_int),
+        ("hNameMappings", ctypes.c_void_p),
+        ("lpszProgressTitle", ctypes.c_wchar_p),
+    ]
+
+
+def _send_to_recycle_bin(file_list: list[str]) -> tuple[int, int]:
+    """Manda archivos a la Papelera de reciclaje (recuperables).
+
+    Usa SHFileOperationW con FOF_ALLOWUNDO, que es lo mismo que hace el
+    Explorador de Windows al borrar con la tecla Supr. A diferencia de
+    os.remove, el usuario puede recuperar el archivo despues.
+
+    IMPORTANTE: si algo falla NO se cae de vuelta a un borrado permanente.
+    Preferimos no liberar espacio antes que borrar algo sin vuelta atras.
+
+    Returns:
+        (bytes_liberados, archivos_movidos). (0, 0) si la operacion fallo.
+    """
+    if not file_list:
+        return 0, 0
+
+    # pFrom es una lista de rutas separadas por \0 y terminada en DOBLE \0.
+    paths = [p for p in file_list if os.path.exists(p)]
+    if not paths:
+        return 0, 0
+
+    freed = 0
+    for filepath in paths:
+        try:
+            freed += os.path.getsize(filepath)
         except OSError:
             continue
-    return freed, removed
+
+    FO_DELETE = 0x0003
+    FOF_SILENT = 0x0004
+    FOF_NOCONFIRMATION = 0x0010
+    FOF_ALLOWUNDO = 0x0040
+    FOF_NOERRORUI = 0x0400
+
+    try:
+        op = _SHFILEOPSTRUCTW()
+        op.hwnd = None
+        op.wFunc = FO_DELETE
+        op.pFrom = "\0".join(paths) + "\0\0"
+        op.pTo = None
+        op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI
+        result = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+        if result != 0 or op.fAnyOperationsAborted:
+            return 0, 0
+        return freed, len(paths)
+    except (AttributeError, OSError, ValueError):
+        return 0, 0
 
 
 def _empty_recycle_bin() -> bool:
@@ -231,11 +346,11 @@ def disk_cleaner_menu() -> None:
             console.print("[red]Entrada invalida.[/red]")
             return
 
-    # Las categorias que borran de forma permanente e irreversible
-    # (papelera de reciclaje y descargas antiguas via os.remove) requieren
-    # una confirmacion explicita adicional, separada de la seleccion de
-    # numeros de arriba. Temporales y cache de Windows Update son
-    # regenerables por Windows, asi que no la necesitan.
+    # Vaciar la papelera es lo UNICO verdaderamente irreversible que queda:
+    # requiere una confirmacion explicita adicional, separada de la seleccion
+    # de numeros de arriba. Las descargas antiguas ya no entran aqui porque se
+    # mandan a la papelera (recuperables) y ademas se eligen una por una.
+    # Temporales y cache de Windows Update son regenerables por Windows.
     permanent_names = []
     for idx in sorted(selected):
         if idx < 0 or idx >= len(categories):
@@ -243,8 +358,6 @@ def disk_cleaner_menu() -> None:
         name, count, size, cat_type = categories[idx]
         if cat_type == "recycle":
             permanent_names.append("Papelera de reciclaje (vaciarla es irreversible)")
-        elif cat_type == "downloads":
-            permanent_names.append(f"{name} ({count} archivo(s), {format_size(size)})")
 
     if permanent_names:
         console.print("\n[bold red]Esto borra PERMANENTEMENTE y no se puede deshacer:[/bold red]")
@@ -257,16 +370,24 @@ def disk_cleaner_menu() -> None:
         if not proceed_permanent:
             selected = {
                 idx for idx in selected
-                if 0 <= idx < len(categories) and categories[idx][3] not in ("recycle", "downloads")
+                if 0 <= idx < len(categories) and categories[idx][3] != "recycle"
             }
-            console.print("[yellow]Se omitieron las categorias de borrado permanente.[/yellow]")
+            console.print("[yellow]Se omitio el vaciado de la papelera.[/yellow]")
 
     total_freed = 0
     total_removed = 0
+    total_to_bin = 0  # bytes mandados a la papelera: NO son espacio liberado
 
-    for idx in sorted(selected):
-        if idx < 0 or idx >= len(categories):
-            continue
+    # OJO con el ORDEN: las descargas antiguas se mandan a la papelera, asi que
+    # si el usuario eligio "todos" hay que VACIAR la papelera PRIMERO. Al reves,
+    # vaciariamos la papelera justo despues de haber dejado ahi las descargas y
+    # las destruiriamos para siempre — exactamente lo que este cambio evita.
+    def _order(idx: int) -> tuple[int, int]:
+        return (0 if categories[idx][3] == "recycle" else 1, idx)
+
+    valid = [idx for idx in selected if 0 <= idx < len(categories)]
+
+    for idx in sorted(valid, key=_order):
         name, count, size, cat_type = categories[idx]
         console.print(f"\n[bold yellow]Limpiando: {name}...[/bold yellow]")
 
@@ -280,9 +401,25 @@ def disk_cleaner_menu() -> None:
             total_freed += freed
             total_removed += removed
         elif cat_type == "downloads":
-            freed, removed = _clean_files(dl_files)
-            total_freed += freed
-            total_removed += removed
+            chosen = _choose_downloads(dl_files)
+            if chosen:
+                moved_bytes, removed = _send_to_recycle_bin(chosen)
+                if removed:
+                    # OJO: NO se suma a total_freed. Mandar algo a la papelera
+                    # NO libera espacio: el archivo sigue ocupando disco dentro
+                    # de $Recycle.Bin hasta que se vacie. Contarlo como
+                    # "liberado" seria mentirle al usuario.
+                    total_to_bin += moved_bytes
+                    total_removed += removed
+                    console.print(
+                        f"  [green]{removed} archivo(s) movido(s) a la Papelera "
+                        f"(puedes recuperarlos desde ahi).[/green]"
+                    )
+                else:
+                    console.print(
+                        "  [yellow]No se pudo mover a la Papelera; no se borro "
+                        "nada para no perder tus archivos.[/yellow]"
+                    )
         elif cat_type == "recycle":
             if _empty_recycle_bin():
                 total_freed += size
@@ -292,5 +429,11 @@ def disk_cleaner_menu() -> None:
                 console.print("  [dim]La papelera ya estaba vacia o no se pudo vaciar.[/dim]")
 
     console.print(f"\n[bold green]Limpieza completada![/bold green]")
-    console.print(f"  Archivos eliminados: [bold]{total_removed}[/bold]")
+    console.print(f"  Archivos limpiados: [bold]{total_removed}[/bold]")
     console.print(f"  Espacio liberado: [bold]{format_size(total_freed)}[/bold]")
+    if total_to_bin:
+        console.print(
+            f"  En la Papelera: [bold]{format_size(total_to_bin)}[/bold] "
+            f"[dim](todavia ocupan disco; se liberan al vaciar la papelera, "
+            f"pero mientras tanto puedes recuperarlos)[/dim]"
+        )
