@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.4.0"
+__version__ = "2.5.0"
 
 import sys
 import os
@@ -64,7 +64,7 @@ from tools.printer_share import printer_share_menu
 from tools.salary_calculator import salary_calculator_menu
 from tools.retention_calculator import retention_calculator_menu
 from tools.updater import check_for_updates
-from utils import console
+from utils import console, ocultar_consola, mostrar_consola
 
 
 BANNER = r"""[bold cyan]
@@ -97,7 +97,7 @@ def show_main_menu() -> str:
             "[bold]3[/bold] - USB, WiFi y Red\n"
             "[bold]4[/bold] - Limpieza y mantenimiento\n"
             "[bold]5[/bold] - Calculadoras y herramientas\n"
-            "[bold]6[/bold] - Abrir la version con ventanas (nuevo)\n"
+            "[bold]6[/bold] - Volver a la version con ventanas\n"
             "[bold]0[/bold] - Salir",
             title="[bold yellow]Menu Principal[/bold yellow]",
             box=box.ROUNDED,
@@ -505,33 +505,32 @@ def _show_source_notice() -> None:
     )
 
 
-def abrir_gui() -> None:
-    """Abre la version con ventanas desde el menu de la consola.
+def abrir_gui() -> str:
+    """Abre la version con ventanas. Devuelve "salir", "consola" o "fallo".
 
-    La bandera --gui existe, pero nadie que haga doble clic al .exe va a
-    escribir argumentos en una linea de comandos: si la unica puerta a la
-    interfaz grafica es esa bandera, para la mayoria de la gente no existe.
-    Por eso tambien se entra desde aqui.
+    Mientras la ventana esta abierta se esconde la consola: el .exe se compila
+    como app de consola para que el modo texto siga funcionando, y sin esto
+    quedaria una ventana negra de cmd detras de la interfaz grafica.
 
-    El import va adentro y no arriba: si tkinter falta o la GUI truena al
-    construirse, la consola —que es la interfaz que hoy usa todo el mundo—
-    tiene que seguir funcionando.
+    El import va adentro y no arriba a proposito: si tkinter falta o la ventana
+    truena al construirse, la consola tiene que seguir funcionando. Es el
+    respaldo de toda la app.
     """
     try:
         from gui.app import run as run_gui
     except Exception as e:
         console.print(f"[red]No se pudo abrir la version con ventanas: {e}[/red]")
-        return
+        return "fallo"
 
-    console.print(
-        "\n[bold cyan]Abriendo la version con ventanas...[/bold cyan]\n"
-        "[dim]Esta ventana de texto se queda abierta; cierra la ventana nueva "
-        "para volver aqui.[/dim]"
-    )
+    escondida = ocultar_consola()
     try:
-        run_gui(__version__)
+        return run_gui(__version__)
     except Exception as e:
         console.print(f"[red]La version con ventanas se cerro por un error: {e}[/red]")
+        return "fallo"
+    finally:
+        if escondida:
+            mostrar_consola()
 
 
 def main() -> None:
@@ -565,14 +564,19 @@ def main() -> None:
 
 if __name__ == "__main__":
     try:
-        # PILOTO: la interfaz grafica es opt-in por bandera. Sin la bandera,
-        # doble clic al .exe abre la consola de siempre, que es lo que usa
-        # todo el mundo. Cuando se decida si la GUI reemplaza a la consola,
-        # esto se invierte o se elimina.
-        if "--gui" in sys.argv:
-            from gui.app import run as run_gui
-            run_gui(__version__)
-        else:
+        # Por default abre la interfaz grafica: la gente que hace doble clic a
+        # un programa espera una ventana, no un menu de texto. Se comprobo en
+        # uso real — al publicar la GUI como opcion del menu, los usuarios
+        # nuevos ni la encontraron.
+        #
+        # El modo texto NO desaparece: se llega con --consola, con el boton
+        # "Volver al modo texto" de la ventana, y automaticamente si la
+        # interfaz grafica no se puede abrir en esa maquina.
+        if "--consola" in sys.argv:
+            main()
+        elif abrir_gui() != "salir":
+            # "consola" (el usuario lo pidio) o "fallo" (tkinter no jalo):
+            # en ambos casos se cae al menu de texto en vez de dejarlo sin app.
             main()
     except Exception:
         import traceback

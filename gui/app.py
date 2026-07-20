@@ -81,6 +81,10 @@ class App(tk.Tk):
         self.jobs_destructivos = 0
         self.protocol("WM_DELETE_WINDOW", self._al_cerrar)
 
+        # Por que se cerro la ventana: "salir" o "consola". main.py lo usa para
+        # decidir si abre el menu de texto o termina.
+        self.salida = "salir"
+
         self._construir()
         self._mostrar(_todos_los_paneles()[0])
 
@@ -99,6 +103,19 @@ class App(tk.Tk):
                 parent=self,
             )
             return
+        self.destroy()
+
+    def _volver_a_consola(self) -> None:
+        """Cierra la ventana y le pide a main.py que abra el menu de texto."""
+        if getattr(self, "jobs_destructivos", 0) > 0:
+            messagebox.showwarning(
+                "Espera un momento",
+                "Todavia se estan limpiando archivos.\n\n"
+                "En cuanto termine puedes cambiar de modo sin problema.",
+                parent=self,
+            )
+            return
+        self.salida = "consola"
         self.destroy()
 
     def _construir(self) -> None:
@@ -157,6 +174,16 @@ class App(tk.Tk):
                 fg="#6b7488", font=("Segoe UI", 9), anchor="w", padx=20,
             ).pack(side="bottom", fill="x", pady=(0, 14))
 
+        # Puerta de regreso al menu de texto. Va al fondo de la barra porque no
+        # es una herramienta; es cambiar de modo.
+        tk.Button(
+            sidebar, text="Volver al modo texto", anchor="w", padx=20, pady=8,
+            bg=theme.BG_SIDEBAR, fg=theme.FG_SIDEBAR, bd=0,
+            activebackground="#2b3242", activeforeground="#ffffff",
+            highlightthickness=0, font=("Segoe UI", 10), cursor="hand2",
+            command=self._volver_a_consola,
+        ).pack(side="bottom", fill="x", pady=(0, 4))
+
         self.contenido = ttk.Frame(contenedor, style="Panel.TFrame")
         self.contenido.pack(side="left", fill="both", expand=True)
 
@@ -182,5 +209,13 @@ class App(tk.Tk):
             )
 
 
-def run(version: str = "") -> None:
-    App(version).mainloop()
+def run(version: str = "") -> str:
+    """Abre la ventana principal.
+
+    Returns:
+        "salir" si el usuario cerro la app, o "consola" si pidio volver al
+        menu de texto.
+    """
+    app = App(version)
+    app.mainloop()
+    return getattr(app, "salida", "salir")

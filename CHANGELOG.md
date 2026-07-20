@@ -2,6 +2,26 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.5.0] - 2026-07-20
+
+Al abrir SalvaGodinez ahora sale directo la version con ventanas. Es el mismo
+programa y las mismas 23 herramientas; solo cambia con cual te recibe.
+
+### Cambiado
+- **La version con ventanas es la que abre por default.** En v2.4.0 estaba
+  como opcion 6 del menu de texto y la gente que abria la app por primera vez
+  simplemente no la encontraba: uno abre un programa esperando una ventana, no
+  se pone a leer un menu para descubrir que hay una
+- **El modo texto no desaparece**, solo dejo de ser el primero que ves. Se
+  llega de tres formas: con el boton **"Volver al modo texto"** abajo en la
+  barra lateral, abriendo `SalvaGodinez.exe --consola`, y automaticamente si
+  la version con ventanas no se puede abrir en esa computadora
+- **Ya no sale la ventana negra detras.** Al abrir la version con ventanas se
+  esconde la ventana de texto, y vuelve a aparecer si regresas al modo texto
+
+### Agregado
+- **Boton "Volver al modo texto"** al fondo de la barra lateral
+
 ## [2.4.0] - 2026-07-20
 
 Ahora SalvaGodinez tambien se puede usar con ventanas y mouse, sin escribir
