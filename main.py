@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.3.8"
+__version__ = "2.4.0"
 
 import sys
 import os
@@ -97,6 +97,7 @@ def show_main_menu() -> str:
             "[bold]3[/bold] - USB, WiFi y Red\n"
             "[bold]4[/bold] - Limpieza y mantenimiento\n"
             "[bold]5[/bold] - Calculadoras y herramientas\n"
+            "[bold]6[/bold] - Abrir la version con ventanas (nuevo)\n"
             "[bold]0[/bold] - Salir",
             title="[bold yellow]Menu Principal[/bold yellow]",
             box=box.ROUNDED,
@@ -504,6 +505,35 @@ def _show_source_notice() -> None:
     )
 
 
+def abrir_gui() -> None:
+    """Abre la version con ventanas desde el menu de la consola.
+
+    La bandera --gui existe, pero nadie que haga doble clic al .exe va a
+    escribir argumentos en una linea de comandos: si la unica puerta a la
+    interfaz grafica es esa bandera, para la mayoria de la gente no existe.
+    Por eso tambien se entra desde aqui.
+
+    El import va adentro y no arriba: si tkinter falta o la GUI truena al
+    construirse, la consola —que es la interfaz que hoy usa todo el mundo—
+    tiene que seguir funcionando.
+    """
+    try:
+        from gui.app import run as run_gui
+    except Exception as e:
+        console.print(f"[red]No se pudo abrir la version con ventanas: {e}[/red]")
+        return
+
+    console.print(
+        "\n[bold cyan]Abriendo la version con ventanas...[/bold cyan]\n"
+        "[dim]Esta ventana de texto se queda abierta; cierra la ventana nueva "
+        "para volver aqui.[/dim]"
+    )
+    try:
+        run_gui(__version__)
+    except Exception as e:
+        console.print(f"[red]La version con ventanas se cerro por un error: {e}[/red]")
+
+
 def main() -> None:
     check_for_updates(__version__)
     _show_source_notice()
@@ -521,6 +551,8 @@ def main() -> None:
                 system_menu()
             elif choice == "5":
                 utilities_menu()
+            elif choice == "6":
+                abrir_gui()
             elif choice == "0":
                 show_farewell()
                 break

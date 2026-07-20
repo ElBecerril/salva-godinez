@@ -2,6 +2,46 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.4.0] - 2026-07-20
+
+Ahora SalvaGodinez tambien se puede usar con ventanas y mouse, sin escribir
+numeros de menu. Es la misma app: las 23 herramientas de siempre, con los
+mismos calculos y las mismas confirmaciones antes de borrar nada.
+
+### Agregado
+- **Version con ventanas (interfaz grafica)**: se abre con la opcion **6** del
+  menu principal. Las 23 herramientas estan ahi, agrupadas en las mismas 5
+  categorias del menu de texto, con una barra lateral para moverse entre ellas
+- **Resultados de busqueda en vivo**: al buscar un archivo perdido, los
+  resultados van apareciendo conforme se encuentran. Lo que esta en la papelera
+  sale de inmediato, sin esperar a que termine de revisar todo el disco
+- **Editar PDF con lista de operaciones**: las 10 operaciones (unir, dividir,
+  rotar, proteger...) se eligen de una lista y cada una pide solo lo suyo
+- **Contrasenas WiFi ocultas por default**: se muestran con puntos y hay que
+  pedir ver cada una, o copiarla al portapapeles sin mostrarla — util si estas
+  proyectando la pantalla en una junta
+
+### Corregido
+- **Recuperar archivos ya no se limita a Word y Excel**: la papelera, los
+  temporales y los archivos recientes ahora listan CUALQUIER tipo de archivo
+  (un .zip, un .pdf, una foto). Antes se llamaba "Recuperar archivos perdidos"
+  pero solo encontraba archivos de Office
+- **Archivos de la papelera con el nombre completo**: Windows viene de fabrica
+  ocultando la extension de los archivos conocidos, y eso hacia que algunos
+  archivos borrados no aparecieran en la busqueda. Ahora la extension se lee
+  del archivo real, sin importar como este configurado Windows
+- **El reporte de error ya no se pierde**: si la app truena, el archivo con los
+  detalles queda junto al programa y no en una carpeta temporal que Windows
+  borra al cerrar
+
+### Cambiado
+- **Una sola forma de limpiar**: el orden en que se borra, que cuenta como
+  espacio liberado y que hacer si algo falla ahora viven en un solo lugar, en
+  vez de estar duplicados entre el menu de texto y las ventanas. Menos
+  probabilidad de que las dos versiones se comporten distinto
+- **La ventana no se deja cerrar a media limpieza**: avisa y espera a terminar,
+  para no dejar el trabajo por la mitad sin que te enteres
+
 ## [2.3.8] - 2026-07-20
 
 Se cierran los dos hallazgos que quedaban abiertos de la auditoria del 19 de
