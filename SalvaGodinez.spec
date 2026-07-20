@@ -6,7 +6,17 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    # main.py importa la GUI de forma perezosa (solo con --gui), asi que el
+    # analisis estatico de PyInstaller podria no arrastrar el paquete entero.
+    # Se listan a mano para que tkinter y las pantallas viajen en el .exe.
+    hiddenimports=[
+        'gui.app',
+        'gui.base',
+        'gui.theme',
+        'gui.panels.espacio',
+        'gui.panels.rescate',
+        'gui.panels.sueldo',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

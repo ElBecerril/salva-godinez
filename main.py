@@ -524,7 +524,15 @@ def main() -> None:
 
 if __name__ == "__main__":
     try:
-        main()
+        # PILOTO: la interfaz grafica es opt-in por bandera. Sin la bandera,
+        # doble clic al .exe abre la consola de siempre, que es lo que usa
+        # todo el mundo. Cuando se decida si la GUI reemplaza a la consola,
+        # esto se invierte o se elimina.
+        if "--gui" in sys.argv:
+            from gui.app import run as run_gui
+            run_gui(__version__)
+        else:
+            main()
     except Exception:
         import traceback
         # Guardar traceback completo en archivo para diagnostico

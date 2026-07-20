@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - "v*"
+  # Build manual desde la pestana Actions: compila y deja el .exe como
+  # ARTEFACTO descargable, sin publicar un release. Sirve para probar algo en
+  # Windows sin exponerselo a todo el mundo como version oficial.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -27,7 +31,19 @@ jobs:
       - name: Compilar SalvaGodinez.exe
         run: pyinstaller SalvaGodinez.spec
 
+      # Solo en build manual: el .exe queda como artefacto para descargar
+      # desde la corrida, sin tocar los releases publicos.
+      - name: Subir .exe de prueba como artefacto
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: SalvaGodinez-prueba
+          path: dist/SalvaGodinez.exe
+          retention-days: 7
+
+      # Solo al pushear un tag v*: ahi si se publica el release oficial.
       - name: Publicar release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: dist/SalvaGodinez.exe
