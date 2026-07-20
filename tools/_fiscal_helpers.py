@@ -5,8 +5,13 @@ from utils import console
 
 
 DISCLAIMER = (
-    "[dim italic]Este calculo es un estimado con fines informativos. "
-    "Consulta con un contador para cifras exactas.[/dim italic]"
+    "[yellow]Esto es una ESTIMACION informativa, NO es lo que legalmente te "
+    "deben ni una asesoria oficial.[/yellow]\n"
+    "[dim]No considera casos especiales (comisiones, salario variable, bonos, "
+    "convenios de empresa, antiguedad interrumpida u otros). Para tu caso real, "
+    "gratis y oficial:\n"
+    "  - Laboral (finiquito, liquidacion, despido): PROFEDET - profedet.gob.mx\n"
+    "  - Impuestos (ISR, RESICO, retenciones): SAT - sat.gob.mx[/dim]"
 )
 
 

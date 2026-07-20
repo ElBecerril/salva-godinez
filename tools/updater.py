@@ -59,11 +59,12 @@ def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -
 
     El orden es deliberado por seguridad: se descarga primero a un archivo
     temporal (el Escritorio no se toca todavia), se verifica el SHA-256 y
-    SOLO si la verificacion es exitosa (o no hay hash de referencia) se
-    mueve el archivo temporal a su ubicacion final en el Escritorio. Solo
-    despues de confirmar que ese move fue exitoso se borran las versiones
-    anteriores del Escritorio; asi, si el move falla, las versiones viejas
-    siguen intactas.
+    SOLO si la verificacion es exitosa se mueve el archivo temporal a su
+    ubicacion final en el Escritorio. Si el Release no incluye un hash de
+    referencia, la actualizacion se RECHAZA (no se instala nada que no se
+    pueda verificar). Solo despues de confirmar que ese move fue exitoso se
+    borran las versiones anteriores del Escritorio; asi, si el move falla,
+    las versiones viejas siguen intactas.
 
     Returns:
         True si la descarga se completo y quedo instalada en el Escritorio,
@@ -129,18 +130,19 @@ def _download_exe(url: str, filename: str, expected_sha256: str | None = None) -
                 return False
             console.print("[green]SHA-256 verificado correctamente.[/green]")
         else:
-            if total > 0 and written != total:
-                console.print(
-                    f"[bold red]La descarga quedo incompleta: se esperaban {total} bytes "
-                    f"(Content-Length) y se recibieron {written}. Sin hash de referencia "
-                    "para verificar, se descarta por seguridad. El Escritorio no fue "
-                    "modificado.[/bold red]"
-                )
-                return False
+            # Sin hash de referencia en el Release no hay forma de verificar que
+            # el .exe es el que el autor publico. Se rechaza (fail-closed) en vez
+            # de instalar "con precaucion": un Release sin hash no debe llegar al
+            # Escritorio del usuario.
             console.print(
-                f"[yellow]SHA-256: {actual_hash} (sin hash de referencia en el Release "
-                "para verificar; se procede con precaucion)[/yellow]"
+                "[bold red]El Release no incluye un hash SHA-256 de referencia para "
+                "verificar la descarga.[/bold red]\n"
+                "[red]Por seguridad no se instala una actualizacion que no se puede "
+                "verificar; el Escritorio no fue modificado.[/red]\n"
+                "[dim]Descarga la version nueva manualmente desde el Release oficial en "
+                "GitHub si lo necesitas.[/dim]"
             )
+            return False
 
         # Solo ahora, con la descarga ya verificada, es seguro tocar el Escritorio.
         # Primero se mueve el archivo temporal a su destino final; solo si el

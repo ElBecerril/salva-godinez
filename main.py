@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.3.6"
+__version__ = "2.3.7"
 
 import sys
 import os
@@ -477,8 +477,27 @@ def show_farewell() -> None:
 
 # ─── Main ─────────────────────────────────────────────────────
 
+def _show_source_notice() -> None:
+    """Aviso unico al arrancar sobre el unico origen legitimo de descarga, para
+    que el usuario no caiga con un clon/impostor que distribuya un .exe
+    malicioso con el mismo nombre."""
+    console.print(
+        Panel(
+            "[bold]Descarga segura.[/bold] SalvaGodinez solo es oficial si lo "
+            "bajaste de:\n"
+            "[bold cyan]github.com/ElBecerril/salva-godinez[/bold cyan]\n"
+            "[dim]Si lo conseguiste en otra pagina, grupo o link, borralo: puede ser "
+            "una copia falsa con virus.[/dim]",
+            title="[bold green]Origen oficial[/bold green]",
+            border_style="green",
+            box=box.ROUNDED,
+        )
+    )
+
+
 def main() -> None:
     check_for_updates(__version__)
+    _show_source_notice()
     try:
         while True:
             choice = show_main_menu()

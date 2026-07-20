@@ -2,6 +2,27 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.3.7] - 2026-07-20
+
+Endurecimiento a partir de un premortem del proyecto: se cierra un flanco del
+auto-actualizador, se advierte contra descargas falsas y se refuerza el aviso
+de las calculadoras fiscales.
+
+### Seguridad
+- **Auto-actualizador**: ahora RECHAZA instalar una actualizacion si el Release
+  no incluye un hash SHA-256 de referencia para verificarla (antes se instalaba
+  "con precaucion"). El Escritorio solo se toca con un `.exe` verificado
+- **Aviso de origen oficial**: al abrir, la app recuerda que el unico lugar de
+  descarga legitimo es `github.com/ElBecerril/salva-godinez`, para no caer con
+  copias falsas distribuidas por terceros con el mismo nombre
+
+### Cambiado
+- **Calculadoras fiscales/laborales**: el aviso ahora deja claro que es una
+  ESTIMACION (no lo que legalmente te deben), lista los casos que NO modela
+  (comisiones, salario variable, bonos, convenios, antiguedad interrumpida) y
+  remite a las instancias oficiales gratuitas: PROFEDET (laboral) y SAT
+  (impuestos)
+
 ## [2.3.6] - 2026-07-19
 
 Version de robustez a partir de una auditoria completa: se blindan los puntos
