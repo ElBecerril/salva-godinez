@@ -47,6 +47,8 @@ class PanelEspacio(ToolPanel):
         self._vars: dict[str, tk.BooleanVar] = {}
         self._filas: dict[str, ttk.Label] = {}
         self._archivos_dl: dict[str, tk.BooleanVar] = {}
+        # Evita el rebote infinito entre las dos sincronizaciones de casillas.
+        self._sincronizando = False
 
         barra = ttk.Frame(self.body, style="Panel.TFrame")
         barra.pack(fill="x")
@@ -178,6 +180,7 @@ class PanelEspacio(ToolPanel):
         ttk.Checkbutton(
             marco, variable=var,
             text=f"{titulo}  —  {count} archivo(s), {format_size(size)}",
+            command=(self._sincronizar_desde_categoria if clave == "downloads" else None),
         ).pack(anchor="w")
         ttk.Label(
             marco, text=f"     {ayuda}", style="Subtitle.TLabel",
@@ -215,7 +218,41 @@ class PanelEspacio(ToolPanel):
             ttk.Checkbutton(
                 interior, variable=var,
                 text=f"{os.path.basename(ruta)}   ({detalle})",
+                command=self._sincronizar_desde_archivos,
             ).pack(anchor="w", padx=8)
+
+    # ------------------------------------------------------------------
+    # Sincronizacion entre la casilla de la categoria y las de cada archivo
+    # ------------------------------------------------------------------
+    #
+    # Hay dos niveles de casillas y el usuario no tiene por que entender la
+    # jerarquia: marca lo que quiere borrar y ya. Se mantienen alineadas en
+    # ambos sentidos para que lo que se ve en pantalla sea exactamente lo que
+    # la app va a hacer.
+
+    def _sincronizar_desde_categoria(self) -> None:
+        """Marcar/desmarcar la categoria arrastra a todos los archivos."""
+        if self._sincronizando:
+            return
+        self._sincronizando = True
+        try:
+            valor = self._vars["downloads"].get()
+            for var in self._archivos_dl.values():
+                var.set(valor)
+        finally:
+            self._sincronizando = False
+
+    def _sincronizar_desde_archivos(self) -> None:
+        """Marcar un archivo marca la categoria; desmarcar el ultimo la apaga."""
+        if self._sincronizando:
+            return
+        self._sincronizando = True
+        try:
+            if "downloads" in self._vars:
+                hay_alguno = any(v.get() for v in self._archivos_dl.values())
+                self._vars["downloads"].set(hay_alguno)
+        finally:
+            self._sincronizando = False
 
     # ------------------------------------------------------------------
     # Limpieza
@@ -229,15 +266,25 @@ class PanelEspacio(ToolPanel):
         if getattr(self, "_limpiando", False):
             return
 
+        elegidas_dl = [r for r, v in self._archivos_dl.items() if v.get()]
         marcadas = [k for k, v in self._vars.items() if v.get()]
+
+        # Red de seguridad: si el usuario marco archivos concretos de la lista
+        # de descargas, eso ES querer limpiarlas, aunque la casilla de la
+        # categoria se haya quedado sin marcar. Antes esto contestaba "no
+        # marcaste nada" con la lista llena de palomitas, y parecia que la app
+        # estaba rota.
+        if elegidas_dl and "downloads" not in marcadas and "downloads" in self._vars:
+            marcadas.append("downloads")
+
         if not marcadas:
             self.estado.info("No marcaste nada, asi que no toque nada.")
             return
 
-        elegidas_dl = [r for r, v in self._archivos_dl.items() if v.get()]
         if "downloads" in marcadas and not elegidas_dl:
             self.estado.alerta(
-                "Marcaste las descargas antiguas pero no elegiste ninguna de la lista."
+                "Marcaste las descargas antiguas pero no elegiste ninguna de la lista "
+                "de abajo. Palomea las que quieras mandar a la Papelera."
             )
             return
 

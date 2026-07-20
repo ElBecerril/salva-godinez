@@ -1,14 +1,16 @@
-"""Busqueda de archivos Office en el historial reciente de Windows (.lnk)."""
+"""Busqueda de archivos (cualquier tipo) en el historial reciente de
+Windows (.lnk)."""
 
 import os
 from datetime import datetime
 
-from config import OFFICE_EXTENSIONS, RECENT_PATH
+from config import RECENT_PATH
 from utils import format_size as _format_size, read_lnk_target as _read_lnk_target
 
 
 def search_recent_files(name_filter: str = "") -> list[dict]:
-    """Busca archivos Office en el historial reciente de Windows.
+    """Busca archivos en el historial reciente de Windows, sin importar su
+    tipo.
 
     Args:
         name_filter: Texto parcial opcional para filtrar por nombre.
@@ -30,10 +32,6 @@ def search_recent_files(name_filter: str = "") -> list[dict]:
             lnk_path = os.path.join(RECENT_PATH, fname)
             target = _read_lnk_target(lnk_path)
             if not target:
-                continue
-
-            ext = os.path.splitext(target)[1].lower()
-            if ext not in OFFICE_EXTENSIONS:
                 continue
 
             target_name = os.path.basename(target)

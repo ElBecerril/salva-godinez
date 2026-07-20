@@ -42,6 +42,7 @@ class PanelRescate(ToolPanel):
 
     def build(self) -> None:
         self._por_iid: dict[str, dict] = {}
+        self._siguiente_iid = 0
 
         # --- Fila de busqueda -------------------------------------------------
         entrada = ttk.Frame(self.body, style="Panel.TFrame")
@@ -119,9 +120,15 @@ class PanelRescate(ToolPanel):
             self._estado.alerta("Escribe al menos una parte del nombre del archivo.")
             return
 
+        # Se vacia aqui, ANTES de arrancar, porque de aqui en adelante la
+        # tabla se va llenando conforme llegan resultados por etapa (via
+        # on_progress) y no se debe volver a limpiar hasta la proxima
+        # busqueda: limpiarla al terminar haria parpadear todo lo que el
+        # usuario ya estaba viendo.
         for fila in self._tabla.get_children():
             self._tabla.delete(fila)
         self._por_iid.clear()
+        self._siguiente_iid = 0
         self._btn_recuperar.configure(state="disabled")
 
         self._btn_buscar.configure(state="disabled")
@@ -135,8 +142,34 @@ class PanelRescate(ToolPanel):
 
         self.run_async(trabajo, self._on_busqueda_lista, on_progress=self._on_progreso)
 
-    def _on_progreso(self, texto: str) -> None:
-        self._estado.info(texto)
+    def _on_progreso(self, tipo: str, dato) -> None:
+        # Los dos tipos de aviso que manda _buscar_en_todos_lados, ya en el
+        # hilo de la UI (run_async los saca de la cola via after()): texto de
+        # estado, o una tanda de resultados nuevos de una etapa que termino.
+        if tipo == "estado":
+            self._estado.info(dato)
+        elif tipo == "resultados":
+            self._agregar_resultados(dato)
+
+    def _agregar_resultados(self, resultados: list[dict]) -> None:
+        """Suma filas a la tabla sin borrar lo que ya habia. `resultados` ya
+        viene deduplicado (searchers/full_search.py) contra todo lo visto en
+        etapas anteriores, asi que aqui no hay que filtrar nada mas.
+        """
+        for r in resultados:
+            iid = str(self._siguiente_iid)
+            self._siguiente_iid += 1
+            self._por_iid[iid] = r
+            self._tabla.insert(
+                "", "end", iid=iid,
+                values=(
+                    r.get("nombre", "?"),
+                    r.get("ruta", "?"),
+                    r.get("tamano", "?"),
+                    r.get("fecha", "?"),
+                    r.get("origen", "?"),
+                ),
+            )
 
     def _on_busqueda_lista(self, ok: bool, resultado) -> None:
         self._barra.stop()
@@ -154,33 +187,16 @@ class PanelRescate(ToolPanel):
             )
             return
 
-        # Limpiar aqui tambien, no solo en _buscar(): quien llena la tabla es
-        # el dueno de vaciarla. Los iid son posicionales ("0", "1", ...), asi
-        # que si llegan dos tandas de resultados sin limpiar en medio, tkinter
-        # revienta con "Item 0 already exists".
-        for fila in self._tabla.get_children():
-            self._tabla.delete(fila)
-        self._por_iid.clear()
-        self._btn_recuperar.configure(state="disabled")
-
+        # NO se vuelve a llenar la tabla aqui: las filas ya llegaron una por
+        # una via _on_progreso conforme cada etapa termino (mismo orden y
+        # mismo conjunto que este `resultado` final, es la misma lista que
+        # arma search_everywhere). Volver a insertarlas duplicaria filas y
+        # ademas tkinter revienta con "Item 0 already exists" si se reusan
+        # los mismos iid.
         resultados = resultado
         if not resultados:
             self._estado.alerta("No se encontro ningun archivo con ese nombre.")
             return
-
-        for i, r in enumerate(resultados):
-            iid = str(i)
-            self._por_iid[iid] = r
-            self._tabla.insert(
-                "", "end", iid=iid,
-                values=(
-                    r.get("nombre", "?"),
-                    r.get("ruta", "?"),
-                    r.get("tamano", "?"),
-                    r.get("fecha", "?"),
-                    r.get("origen", "?"),
-                ),
-            )
 
         self._estado.exito(f"Se encontraron {len(resultados)} archivo(s).")
 
@@ -266,16 +282,25 @@ _ETIQUETAS_INICIO = {
 def _buscar_en_todos_lados(nombre: str, progreso) -> list[dict]:
     """Corre la busqueda completa compartida (searchers/full_search.py) y
     traduce el avance a mensajes para la pantalla.
+
+    `progreso` es el `_progress` de run_async: cada llamada viaja por una
+    cola y se entrega en el hilo de la UI via `_on_progreso(tipo, dato)`.
+    Aqui se mandan dos tipos: ("estado", texto) para lo que hoy ya se
+    mostraba, y ("resultados", lista) cuando una etapa termina y trae
+    resultados nuevos para pintar en la tabla — asi la tabla se va llenando
+    etapa por etapa en vez de esperar a que termine todo.
     """
 
     def _progreso_disco(ruta: str) -> None:
         texto = ruta if len(ruta) < 60 else "..." + ruta[-57:]
-        progreso(f"Escaneando: {texto}")
+        progreso("estado", f"Escaneando: {texto}")
 
-    def _etapa(etapa: str, cantidad) -> None:
+    def _etapa(etapa: str, cantidad, resultados=None) -> None:
         # cantidad is None => la etapa acaba de empezar.
         if cantidad is None:
-            progreso(_ETIQUETAS_INICIO.get(etapa, "Buscando..."))
+            progreso("estado", _ETIQUETAS_INICIO.get(etapa, "Buscando..."))
+        elif resultados:
+            progreso("resultados", resultados)
 
     return search_everywhere(
         nombre,

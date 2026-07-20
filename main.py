@@ -415,7 +415,7 @@ def option_full_search() -> None:
             display = path if len(path) < 60 else "..." + path[-57:]
             status.update(f"[bold green]Escaneando:[/bold green] {escape(display)}")
 
-        def on_stage(etapa: str, count) -> None:
+        def on_stage(etapa: str, count, resultados=None) -> None:
             etiqueta = ETIQUETAS.get(etapa, etapa)
             if count is None:
                 if etapa in AVISOS_LARGOS:
@@ -544,8 +544,16 @@ if __name__ == "__main__":
             main()
     except Exception:
         import traceback
-        # Guardar traceback completo en archivo para diagnostico
-        log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "salva_error.log")
+        # Guardar traceback completo en archivo para diagnostico.
+        # OJO: en el .exe de PyInstaller, __file__ apunta a la carpeta temporal
+        # donde se descomprime la app, y Windows la BORRA al cerrar — el log se
+        # perdia justo cuando hacia falta. Congelado hay que usar sys.executable,
+        # que si es el .exe donde el usuario lo puede encontrar.
+        if getattr(sys, "frozen", False):
+            base_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        log_path = os.path.join(base_dir, "salva_error.log")
         try:
             with open(log_path, "w", encoding="utf-8") as f:
                 traceback.print_exc(file=f)

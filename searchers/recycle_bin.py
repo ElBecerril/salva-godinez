@@ -1,13 +1,13 @@
-"""Busqueda de archivos Office en la papelera de reciclaje via PowerShell."""
+"""Busqueda de archivos (cualquier tipo) en la papelera de reciclaje via
+PowerShell."""
 
 import json
 import os
 import subprocess
-from config import OFFICE_EXTENSIONS
 
 
 def search_recycle_bin(name_filter: str = "") -> list[dict]:
-    """Busca archivos Office en la papelera de reciclaje.
+    """Busca archivos en la papelera de reciclaje, sin importar su tipo.
 
     Args:
         name_filter: Texto parcial para filtrar por nombre (sin extension).
@@ -69,9 +69,14 @@ $results | ConvertTo-Json -Compress
         name_lower = name_filter.lower()
         for item in data:
             item_name = item.get("Name", "")
-            ext = _get_extension(item_name)
-            if ext not in OFFICE_EXTENSIONS:
-                continue
+            ruta_fisica = item.get("RealPath", "")
+            # Windows por defecto oculta la extension conocida en el nombre
+            # que muestra el Explorador (columna 0 de GetDetailsOf), asi que
+            # `item_name` puede venir sin ella (ej. "presentacion" en vez de
+            # "presentacion.pptx"). El archivo fisico dentro de $Recycle.Bin
+            # SIEMPRE conserva su extension original sin importar ese ajuste,
+            # asi que la extension real se saca de ahi, no del nombre visible.
+            item_name = _apply_real_extension(item_name, ruta_fisica)
             if name_lower and name_lower not in item_name.lower():
                 continue
             original_folder = item.get("OriginalFolder", "")
@@ -82,7 +87,7 @@ $results | ConvertTo-Json -Compress
             found.append({
                 "nombre": item_name,
                 "ruta": ruta,
-                "ruta_fisica": item.get("RealPath", ""),
+                "ruta_fisica": ruta_fisica,
                 "tamano": item.get("Size", "?"),
                 "fecha": item.get("DeleteDate", "?"),
                 "origen": "Papelera de reciclaje",
@@ -98,3 +103,33 @@ def _get_extension(filename: str) -> str:
     if dot == -1:
         return ""
     return filename[dot:].lower()
+
+
+def _apply_real_extension(display_name: str, ruta_fisica: str) -> str:
+    """Corrige `display_name` para que muestre la extension real del archivo.
+
+    `display_name` viene de GetDetailsOf(item, 0), que respeta la opcion de
+    Windows "ocultar las extensiones de archivos conocidos" (activada por
+    defecto) y puede no traer extension. `ruta_fisica` es la ruta dentro de
+    $Recycle.Bin (ej. C:\\$Recycle.Bin\\S-1-5-21-...\\$RA1B2C3.pptx), que
+    SIEMPRE conserva la extension original sin importar esa opcion.
+
+    Si ruta_fisica esta vacia o no tiene extension (carpetas borradas, o
+    archivos genuinamente sin extension), se devuelve display_name tal cual.
+    """
+    if not display_name or not ruta_fisica:
+        return display_name
+    # ruta_fisica siempre es una ruta de Windows (separador `\`), sin
+    # importar el SO donde corra este codigo (en Linux, en desarrollo, se
+    # prueba con datos falsos; os.path.basename ahi NO separa por `\` y
+    # devolveria la ruta completa). Se calcula el nombre base a mano en vez
+    # de depender de os.path/ntpath para que el resultado sea el mismo en
+    # cualquier plataforma.
+    last_sep = max(ruta_fisica.rfind("\\"), ruta_fisica.rfind("/"))
+    base_name = ruta_fisica[last_sep + 1:]
+    real_ext = _get_extension(base_name)
+    if not real_ext:
+        return display_name
+    if display_name.lower().endswith(real_ext):
+        return display_name
+    return display_name + real_ext
