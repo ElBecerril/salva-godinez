@@ -2,6 +2,18 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.5.1] - 2026-07-20
+
+### Corregido
+- **Ya se pueden ver todas las herramientas de la lista.** Con 23 en la barra
+  lateral, las ultimas quedaban fuera de la pantalla y no habia forma de
+  llegar a ellas: la barra de scroll existia pero quedaba escondida detras de
+  la lista, y la rueda del mouse no hacia nada
+- **La rueda del mouse ya desplaza la lista**, que es lo primero que uno
+  intenta. Funciona igual pasando el cursor sobre los botones
+- **"Volver al modo texto" queda siempre a la vista**, abajo de la barra, sin
+  desplazarse con la lista
+
 ## [2.5.0] - 2026-07-20
 
 Al abrir SalvaGodinez ahora sale directo la version con ventanas. Es el mismo

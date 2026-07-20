@@ -105,6 +105,28 @@ class App(tk.Tk):
             return
         self.destroy()
 
+    def _conectar_rueda(self, lienzo, widgets) -> None:
+        """Hace que la rueda del mouse desplace la lista de herramientas.
+
+        Un area con scroll que no responde a la rueda se siente rota: la gente
+        gira la rueda antes de buscar una barra con el cursor.
+
+        Windows manda <MouseWheel> con delta multiplo de 120; X11 manda
+        Button-4/5. Se atienden los dos porque el desarrollo es en Linux y la
+        app corre en Windows.
+        """
+        def _scroll(delta: int) -> None:
+            if lienzo.winfo_exists():
+                lienzo.yview_scroll(delta, "units")
+
+        def _windows(evento):
+            _scroll(-1 if evento.delta > 0 else 1)
+
+        for w in widgets:
+            w.bind("<MouseWheel>", _windows, add="+")
+            w.bind("<Button-4>", lambda _e: _scroll(-1), add="+")
+            w.bind("<Button-5>", lambda _e: _scroll(1), add="+")
+
     def _volver_a_consola(self) -> None:
         """Cierra la ventana y le pide a main.py que abra el menu de texto."""
         if getattr(self, "jobs_destructivos", 0) > 0:
@@ -137,16 +159,43 @@ class App(tk.Tk):
             fg=theme.FG_SIDEBAR, font=("Segoe UI", 9), anchor="w", padx=20,
         ).pack(fill="x", pady=(0, 18))
 
+        # Lo del fondo se empaqueta ANTES: si no, la lista (que expande) se come
+        # el espacio y el boton de volver al modo texto queda fuera de la vista.
+        self._pie_sidebar = ttk.Frame(sidebar, style="Sidebar.TFrame")
+        self._pie_sidebar.pack(side="bottom", fill="x")
+
         # Con 23 herramientas la barra no cabe en pantallas chicas de oficina,
         # asi que va dentro de un area con scroll.
-        lienzo = tk.Canvas(sidebar, bg=theme.BG_SIDEBAR, highlightthickness=0, width=232)
-        barra = ttk.Scrollbar(sidebar, orient="vertical", command=lienzo.yview)
-        lista = tk.Frame(lienzo, bg=theme.BG_SIDEBAR)
-        lista.bind("<Configure>", lambda e: lienzo.configure(scrollregion=lienzo.bbox("all")))
-        lienzo.create_window((0, 0), window=lista, anchor="nw", width=232)
-        lienzo.configure(yscrollcommand=barra.set)
-        lienzo.pack(side="left", fill="both", expand=True)
+        area = ttk.Frame(sidebar, style="Sidebar.TFrame")
+        area.pack(side="top", fill="both", expand=True)
+
+        # La barra se empaqueta PRIMERO para que se reserve su ancho. Si se
+        # empaqueta despues del lienzo, este ya ocupo todo y la barra queda
+        # fuera de la vista: hay scroll, pero invisible.
+        barra = ttk.Scrollbar(area, orient="vertical")
         barra.pack(side="right", fill="y")
+
+        lienzo = tk.Canvas(area, bg=theme.BG_SIDEBAR, highlightthickness=0)
+        lienzo.pack(side="left", fill="both", expand=True)
+        barra.configure(command=lienzo.yview)
+        lienzo.configure(yscrollcommand=barra.set)
+
+        lista = tk.Frame(lienzo, bg=theme.BG_SIDEBAR)
+        ventana = lienzo.create_window((0, 0), window=lista, anchor="nw")
+
+        def _al_cambiar_lista(_e=None) -> None:
+            lienzo.configure(scrollregion=lienzo.bbox("all"))
+
+        def _al_cambiar_lienzo(evento) -> None:
+            # La lista debe medir lo mismo que el lienzo (ya sin la barra), o
+            # los botones se cortan a lo ancho.
+            lienzo.itemconfigure(ventana, width=evento.width)
+
+        _con_rueda = [lienzo, lista]
+
+        lista.bind("<Configure>", _al_cambiar_lista)
+        lienzo.bind("<Configure>", _al_cambiar_lienzo)
+        self._lienzo_sidebar = lienzo
 
         for titulo, clases in CATEGORIAS:
             if not clases:
@@ -167,12 +216,13 @@ class App(tk.Tk):
                 )
                 b.pack(fill="x")
                 self._botones[clase] = b
+                _con_rueda.append(b)
 
         if self._version:
             tk.Label(
                 sidebar, text=f"v{self._version}", bg=theme.BG_SIDEBAR,
                 fg="#6b7488", font=("Segoe UI", 9), anchor="w", padx=20,
-            ).pack(side="bottom", fill="x", pady=(0, 14))
+            ).pack(in_=self._pie_sidebar, side="bottom", fill="x", pady=(0, 14))
 
         # Puerta de regreso al menu de texto. Va al fondo de la barra porque no
         # es una herramienta; es cambiar de modo.
@@ -182,7 +232,9 @@ class App(tk.Tk):
             activebackground="#2b3242", activeforeground="#ffffff",
             highlightthickness=0, font=("Segoe UI", 10), cursor="hand2",
             command=self._volver_a_consola,
-        ).pack(side="bottom", fill="x", pady=(0, 4))
+        ).pack(in_=self._pie_sidebar, side="bottom", fill="x", pady=(0, 4))
+
+        self._conectar_rueda(lienzo, _con_rueda + [etiqueta for etiqueta in lista.winfo_children()])
 
         self.contenido = ttk.Frame(contenedor, style="Panel.TFrame")
         self.contenido.pack(side="left", fill="both", expand=True)
