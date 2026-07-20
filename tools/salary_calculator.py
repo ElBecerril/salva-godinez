@@ -17,11 +17,20 @@ SBC_MONTHLY_CAP = UMA_DAILY * 25 * 30.4
 # tabla por rangos vigente hasta 2025 (Decreto 26/12/2013) por un MONTO UNICO
 # mensual para quien no exceda el limite de ingresos, en vez de un monto
 # escalonado segun el nivel de ingreso.
-# General (feb-dic 2026): 15.02% de la UMA mensual = $536.22.
-# Transitorio SOLO enero 2026: 15.59% de la UMA mensual (tambien $536.22 en
-# la practica, redondeado). Se usa el monto general para todo el anio ya que
-# ambos coinciden en el monto publicado por el SAT.
-SUBSIDIO_EMPLEO_MENSUAL = 536.22
+#
+# El decreto NO fija un monto en pesos: define una FORMULA — el subsidio es el
+# valor mensual de la UMA multiplicado por 15.02%. Por eso se calcula aqui a
+# partir de UMA_DAILY en vez de hardcodear pesos: cuando el INEGI publique la
+# UMA de 2027 y se actualice config.py, el subsidio se mueve solo.
+#   UMA mensual 2026 = 117.31 x 30.4 = $3,566.22
+#   Subsidio (feb-dic 2026) = 3,566.22 x 15.02% = $535.65
+#
+# Transitorio SOLO enero 2026: el decreto manda usar 15.59% porque en enero
+# seguia vigente la UMA de 2025 ($113.14 diaria = $3,439.46 mensual), ya que la
+# UMA nueva entra en vigor el 1 de febrero. Eso daba $536.21 — un caso pasado y
+# distinto por $0.56, que esta calculadora no modela: siempre usa el general.
+SUBSIDIO_EMPLEO_FACTOR_UMA = 0.1502
+SUBSIDIO_EMPLEO_MENSUAL = round(UMA_DAILY * 30.4 * SUBSIDIO_EMPLEO_FACTOR_UMA, 2)
 SUBSIDIO_EMPLEO_LIMITE_INGRESO = 11_492.66
 
 

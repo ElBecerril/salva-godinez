@@ -29,11 +29,16 @@ foreach ($item in $items) {
     $originalFolder = $folder.GetDetailsOf($item, 1)
     $date = $folder.GetDetailsOf($item, 2)
     $size = $folder.GetDetailsOf($item, 3)
+    # OJO: el archivo NO esta en su ruta original, esta renombrado dentro de
+    # $Recycle.Bin (algo como C:\$Recycle.Bin\S-1-5-21-...\$RXXXXXX.docx).
+    # $item.Path es esa ruta fisica y es la unica desde la que se puede copiar.
+    $realPath = $item.Path
     $results += @{
         Name = $name
         OriginalFolder = $originalFolder
         DeleteDate = $date
         Size = $size
+        RealPath = $realPath
     }
 }
 $results | ConvertTo-Json -Compress
@@ -77,6 +82,7 @@ $results | ConvertTo-Json -Compress
             found.append({
                 "nombre": item_name,
                 "ruta": ruta,
+                "ruta_fisica": item.get("RealPath", ""),
                 "tamano": item.get("Size", "?"),
                 "fecha": item.get("DeleteDate", "?"),
                 "origen": "Papelera de reciclaje",

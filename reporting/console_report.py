@@ -71,8 +71,11 @@ def offer_restore(results: list[dict]) -> None:
         return
 
     selected = results[idx - 1]
-    source = selected.get("ruta")
     nombre = selected.get("nombre")
+    # Para los archivos de la papelera, la ruta que se muestra es la ORIGINAL
+    # (de donde se borro) y ahi ya no hay nada: el archivo vive renombrado
+    # dentro de $Recycle.Bin. "ruta_fisica" es de donde si se puede copiar.
+    source = selected.get("ruta_fisica") or selected.get("ruta")
 
     if not source or not nombre:
         console.print(
@@ -82,7 +85,9 @@ def offer_restore(results: list[dict]) -> None:
 
     if not os.path.isfile(source):
         console.print(
-            f"[red]El archivo ya no existe en:[/red] {escape(str(source))}"
+            f"[red]Ya no se puede recuperar este archivo.[/red] "
+            f"Puede que se haya vaciado la papelera o que ya no este en: "
+            f"{escape(str(selected.get('ruta', source)))}"
         )
         return
 

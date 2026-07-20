@@ -2,6 +2,36 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.3.8] - 2026-07-20
+
+Se cierran los dos hallazgos que quedaban abiertos de la auditoria del 19 de
+julio: el rescate desde la papelera, que nunca llegaba a recuperar nada, y el
+monto del subsidio al empleo, que estaba mal calculado.
+
+### Corregido
+- **Recuperar un archivo de la papelera ya funciona**: la app encontraba el
+  archivo, lo mostraba en la tabla y al intentar recuperarlo decia "el archivo
+  ya no existe". El motivo es que un archivo borrado no esta en la carpeta de
+  donde salio, sino guardado con otro nombre dentro de `$Recycle.Bin`; ahora la
+  copia se hace desde ahi. La tabla sigue mostrando la ruta original (que es la
+  que uno reconoce) pero la recuperacion usa la ubicacion real
+- **Subsidio al empleo 2026: monto incorrecto**: se usaba $536.22, que no
+  corresponde a ningun periodo — parece el monto de enero ($536.21) con un
+  digito cambiado. El Decreto DOF 31/12/2025 no fija pesos sino una formula:
+  15.02% del valor mensual de la UMA, o sea $3,566.22 x 15.02% = **$535.65**
+  vigente de febrero a diciembre. El transitorio de enero usaba 15.59% porque
+  la UMA nueva entra en vigor hasta el 1 de febrero. Ademas el comentario del
+  codigo afirmaba que 15.02% y 15.59% daban el mismo monto, lo cual es
+  aritmeticamente imposible
+- **Mensaje mas claro al no poder recuperar**: antes decia "el archivo ya no
+  existe en: C:\..."; ahora explica que puede que se haya vaciado la papelera
+
+### Cambiado
+- **El subsidio al empleo se calcula, ya no se escribe a mano**: se deriva del
+  valor de la UMA en `config.py` en vez de estar fijo en pesos, para que al
+  actualizar la UMA del proximo anio el subsidio se mueva solo en lugar de
+  quedarse congelado en un monto viejo
+
 ## [2.3.7] - 2026-07-20
 
 Endurecimiento a partir de un premortem del proyecto: se cierra un flanco del

@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.3.7
+**by El_Becerril** | v2.3.8
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -88,7 +88,7 @@ programa gratuito recien salido. Para abrirlo:
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.3.7: endurecimiento de seguridad — el auto-actualizador exige verificacion SHA-256, aviso de origen oficial contra copias falsas, y las calculadoras fiscales remiten a PROFEDET/SAT, ver [CHANGELOG](CHANGELOG.md).
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.3.8: ya se puede recuperar de verdad un archivo de la papelera (antes decia que no existia), y se corrige el monto del subsidio al empleo 2026, ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 
