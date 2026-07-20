@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.5.1"
+__version__ = "2.5.2"
 
 import sys
 import os
@@ -533,9 +533,24 @@ def abrir_gui() -> str:
             mostrar_consola()
 
 
-def main() -> None:
+def arranque_comun() -> None:
+    """Lo que debe pasar SIEMPRE al abrir la app, sea con ventanas o con texto.
+
+    OJO: esto vivia dentro de main(), que es el camino de la CONSOLA. Cuando la
+    interfaz grafica paso a ser la que abre por default, main() dejo de correr
+    en el caso normal y se perdieron dos cosas sin que nadie lo notara: el
+    aviso de actualizaciones y la advertencia de origen oficial (que existe
+    para que nadie use un clon con virus). Por eso ahora vive aparte y se llama
+    ANTES de decidir que interfaz abrir.
+
+    Corre con la consola todavia visible, asi que el "hay version nueva,
+    la descargo?" se puede contestar aunque despues se abra la ventana.
+    """
     check_for_updates(__version__)
     _show_source_notice()
+
+
+def main() -> None:
     try:
         while True:
             choice = show_main_menu()
@@ -572,6 +587,12 @@ if __name__ == "__main__":
         # El modo texto NO desaparece: se llega con --consola, con el boton
         # "Volver al modo texto" de la ventana, y automaticamente si la
         # interfaz grafica no se puede abrir en esa maquina.
+        #
+        # Antes de elegir interfaz: revisar si hay version nueva y avisar del
+        # origen oficial. Va aqui y no dentro de main() para que tambien pase
+        # cuando se abre la ventana, que es el caso normal.
+        arranque_comun()
+
         if "--consola" in sys.argv:
             main()
         elif abrir_gui() != "salir":

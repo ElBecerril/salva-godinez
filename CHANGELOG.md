@@ -2,6 +2,25 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.5.2] - 2026-07-20
+
+### Corregido
+- **El aviso de version nueva no aparecia.** Desde que la app abre con ventanas
+  por default (v2.5.0), la revision de actualizaciones se quedo colgada del
+  menu de texto, que ya no se ejecuta al abrir normalmente. Nadie se enteraba
+  de que habia una version mas nueva
+- **La advertencia de origen oficial tampoco se mostraba**, por el mismo
+  motivo. Es el aviso de que SalvaGodinez solo es legitimo si se bajo de
+  github.com/ElBecerril/salva-godinez, y sirve para que nadie use una copia
+  falsa con virus. Llevaba dos versiones sin verse
+
+Las dos ahora ocurren al arrancar, sin importar si abres la version con
+ventanas o el modo texto.
+
+> **Si vienes de la v2.4.0, v2.5.0 o v2.5.1**, esas versiones tienen el fallo y
+> no te van a avisar de esta actualizacion: hay que bajarla a mano una vez.
+> A partir de aqui el aviso vuelve a funcionar solo.
+
 ## [2.5.1] - 2026-07-20
 
 ### Corregido
