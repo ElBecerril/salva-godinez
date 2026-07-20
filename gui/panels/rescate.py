@@ -1,0 +1,277 @@
+"""Pantalla: Rescatar archivos perdidos.
+
+La herramienta estrella de la app: alguien perdio un Excel o un Word y lo
+quiere de vuelta. Esta pantalla NO reimplementa la busqueda ni la copia: solo
+llama a las funciones puras de searchers/ y reporting/console_report.py y
+presenta el resultado.
+
+La combinacion de busquedas (papelera, temporales, recientes de Windows,
+disco completo, copias de seguridad) es la misma que option_full_search() en
+main.py, solo que aqui corre en segundo plano via run_async() para no
+congelar la ventana.
+"""
+
+import tkinter as tk
+from tkinter import filedialog, ttk
+
+from gui.base import EstadoLabel, ToolPanel
+from reporting.console_report import (
+    compute_unique_dest_path,
+    copy_restored_file,
+    resolve_restore_source,
+)
+from searchers.disk_search import search_by_name
+from searchers.recent_files import search_recent_files
+from searchers.recycle_bin import search_recycle_bin
+from searchers.shadow_copies import search_shadow_copies
+from searchers.temp_files import search_temp_files
+from utils import deduplicate
+
+
+class PanelRescate(ToolPanel):
+    TITULO = "Rescatar archivos perdidos"
+    DESCRIPCION = (
+        "Escribe el nombre (o parte del nombre) de un archivo de Word o "
+        "Excel que hayas perdido. Se busca en la papelera de reciclaje, en "
+        "los archivos temporales, en lo reciente de Windows, en el disco "
+        "completo y en las copias de seguridad automaticas de Windows."
+    )
+
+    def build(self) -> None:
+        self._por_iid: dict[str, dict] = {}
+
+        # --- Fila de busqueda -------------------------------------------------
+        entrada = ttk.Frame(self.body, style="Panel.TFrame")
+        entrada.pack(fill="x")
+
+        ttk.Label(
+            entrada, text="Nombre del archivo:", style="Panel.TLabel",
+        ).pack(side="left")
+
+        self._var_nombre = tk.StringVar()
+        self._campo = ttk.Entry(entrada, textvariable=self._var_nombre, width=32)
+        self._campo.pack(side="left", padx=(10, 10))
+        self._campo.bind("<Return>", lambda _e: self._buscar())
+
+        self._btn_buscar = ttk.Button(
+            entrada, text="Buscar", style="Accent.TButton", command=self._buscar,
+        )
+        self._btn_buscar.pack(side="left")
+
+        # --- Progreso -----------------------------------------------------
+        self._barra = ttk.Progressbar(self.body, mode="indeterminate")
+
+        self._estado = EstadoLabel(self.body)
+        self._estado.pack(anchor="w", pady=(10, 6))
+
+        # --- Recuperar -----------------------------------------------------
+        # Se empaqueta ANTES que la tabla y anclado abajo: si se empaqueta
+        # despues, la tabla (expand=True) se come el espacio y el boton
+        # principal termina fuera de la ventana.
+        acciones = ttk.Frame(self.body, style="Panel.TFrame")
+        acciones.pack(side="bottom", fill="x", pady=(12, 0))
+
+        self._btn_recuperar = ttk.Button(
+            acciones, text="Recuperar a...", style="Accent.TButton",
+            command=self._recuperar, state="disabled",
+        )
+        self._btn_recuperar.pack(side="left")
+
+        # --- Resultados -----------------------------------------------------
+        tabla_frame = ttk.Frame(self.body, style="Panel.TFrame")
+        tabla_frame.pack(fill="both", expand=True)
+
+        columnas = ("nombre", "donde", "tamano", "fecha", "origen")
+        self._tabla = ttk.Treeview(
+            tabla_frame, columns=columnas, show="headings", height=14,
+        )
+        self._tabla.heading("nombre", text="Nombre")
+        self._tabla.heading("donde", text="Donde estaba")
+        self._tabla.heading("tamano", text="Tamano")
+        self._tabla.heading("fecha", text="Fecha")
+        self._tabla.heading("origen", text="Origen")
+        # Los anchos suman ~700 para que quepan sin scroll horizontal en la
+        # ventana por defecto; "donde" se estira con la ventana porque es la
+        # columna con el texto mas largo.
+        self._tabla.column("nombre", width=190, anchor="w", stretch=False)
+        self._tabla.column("donde", width=250, anchor="w", stretch=True)
+        self._tabla.column("tamano", width=80, anchor="e", stretch=False)
+        self._tabla.column("fecha", width=110, anchor="w", stretch=False)
+        self._tabla.column("origen", width=150, anchor="w", stretch=False)
+
+        scroll_y = ttk.Scrollbar(tabla_frame, orient="vertical", command=self._tabla.yview)
+        self._tabla.configure(yscrollcommand=scroll_y.set)
+        self._tabla.pack(side="left", fill="both", expand=True)
+        scroll_y.pack(side="left", fill="y")
+
+        self._tabla.bind("<<TreeviewSelect>>", self._on_seleccion)
+
+    # ------------------------------------------------------------------
+    # Busqueda
+    # ------------------------------------------------------------------
+
+    def _buscar(self) -> None:
+        nombre = self._var_nombre.get().strip()
+        if not nombre:
+            self._estado.alerta("Escribe al menos una parte del nombre del archivo.")
+            return
+
+        for fila in self._tabla.get_children():
+            self._tabla.delete(fila)
+        self._por_iid.clear()
+        self._btn_recuperar.configure(state="disabled")
+
+        self._btn_buscar.configure(state="disabled")
+        self._campo.configure(state="disabled")
+        self._barra.pack(fill="x", pady=(4, 0))
+        self._barra.start(12)
+        self._estado.info("Buscando...")
+
+        def trabajo(progreso):
+            return _buscar_en_todos_lados(nombre, progreso)
+
+        self.run_async(trabajo, self._on_busqueda_lista, on_progress=self._on_progreso)
+
+    def _on_progreso(self, texto: str) -> None:
+        self._estado.info(texto)
+
+    def _on_busqueda_lista(self, ok: bool, resultado) -> None:
+        self._barra.stop()
+        self._barra.pack_forget()
+        self._btn_buscar.configure(state="normal")
+        self._campo.configure(state="normal")
+
+        if not ok:
+            self._estado.alerta(
+                "No se pudo completar la busqueda. Intenta de nuevo."
+            )
+            self.error(
+                "Error de busqueda",
+                "Algo salio mal mientras se buscaba el archivo. Intenta de nuevo.",
+            )
+            return
+
+        # Limpiar aqui tambien, no solo en _buscar(): quien llena la tabla es
+        # el dueno de vaciarla. Los iid son posicionales ("0", "1", ...), asi
+        # que si llegan dos tandas de resultados sin limpiar en medio, tkinter
+        # revienta con "Item 0 already exists".
+        for fila in self._tabla.get_children():
+            self._tabla.delete(fila)
+        self._por_iid.clear()
+        self._btn_recuperar.configure(state="disabled")
+
+        resultados = resultado
+        if not resultados:
+            self._estado.alerta("No se encontro ningun archivo con ese nombre.")
+            return
+
+        for i, r in enumerate(resultados):
+            iid = str(i)
+            self._por_iid[iid] = r
+            self._tabla.insert(
+                "", "end", iid=iid,
+                values=(
+                    r.get("nombre", "?"),
+                    r.get("ruta", "?"),
+                    r.get("tamano", "?"),
+                    r.get("fecha", "?"),
+                    r.get("origen", "?"),
+                ),
+            )
+
+        self._estado.exito(f"Se encontraron {len(resultados)} archivo(s).")
+
+    # ------------------------------------------------------------------
+    # Seleccion y recuperacion
+    # ------------------------------------------------------------------
+
+    def _on_seleccion(self, _evento=None) -> None:
+        seleccion = self._tabla.selection()
+        self._btn_recuperar.configure(state="normal" if seleccion else "disabled")
+
+    def _recuperar(self) -> None:
+        seleccion = self._tabla.selection()
+        if not seleccion:
+            return
+
+        seleccionado = self._por_iid.get(seleccion[0])
+        if seleccionado is None:
+            return
+
+        resuelto = resolve_restore_source(seleccionado)
+        if not resuelto["ok"]:
+            if resuelto["error"] == "file_gone":
+                self.error(
+                    "Ya no se puede recuperar",
+                    "Este archivo ya no esta disponible para copiar. "
+                    "Puede que se haya vaciado la papelera o que se haya "
+                    f"borrado de forma definitiva. Ubicacion original: "
+                    f"{resuelto.get('ruta_mostrada', '?')}",
+                )
+            else:
+                self.error(
+                    "Ya no se puede recuperar",
+                    "Este resultado no tiene la informacion necesaria para "
+                    "recuperarlo.",
+                )
+            return
+
+        carpeta_destino = filedialog.askdirectory(
+            parent=self, title="Elige donde guardar el archivo recuperado",
+        )
+        if not carpeta_destino:
+            return
+
+        dest_path = compute_unique_dest_path(carpeta_destino, resuelto["nombre"])
+        resultado_copia = copy_restored_file(resuelto["source"], dest_path)
+
+        if resultado_copia["ok"]:
+            self._estado.exito(f"Archivo recuperado en: {resultado_copia['dest']}")
+            self.aviso(
+                "Archivo recuperado",
+                f"El archivo quedo guardado en:\n\n{resultado_copia['dest']}",
+            )
+        else:
+            self.error(
+                "No se pudo copiar el archivo",
+                "No se pudo guardar el archivo en la carpeta elegida. "
+                "Revisa que haya espacio disponible y que tengas permiso "
+                "para escribir ahi.",
+            )
+
+
+# ----------------------------------------------------------------------
+# Trabajo de fondo (corre en el hilo de busqueda, NO toca widgets)
+# ----------------------------------------------------------------------
+
+
+def _buscar_en_todos_lados(nombre: str, progreso) -> list[dict]:
+    """Corre la misma combinacion de busquedas que option_full_search() en
+    main.py, reportando avance via el callback progreso(texto).
+    """
+    todos: list[dict] = []
+
+    etapas = (
+        ("la papelera de reciclaje", search_recycle_bin),
+        ("los archivos temporales y de autorecuperacion", search_temp_files),
+        ("los archivos recientes de Windows", search_recent_files),
+    )
+    for etiqueta, buscador in etapas:
+        progreso(f"Buscando en {etiqueta}...")
+        todos.extend(buscador(nombre))
+
+    progreso("Escaneando el disco completo, esto puede tardar...")
+
+    def _progreso_disco(ruta: str) -> None:
+        texto = ruta if len(ruta) < 60 else "..." + ruta[-57:]
+        progreso(f"Escaneando: {texto}")
+
+    todos.extend(search_by_name(nombre, progress_callback=_progreso_disco))
+
+    progreso(
+        "Buscando en las copias de seguridad automaticas de Windows, "
+        "esto puede tardar varios minutos..."
+    )
+    todos.extend(search_shadow_copies(nombre))
+
+    return deduplicate(todos)
