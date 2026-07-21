@@ -77,7 +77,7 @@ class PanelCompararExcel(ToolPanel):
 
         columnas = ("hoja", "celda", "v1", "v2")
         self._tabla = ttk.Treeview(
-            tabla_frame, columns=columnas, show="headings", height=14,
+            tabla_frame, columns=columnas, show="headings", height=8,
         )
         self._tabla.heading("hoja", text="Hoja")
         self._tabla.heading("celda", text="Celda")
@@ -170,7 +170,11 @@ class PanelCompararExcel(ToolPanel):
         total_diffs = sum(len(d) for d in resultado["common_diffs"].values())
 
         if total_diffs == 0:
-            partes.insert(0, "Los archivos son identicos en las hojas comunes.")
+            if resultado.get("common_count", 0) == 0:
+                encabezado = "Los dos archivos no tienen ninguna hoja en comun."
+            else:
+                encabezado = "Los archivos son identicos en las hojas comunes."
+            partes.insert(0, encabezado)
             self._estado.exito(" ".join(partes))
             self._cerrar_libros()
             return

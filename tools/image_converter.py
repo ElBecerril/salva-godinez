@@ -56,16 +56,22 @@ def _collect_images(path: str) -> dict:
 
 
 def _safe_output_path(output_dir: str, base_name: str, ext: str) -> str:
-    """Genera ruta de salida con sufijo numerico si ya existe."""
+    """Genera ruta de salida con sufijo numerico si ya existe.
+
+    El directorio suele venir de un dialogo de tkinter (barras /) y el nombre
+    se une con os.path.join (barra \\ en Windows), asi que la ruta cruda queda
+    con separadores mezclados: "C:/Users/...\\archivo.pdf". Se normaliza para
+    que el mensaje que ve el usuario y el archivo real usen un solo estilo.
+    """
     out_path = os.path.join(output_dir, f"{base_name}{ext}")
     if not os.path.exists(out_path):
-        return out_path
+        return os.path.normpath(out_path)
 
     counter = 1
     while True:
         out_path = os.path.join(output_dir, f"{base_name}_{counter}{ext}")
         if not os.path.exists(out_path):
-            return out_path
+            return os.path.normpath(out_path)
         counter += 1
 
 

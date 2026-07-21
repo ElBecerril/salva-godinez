@@ -67,8 +67,7 @@ class App(tk.Tk):
     def __init__(self, version: str = "") -> None:
         super().__init__()
         self.title("SalvaGodinez")
-        self.geometry("1120x720")
-        self.minsize(900, 600)
+        self._ajustar_tamano()
         theme.apply_theme(self)
 
         self._version = version
@@ -87,6 +86,32 @@ class App(tk.Tk):
 
         self._construir()
         self._mostrar(_todos_los_paneles()[0])
+
+    def _ajustar_tamano(self) -> None:
+        """Elige un tamano que SI quepa en la pantalla, y centra la ventana.
+
+        El tamano comodo es 1120x720, pero en una laptop de oficina de 1366x768
+        una ventana de 720 de alto mas la barra de titulo (~40) y la barra de
+        tareas (~48) no cabe: la ventana se dibuja mas alta que el area util y
+        el boton de accion de abajo queda cortado. Se limita al espacio real de
+        la pantalla, dejando margen para esas dos barras.
+        """
+        pref_w, pref_h = 1120, 720
+        pantalla_w = self.winfo_screenwidth()
+        pantalla_h = self.winfo_screenheight()
+
+        ancho = min(pref_w, pantalla_w - 40)
+        alto = min(pref_h, pantalla_h - 96)
+
+        x = max((pantalla_w - ancho) // 2, 0)
+        # El -48 sube la ventana medio ancho de la barra de tareas para que no
+        # quede pegada a ella.
+        y = max((pantalla_h - alto - 48) // 2, 0)
+
+        self.geometry(f"{ancho}x{alto}+{x}+{y}")
+        # El minimo tambien baja: 600 de alto era mas de lo que cabe con la
+        # ventana ya ajustada en pantallas chicas.
+        self.minsize(900, min(560, alto))
 
     def _al_cerrar(self) -> None:
         """No dejar cerrar la ventana a media operacion de borrado.

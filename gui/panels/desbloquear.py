@@ -65,7 +65,7 @@ class PanelDesbloquear(ToolPanel):
 
         columnas = ("pid", "proceso")
         self._tabla = ttk.Treeview(
-            tabla_frame, columns=columnas, show="headings", height=12,
+            tabla_frame, columns=columnas, show="headings", height=8,
             selectmode="extended",
         )
         self._tabla.heading("pid", text="PID")

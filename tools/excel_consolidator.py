@@ -14,16 +14,21 @@ from utils import get_openpyxl as _get_openpyxl, console
 
 
 def _safe_output_path(path: str) -> str:
-    """Evita sobrescribir un archivo existente agregando un sufijo numerico."""
+    """Evita sobrescribir un archivo existente agregando un sufijo numerico.
+
+    Normaliza los separadores: el nombre de salida suele armarse uniendo un
+    directorio de dialogo (barras /) con un nombre por os.path.join (barra \\),
+    y la ruta cruda queda mezclada. normpath la deja en un solo estilo.
+    """
     if not os.path.exists(path):
-        return path
+        return os.path.normpath(path)
 
     base, ext = os.path.splitext(path)
     counter = 1
     while True:
         candidate = f"{base}_{counter}{ext}"
         if not os.path.exists(candidate):
-            return candidate
+            return os.path.normpath(candidate)
         counter += 1
 
 

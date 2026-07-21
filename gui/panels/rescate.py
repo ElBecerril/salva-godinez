@@ -87,7 +87,7 @@ class PanelRescate(ToolPanel):
 
         columnas = ("nombre", "donde", "tamano", "fecha", "origen")
         self._tabla = ttk.Treeview(
-            tabla_frame, columns=columnas, show="headings", height=14,
+            tabla_frame, columns=columnas, show="headings", height=8,
         )
         self._tabla.heading("nombre", text="Nombre")
         self._tabla.heading("donde", text="Donde estaba")

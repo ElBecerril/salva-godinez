@@ -77,7 +77,7 @@ class PanelCompartirImpresora(ToolPanel):
 
         columnas = ("nombre", "controlador", "compartida", "nombre_red")
         self._tabla = ttk.Treeview(
-            tabla_frame, columns=columnas, show="headings", height=12,
+            tabla_frame, columns=columnas, show="headings", height=8,
         )
         self._tabla.heading("nombre", text="Nombre")
         self._tabla.heading("controlador", text="Controlador")

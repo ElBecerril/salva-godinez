@@ -48,6 +48,11 @@ from tools.pdf_tools import (
 _FILTRO_PDF = [("Archivos PDF", "*.pdf")]
 _EXTENSIONES_IMAGEN = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
+
+def _imagenes(n: int) -> str:
+    """'1 imagen' / '3 imagenes' — evita el '1 imagenes' que se leia raro."""
+    return f"{n} imagen" if n == 1 else f"{n} imagenes"
+
 # Codigos de error que devuelven open_pdf / read_pdf_total / read_pdf_for_protect
 # cuando el problema esta en ABRIR el archivo (no en guardar el resultado).
 _CODIGOS_APERTURA = {
@@ -120,7 +125,16 @@ class PanelPdf(ToolPanel):
             selectbackground=theme.ACCENT, selectforeground="#ffffff",
             borderwidth=1, relief="solid", highlightthickness=0,
         )
+        # PyMuPDF es opcional (no siempre viaja en el .exe). Se checa UNA vez
+        # aqui para: (1) marcar "PDF a imagenes" como no disponible en la lista,
+        # y (2) que su formulario avise de entrada en vez de dejar al usuario
+        # elegir archivo, formato, resolucion y carpeta para recien entonces
+        # decirle que no se puede.
+        self._pymupdf_ok = _import_pymupdf() is not None
+
         for _id, etiqueta in self.OPERACIONES:
+            if _id == "pdf_a_img" and not self._pymupdf_ok:
+                etiqueta = f"{etiqueta} (no disponible)"
             self._lista.insert("end", etiqueta)
         self._lista.pack(fill="y")
         self._lista.bind("<<ListboxSelect>>", self._on_operacion)
@@ -851,12 +865,12 @@ class PanelPdf(ToolPanel):
                     self._estado.alerta("No se pudo crear el PDF.")
                     return
                 self._estado.exito(
-                    f"PDF creado: {resultado['output']} ({resultado['count']} imagenes)"
+                    f"PDF creado: {resultado['output']} ({_imagenes(resultado['count'])})"
                 )
                 self.aviso(
                     "PDF creado",
                     f"Se creo:\n\n{resultado['output']}\n\n"
-                    f"{resultado['count']} imagenes.",
+                    f"{_imagenes(resultado['count'])}.",
                 )
 
             self._ejecutar(btn, trabajo, al_terminar)
@@ -872,6 +886,22 @@ class PanelPdf(ToolPanel):
             frame, "PDF a imagenes",
             "Convierte cada pagina de un PDF en una imagen PNG o JPG.",
         )
+
+        # Si falta PyMuPDF, no se arma el formulario: se avisa aqui mismo, para
+        # que el usuario no llene todo y choque con el error hasta el final.
+        if not self._pymupdf_ok:
+            ttk.Label(
+                frame,
+                text=(
+                    "Esta version no incluye el componente necesario para "
+                    "convertir PDF a imagenes, asi que esta funcion no esta "
+                    "disponible.\n\nEl resto de las herramientas de PDF si "
+                    "funciona."
+                ),
+                style="Panel.TLabel", justify="left", wraplength=560,
+            ).pack(anchor="w", pady=(6, 0))
+            return
+
         estado_local = {"path": None}
 
         btn = self._boton_accion(frame, "Convertir")
@@ -948,12 +978,12 @@ class PanelPdf(ToolPanel):
                     self._estado.alerta("No se pudo convertir el PDF.")
                     return
                 self._estado.exito(
-                    f"{resultado['count']} imagenes creadas en: {resultado['output_dir']}"
+                    f"Listo. {_imagenes(resultado['count'])} en: {resultado['output_dir']}"
                 )
                 self.aviso(
                     "Conversion lista",
-                    f"Se crearon {resultado['count']} imagenes en:\n\n"
-                    f"{resultado['output_dir']}\n\n({resultado['dpi']} DPI)",
+                    f"Se guardo en:\n\n{resultado['output_dir']}\n\n"
+                    f"{_imagenes(resultado['count'])} ({resultado['dpi']} DPI)",
                 )
 
             self._ejecutar(btn, trabajo, al_terminar)

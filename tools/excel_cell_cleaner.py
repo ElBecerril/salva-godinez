@@ -47,6 +47,32 @@ def _clean_cell_value(value: str) -> str:
     return cleaned
 
 
+# Nombres legibles de los caracteres invisibles, para mostrarlos en la tabla
+# de cambios. Antes se usaba repr(), que los deja como "\xa0" — el usuario no
+# tecnico no sabe que es eso. Aqui se nombran en espanol.
+_ETIQUETAS_INVISIBLES = {
+    "\u00a0": "[espacio duro]",  # NBSP
+    "\u200b": "[invisible]",     # Zero-width space
+    "\u200c": "[invisible]",     # Zero-width non-joiner
+    "\u200d": "[invisible]",     # Zero-width joiner
+    "\ufeff": "[invisible]",     # BOM
+    "\u2060": "[invisible]",     # Word joiner
+    "\t": "[tab]",
+}
+
+
+def _mostrar_valor(value: str) -> str:
+    """Formatea un valor de celda para la tabla de cambios, legible.
+
+    Las comillas exteriores dejan ver los espacios al inicio y al final (que si
+    no, se pierden). Los caracteres invisibles se cambian por un nombre en vez
+    del escape de Python.
+    """
+    for char, etiqueta in _ETIQUETAS_INVISIBLES.items():
+        value = value.replace(char, etiqueta)
+    return f'"{value}"'
+
+
 def clean_file(filepath: str) -> dict:
     """Limpia celdas de texto en un archivo Excel.
 
@@ -84,8 +110,8 @@ def clean_file(filepath: str) -> dict:
                         changes.append({
                             "hoja": ws.title,
                             "celda": cell.coordinate,
-                            "antes": repr(cell.value),
-                            "despues": repr(new_val),
+                            "antes": _mostrar_valor(cell.value),
+                            "despues": _mostrar_valor(new_val),
                         })
                         cell.value = new_val
                         cleaned += 1

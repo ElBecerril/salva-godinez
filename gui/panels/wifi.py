@@ -63,7 +63,7 @@ class PanelWifi(ToolPanel):
 
         columnas = ("red", "contrasena", "seguridad")
         self._tabla = ttk.Treeview(
-            tabla_frame, columns=columnas, show="headings", height=12,
+            tabla_frame, columns=columnas, show="headings", height=8,
         )
         self._tabla.heading("red", text="Red")
         self._tabla.heading("contrasena", text="Contrasena")

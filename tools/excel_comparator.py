@@ -86,6 +86,10 @@ def compare_files(path1: str, path2: str) -> dict:
         "error": None,
         "sheets_only_v1": sorted(names1 - names2),
         "sheets_only_v2": sorted(names2 - names1),
+        # Cuantas hojas tienen en comun: sirve para distinguir "las hojas
+        # comunes son identicas" de "no hay ninguna hoja en comun", que se
+        # veian iguales cuando no habia diferencias.
+        "common_count": len(names1 & names2),
         "common_diffs": {},
         "_wb1": wb1,
         "_wb2": wb2,
@@ -163,7 +167,10 @@ def comparator_menu() -> None:
         total_diffs = sum(len(d) for d in result["common_diffs"].values())
 
         if total_diffs == 0:
-            console.print("\n[bold green]Los archivos son identicos en las hojas comunes.[/bold green]")
+            if result.get("common_count", 0) == 0:
+                console.print("\n[bold green]Los dos archivos no tienen ninguna hoja en comun.[/bold green]")
+            else:
+                console.print("\n[bold green]Los archivos son identicos en las hojas comunes.[/bold green]")
             return
 
         console.print(f"\n[bold yellow]{total_diffs} diferencia(s) encontrada(s):[/bold yellow]")

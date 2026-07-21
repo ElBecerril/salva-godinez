@@ -2,6 +2,32 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.5.3] - 2026-07-21
+
+Ronda de arreglos salidos de probar las 23 pantallas en Windows real. Ninguna
+tronaba; lo que se corrige es lo que se veia mal o confundia.
+
+### Corregido
+- **El boton de accion de abajo se cortaba.** En laptops de pantalla chica
+  (1366x768) la ventana se abria mas alta que el espacio util, y el boton de
+  "Guardar", "Unir", etc. quedaba pegado al borde o fuera de la vista. Ahora la
+  ventana se ajusta al tamano de la pantalla y se centra, y las listas de
+  resultados piden menos alto para dejarle lugar al boton
+- **Rutas con las diagonales mezcladas** (`C:/Users/...\archivo.pdf`) en los
+  avisos de PDF y de unir Excel. Ahora se muestran con un solo estilo
+- **La revision de espacios mostraba `\xa0`** (el codigo interno de un "espacio
+  duro") en la columna de antes/despues. Ahora dice `[espacio duro]`, y las
+  comillas dejan ver los espacios al inicio y al final
+- **Comparar dos Excel decia "son identicos en las hojas comunes"** aunque los
+  archivos no tuvieran ninguna hoja en comun. Ahora lo aclara
+- Detalles de redaccion: "1 imagen" en vez de "1 imagenes"
+
+### Cambiado
+- **"PDF a imagenes" avisa desde el principio** cuando esta version no trae el
+  componente necesario (aparece marcada como "no disponible" en la lista), en
+  vez de dejar elegir archivo, formato, resolucion y carpeta para recien
+  entonces decir que no se puede
+
 ## [2.5.2] - 2026-07-20
 
 ### Corregido

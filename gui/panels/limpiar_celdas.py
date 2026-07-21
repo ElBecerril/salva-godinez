@@ -75,7 +75,7 @@ class PanelLimpiarCeldas(ToolPanel):
 
         columnas = ("hoja", "celda", "antes", "despues")
         self._tabla = ttk.Treeview(
-            tabla_frame, columns=columnas, show="headings", height=14,
+            tabla_frame, columns=columnas, show="headings", height=8,
         )
         self._tabla.heading("hoja", text="Hoja")
         self._tabla.heading("celda", text="Celda")
