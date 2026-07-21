@@ -74,6 +74,15 @@ WINDOWS_UPDATE_CACHE = os.path.join(
 DOWNLOADS_PATH = os.path.join(os.path.expanduser("~"), "Downloads")
 OLD_DOWNLOAD_DAYS = 30
 
+# ─── Redes de El_Becerril ─────────────────────────────────────
+# Fuente unica para el mensaje de apoyo al cerrar la app (lo usan la
+# despedida de consola en main.py y la de ventanas en gui/despedida.py).
+# (nombre, handle, url)
+CANALES_APOYO = [
+    ("YouTube", "@el_becerril", "https://www.youtube.com/@el_becerril"),
+    ("Facebook", "El Becerril", "https://www.facebook.com/elbecerrilslim"),
+]
+
 # ─── Simulador de prestaciones — constantes laborales Mexico ──
 # IMPORTANTE: Actualizar UMA cada febrero cuando el INEGI publique el nuevo valor.
 # Fuente: https://www.inegi.org.mx/temas/uma/

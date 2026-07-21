@@ -128,6 +128,16 @@ class App(tk.Tk):
                 parent=self,
             )
             return
+        # Despedida con el mensaje de apoyo, solo al cerrar para SALIR (no al
+        # volver a consola, que tiene su propia despedida de texto). Si algo
+        # falla al mostrarla, la ventana se cierra igual: nunca debe atorar el
+        # cierre.
+        if self.salida == "salir":
+            try:
+                from gui.despedida import mostrar_despedida
+                mostrar_despedida(self)
+            except Exception:  # noqa: BLE001
+                pass
         self.destroy()
 
     def _conectar_rueda(self, lienzo, widgets) -> None:

@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.5.3"
+__version__ = "2.5.4"
 
 import sys
 import os
@@ -65,6 +65,7 @@ from tools.salary_calculator import salary_calculator_menu
 from tools.retention_calculator import retention_calculator_menu
 from tools.updater import check_for_updates
 from utils import console, ocultar_consola, mostrar_consola
+from config import CANALES_APOYO
 
 
 BANNER = r"""[bold cyan]
@@ -457,21 +458,27 @@ def office_rescue_menu() -> None:
         Prompt.ask("\n[dim]Presiona Enter para continuar[/dim]", default="")
 
 
+# Mapea la opcion del menu (1, 2, ...) a (nombre, url), derivado de la fuente
+# unica en config.CANALES_APOYO para no repetir las URLs (las usa tambien la
+# despedida de la GUI en gui/despedida.py).
 CHANNELS = {
-    "1": ("YouTube", "https://www.youtube.com/@el_becerril"),
-    "2": ("Facebook", "https://www.facebook.com/elbecerrilslim"),
+    str(i): (nombre, url)
+    for i, (nombre, _handle, url) in enumerate(CANALES_APOYO, start=1)
 }
 
 
 def show_farewell() -> None:
     console.print()
+    lineas_redes = "\n".join(
+        f"[bold]{i}[/bold] - {nombre}  ({handle})"
+        for i, (nombre, handle, _url) in enumerate(CANALES_APOYO, start=1)
+    )
     console.print(
         Panel(
             "[bold yellow]Te sirvio Salva Godinez?[/bold yellow]\n\n"
             "Esta herramienta es [bold]100% gratis[/bold]. Si quieres apoyar\n"
             "su desarrollo, ver mis videos me ayuda muchisimo.\n\n"
-            "[bold]1[/bold] - YouTube  (@el_becerril)\n"
-            "[bold]2[/bold] - Facebook (El Becerril)\n"
+            f"{lineas_redes}\n"
             "[bold]0[/bold] - Cerrar",
             title="[bold cyan]Gracias por usar Salva Godinez![/bold cyan]",
             box=box.ROUNDED,

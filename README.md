@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.5.3
+**by El_Becerril** | v2.5.4
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -88,7 +88,7 @@ programa gratuito recien salido. Para abrirlo:
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.5.3: la ventana ya cabe completa en laptops chicas (el boton de abajo ya no se corta) y varios arreglos de la interaccion con archivos, ver [CHANGELOG](CHANGELOG.md).
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.5.4: vuelve a aparecer el mensaje de apoyo al cerrar la app (se habia perdido al abrir con ventanas); v2.5.3 arreglo que la ventana no cupiera en laptops chicas. Ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 

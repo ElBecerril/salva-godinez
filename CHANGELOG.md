@@ -2,6 +2,26 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.5.4] - 2026-07-21
+
+### Corregido
+- **Volvio a aparecer el mensaje de apoyo al cerrar la app.** Vivia solo en la
+  despedida del modo texto, que dejo de correr cuando la version con ventanas
+  paso a ser la que abre por default (v2.5.0): al cerrar la ventana, ese codigo
+  nunca se ejecutaba y nadie volvia a ver la invitacion a YouTube/Facebook. Es
+  el mismo tipo de fallo que el aviso de version nueva de la v2.5.2 — algo que
+  colgaba del arranque viejo quedo huerfano al mover el punto de entrada
+
+### Agregado
+- **Despedida en la version con ventanas.** Al cerrar la app sale un cuadro
+  "Te sirvio SalvaGodinez?" con botones que abren YouTube y Facebook con un
+  clic (antes, en el modo texto, habia que escribir un numero). El mensaje solo
+  sale al cerrar para salir, no al volver al modo texto (que ya tiene el suyo)
+
+### Cambiado
+- Las redes ahora viven en un solo lugar (`config.CANALES_APOYO`), usado por las
+  dos despedidas (ventanas y texto), para no repetir las direcciones
+
 ## [2.5.3] - 2026-07-21
 
 Ronda de arreglos salidos de probar las 23 pantallas en Windows real. Ninguna
