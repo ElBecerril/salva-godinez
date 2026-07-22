@@ -2,6 +2,61 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.6.0] - 2026-07-22
+
+Ronda grande: se cierra la consola negra de Windows 11, el auto-updater vuelve
+a funcionar en el `.exe`, y una auditoria completa de la app (7 areas) cierra
+crashes y afina los calculos fiscales antes de lanzar.
+
+### Seguridad
+- **Auto-updater: verificacion HTTPS restaurada en el `.exe` congelado.** El
+  `ssl` de PyInstaller no encontraba los certificados raiz del sistema, asi que
+  la conexion a `api.github.com` fallaba EN SILENCIO y el aviso de version nueva
+  nunca salia. Ahora se empaqueta el CA bundle de `certifi` y se usa un contexto
+  SSL explicito; la verificacion de certificado nunca se desactiva. Verificado
+  en Windows real.
+- **Contrasena de red fuera de la linea de comandos.** Al conectar una carpeta
+  de red con credenciales, la clave iba como argumento de `net use` (visible en
+  el Administrador de tareas). Ahora se entrega por entrada estandar, no queda
+  en la lista de procesos.
+
+### Corregido
+- **La consola negra ya no aparece.** La app se compila como aplicacion de
+  ventana; el modo texto crea su consola solo cuando hace falta. En Windows 11
+  ya no queda una ventana de terminal detras ni un icono de consola al arrancar.
+- **Nombres con corchetes ya no tumban la app.** Un archivo `informe[final].xlsx`,
+  una USB con `setup[1].exe`, o una celda con `[texto]` hacian crashear la
+  version de texto al mostrarlos. Se escapan todos los datos externos que van a
+  pantalla (rescate, USB, impresoras, PDF, Excel, imagenes).
+- **Liberar espacio ya no borra lo que Recuperar archivos rescata.** La limpieza
+  de temporales destruia los autorecuperados de Office (`.asd`, `~$...`) que
+  viven en `%TEMP%` — justo lo que la herramienta de rescate recupera. Ahora se
+  protegen: la limpieza los salta y el espacio estimado ya no los cuenta.
+- **Archivos que no tumban la app al abrirse/guardarse.** Un Excel viejo `.xls`,
+  un PDF con pagina danada, o un archivo de salida abierto en Excel/bloqueado
+  por OneDrive ahora dan un mensaje claro en vez de cerrar el programa.
+- **Vacaciones/finiquito con dias mal capturados.** Si se escribian mas de 365
+  dias trabajados, las vacaciones proporcionales se inflaban por encima del
+  derecho de un anio; ahora se topan como el aguinaldo.
+- **El aviso de version nueva ya no se cae con etiquetas `-beta`/`-rc`.** El
+  parseo de version toleraba solo numeros; un tag con sufijo lo tronaba en
+  silencio.
+
+### Cambiado
+- **Calculos de liquidacion mas apegados a la ley.** Los 3 meses
+  constitucionales y los 20 dias por anio se calculan con el Salario Diario
+  Integrado (SDI); la prima de antiguedad y los 20 dias/anio se pagan tambien
+  por la fraccion de anio (los campos de antiguedad aceptan decimales); el
+  calculo de cuotas IMSS usa el Salario Base de Cotizacion con factor de
+  integracion. Sigue siendo una estimacion informativa.
+- **Se acabo el parpadeo de consola negra en Carpetas de red.** Los comandos de
+  red ya no muestran una ventana al ejecutarse.
+
+### Agregado
+- **Aviso de origen oficial y auto-update como ventanas.** Al arrancar, la app
+  avisa (una vez por version) desde donde es seguro bajarla, y el aviso de
+  actualizacion es una ventana con boton, no un mensaje en negro.
+
 ## [2.5.4] - 2026-07-21
 
 ### Corregido

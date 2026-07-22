@@ -15,13 +15,29 @@ class NetUseError(Exception):
     """Fallo real al ejecutar 'net use' (timeout o error de SO)."""
 
 
-def _run_net_use(args: list[str]) -> subprocess.CompletedProcess:
-    """Ejecuta 'net use' con los argumentos dados."""
-    return subprocess.run(
-        ["net", "use"] + args,
-        capture_output=True, text=True, timeout=30,
-        encoding="utf-8", errors="replace",
-    )
+def _run_net_use(args: list[str], password: str | None = None) -> subprocess.CompletedProcess:
+    """Ejecuta 'net use' con los argumentos dados.
+
+    Si se pasa `password`, los `args` deben usar '*' donde iria la clave y la
+    contrasena se entrega por STDIN (input=), NUNCA como argumento: la linea de
+    comandos completa es visible para cualquier proceso del equipo (Task
+    Manager con columna "linea de comandos", WMI, auditoria 4688), asi que una
+    clave de dominio en argv se filtra. Por stdin no queda en la lista de
+    procesos.
+
+    CREATE_NO_WINDOW evita el parpadeo de consola negra en el .exe compilado
+    como app de ventana (console=False), igual que el resto de los subprocess
+    del proyecto.
+    """
+    run_kwargs = {
+        "capture_output": True, "text": True, "timeout": 30,
+        "encoding": "utf-8", "errors": "replace",
+        "creationflags": subprocess.CREATE_NO_WINDOW,
+    }
+    if password is not None:
+        # net use lee la clave de stdin cuando el argumento es '*'.
+        run_kwargs["input"] = password + "\n"
+    return subprocess.run(["net", "use"] + args, **run_kwargs)
 
 
 def _parse_net_use_output() -> list[dict]:

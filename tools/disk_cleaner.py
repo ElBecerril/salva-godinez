@@ -9,21 +9,37 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from tools import format_size, is_admin
-from config import TEMP_CLEAN_PATHS, WINDOWS_UPDATE_CACHE, DOWNLOADS_PATH, OLD_DOWNLOAD_DAYS, SECONDS_PER_DAY
+from config import (
+    TEMP_CLEAN_PATHS,
+    WINDOWS_UPDATE_CACHE,
+    DOWNLOADS_PATH,
+    OLD_DOWNLOAD_DAYS,
+    SECONDS_PER_DAY,
+    TEMP_PREFIXES,
+    RECOVERY_EXTENSIONS,
+)
 from utils import console
 
 
 # --- Logica (sin UI) ---
 
 
-def _scan_dir(path: str) -> tuple[int, int]:
-    """Escanea un directorio y retorna (tamano_total, num_archivos)."""
+def _scan_dir(path: str, proteger_rescatables: bool = False) -> tuple[int, int]:
+    """Escanea un directorio y retorna (tamano_total, num_archivos).
+
+    Con proteger_rescatables=True se excluyen los autorecuperados de Office,
+    para que el tamano estimado coincida con lo que _clean_dir de verdad borra
+    (que tambien los salta) y no se le prometa al usuario liberar algo que se
+    va a conservar.
+    """
     total = 0
     count = 0
     if not os.path.isdir(path):
         return 0, 0
     for dirpath, _, filenames in os.walk(path):
         for fname in filenames:
+            if proteger_rescatables and _es_rescatable(fname):
+                continue
             filepath = os.path.join(dirpath, fname)
             try:
                 total += os.path.getsize(filepath)
@@ -41,7 +57,7 @@ def _scan_temp_files() -> tuple[int, int, list[str]]:
     for temp_path in TEMP_CLEAN_PATHS:
         if not temp_path or not os.path.isdir(temp_path):
             continue
-        size, files = _scan_dir(temp_path)
+        size, files = _scan_dir(temp_path, proteger_rescatables=True)
         total += size
         count += files
         if size > 0:
@@ -82,14 +98,36 @@ def _scan_old_downloads(days: int = OLD_DOWNLOAD_DAYS) -> tuple[int, int, list[s
     return total, count, files
 
 
-def _clean_dir(path: str) -> tuple[int, int]:
-    """Elimina archivos de un directorio. Retorna (bytes_liberados, archivos_eliminados)."""
+def _es_rescatable(fname: str) -> bool:
+    """True si el nombre tiene patron de autorecuperado/temporal de Office.
+
+    Mismos patrones que usa el RESCATE (searchers/temp_files._has_temp_signature):
+    prefijos ~$/~ o una extension de config.RECOVERY_EXTENSIONS. Se comparte la
+    fuente de verdad para que la limpieza no borre lo que el rescate recupera.
+    """
+    lower = fname.lower()
+    if any(lower.startswith(p) for p in TEMP_PREFIXES):
+        return True
+    return os.path.splitext(lower)[1] in RECOVERY_EXTENSIONS
+
+
+def _clean_dir(path: str, proteger_rescatables: bool = False) -> tuple[int, int]:
+    """Elimina archivos de un directorio. Retorna (bytes_liberados, archivos_eliminados).
+
+    Si proteger_rescatables=True (se usa al limpiar %TEMP% y demas rutas
+    temporales), se SALTAN los archivos con patron de autorecuperacion de
+    Office: un .asd/.tmp/~$ de un Word/Excel crasheado vive en %TEMP% y es
+    justo lo que la herramienta de rescate del producto recuperaria. Borrarlos
+    aqui destruiria para siempre lo que "Recuperar archivos" promete salvar.
+    """
     freed = 0
     removed = 0
     if not os.path.isdir(path):
         return 0, 0
     for dirpath, _, filenames in os.walk(path, topdown=False):
         for fname in filenames:
+            if proteger_rescatables and _es_rescatable(fname):
+                continue
             filepath = os.path.join(dirpath, fname)
             try:
                 size = os.path.getsize(filepath)
@@ -283,7 +321,9 @@ def ejecutar_limpieza(
 
     if limpiar_temp:
         for path in temp_paths or []:
-            f, r = _clean_dir(path)
+            # proteger_rescatables=True: %TEMP% recibe los autorecuperados de
+            # Office que el rescate del producto busca; no se borran aqui.
+            f, r = _clean_dir(path, proteger_rescatables=True)
             liberado += f
             limpiados += r
 

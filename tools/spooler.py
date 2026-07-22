@@ -3,6 +3,7 @@
 import os
 import subprocess
 
+from rich.markup import escape
 from rich.prompt import Confirm
 
 from tools import is_admin
@@ -149,10 +150,10 @@ def reset_spooler() -> None:
     console.print("[bold yellow]Deteniendo servicio de impresion...[/bold yellow]")
     stop_result = _stop_spooler_service()
     if not stop_result["ok"]:
-        console.print(f"[red]Error al detener spooler: {stop_result['error']}[/red]")
+        console.print(f"[red]Error al detener spooler: {escape(stop_result['error'])}[/red]")
         return
     if stop_result["returncode"] != 0 and not stop_result["already_stopped"]:
-        console.print(f"[yellow]Advertencia al detener spooler: {stop_result['stderr'].strip()}[/yellow]")
+        console.print(f"[yellow]Advertencia al detener spooler: {escape(stop_result['stderr'].strip())}[/yellow]")
 
     # Limpiar archivos de la cola
     clear_result = _clear_spool_queue()
@@ -162,12 +163,12 @@ def reset_spooler() -> None:
     console.print("[bold yellow]Reiniciando servicio de impresion...[/bold yellow]")
     start_result = _start_spooler_service()
     if not start_result["ok"] and "error" in start_result:
-        console.print(f"[red]Error al reiniciar spooler: {start_result['error']}[/red]")
+        console.print(f"[red]Error al reiniciar spooler: {escape(start_result['error'])}[/red]")
         start_failed = True
     else:
         start_failed = not start_result["ok"]
         if start_failed:
-            console.print(f"[red]No se pudo reiniciar el spooler: {start_result['stderr'].strip()}[/red]")
+            console.print(f"[red]No se pudo reiniciar el spooler: {escape(start_result['stderr'].strip())}[/red]")
 
     # Verificar el estado real del servicio en vez de confiar solo en el
     # returncode de 'net start' (puede devolver 0 sin que el servicio haya
@@ -175,7 +176,7 @@ def reset_spooler() -> None:
     running_result = _check_spooler_running()
     running = running_result["running"]
     if "error" in running_result:
-        console.print(f"[yellow]No se pudo verificar el estado del servicio: {running_result['error']}[/yellow]")
+        console.print(f"[yellow]No se pudo verificar el estado del servicio: {escape(running_result['error'])}[/yellow]")
 
     if not running:
         console.print("[bold red]El servicio de impresion no quedo corriendo.[/bold red]")
@@ -194,7 +195,7 @@ def reset_spooler() -> None:
             "no se pudieron eliminar (pueden seguir en la lista de impresion).[/yellow]"
         )
         for fname, err in failed_removals:
-            console.print(f"  [dim]- {fname}: {err}[/dim]")
+            console.print(f"  [dim]- {escape(fname)}: {escape(err)}[/dim]")
     elif removed:
         console.print(f"[bold green]Cola limpiada: {removed} archivo(s) eliminado(s). Spooler reiniciado correctamente.[/bold green]")
     else:

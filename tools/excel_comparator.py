@@ -3,6 +3,7 @@
 import os
 import zipfile
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -149,7 +150,7 @@ def comparator_menu() -> None:
         if result.get("error"):
             console.print(
                 f"[red]No se pudo abrir uno de los archivos Excel "
-                f"(corrupto, extension incorrecta o formato invalido): {result['error']}[/red]"
+                f"(corrupto, extension incorrecta o formato invalido): {escape(str(result['error']))}[/red]"
             )
         return
 
@@ -159,9 +160,9 @@ def comparator_menu() -> None:
     try:
         # Hojas exclusivas
         if result["sheets_only_v1"]:
-            console.print(f"\n[yellow]Hojas solo en archivo 1:[/yellow] {', '.join(result['sheets_only_v1'])}")
+            console.print(f"\n[yellow]Hojas solo en archivo 1:[/yellow] {escape(', '.join(result['sheets_only_v1']))}")
         if result["sheets_only_v2"]:
-            console.print(f"[yellow]Hojas solo en archivo 2:[/yellow] {', '.join(result['sheets_only_v2'])}")
+            console.print(f"[yellow]Hojas solo en archivo 2:[/yellow] {escape(', '.join(result['sheets_only_v2']))}")
 
         # Diferencias
         total_diffs = sum(len(d) for d in result["common_diffs"].values())
@@ -176,13 +177,13 @@ def comparator_menu() -> None:
         console.print(f"\n[bold yellow]{total_diffs} diferencia(s) encontrada(s):[/bold yellow]")
 
         for sheet_name, diffs in result["common_diffs"].items():
-            table = Table(title=f"Hoja: {sheet_name}")
+            table = Table(title=f"Hoja: {escape(sheet_name)}")
             table.add_column("Celda", style="bold cyan")
             table.add_column("Archivo 1", style="red")
             table.add_column("Archivo 2", style="green")
 
             for diff in diffs[:30]:
-                table.add_row(diff["celda"], diff["v1"], diff["v2"])
+                table.add_row(escape(diff["celda"]), escape(diff["v1"]), escape(diff["v2"]))
 
             if len(diffs) > 30:
                 table.add_row("...", f"+{len(diffs) - 30} mas", "")
@@ -210,8 +211,14 @@ def comparator_menu() -> None:
                 return
             output = _safe_output_path(output)
             result["_wb1"] = wb1
-            _generate_diff_report(path1, path2, result, output)
-            console.print(f"\n[bold green]Reporte guardado: {output}[/bold green]")
+            try:
+                _generate_diff_report(path1, path2, result, output)
+                console.print(f"\n[bold green]Reporte guardado: {escape(output)}[/bold green]")
+            except OSError as e:
+                console.print(
+                    f"[red]No se pudo guardar el reporte (revisa que no este abierto en "
+                    f"Excel o bloqueado por OneDrive): {escape(str(e))}[/red]"
+                )
     finally:
         if wb1:
             wb1.close()

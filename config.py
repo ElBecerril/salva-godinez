@@ -18,6 +18,14 @@ OFFICE_EXTENSIONS = EXCEL_EXTENSIONS | WORD_EXTENSIONS | POWERPOINT_EXTENSIONS
 TEMP_PREFIXES = ("~$", "~")
 TEMP_EXTENSIONS = {".tmp", ".xlk", ".wbk"}
 
+# Patrones de autorecuperacion/temporal que el RESCATE (searchers/temp_files)
+# considera recuperables. FUENTE UNICA DE VERDAD: la misma la usa el liberador
+# de espacio (tools/disk_cleaner) para NO borrar de %TEMP% lo que el rescate
+# rescataria (un .asd de Word crasheado vive en %TEMP% y es justo lo que el
+# producto promete recuperar). Si estas listas divergen, la limpieza destruye
+# lo que el rescate busca. Ver TEMP_PREFIXES para los prefijos (~$, ~).
+RECOVERY_EXTENSIONS = {".tmp", ".xlk", ".wbk", ".xar", ".asd"}
+
 # Rutas conocidas de autorecuperacion de Office
 RECOVERY_PATHS = [
     os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Excel"),

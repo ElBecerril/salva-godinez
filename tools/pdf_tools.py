@@ -3,6 +3,7 @@
 import getpass
 import os
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from utils import console
 from tools.image_converter import _safe_output_path as _safe_output_path_parts
@@ -273,13 +274,20 @@ def split_pdf_do(pypdf, reader, path, output_dir, mode, rango=None):
     except ValueError:
         return {"ok": False, "error": "invalid_format"}
 
-    writer = pypdf.PdfWriter()
-    for i in range(start - 1, end):
-        writer.add_page(reader.pages[i])
+    try:
+        writer = pypdf.PdfWriter()
+        for i in range(start - 1, end):
+            writer.add_page(reader.pages[i])
 
-    out_path = _safe_output_path(os.path.join(output_dir, f"{base_name}_pag{start}-{end}.pdf"))
-    with open(out_path, "wb") as f:
-        writer.write(f)
+        out_path = _safe_output_path(os.path.join(output_dir, f"{base_name}_pag{start}-{end}.pdf"))
+        with open(out_path, "wb") as f:
+            writer.write(f)
+    except OSError as e:
+        return {"ok": False, "error": "write_error", "detail": str(e)}
+    except Exception as e:
+        # Una pagina corrupta al copiarla puede lanzar errores de pypdf fuera
+        # de OSError; que no tumbe la app (mismo criterio que rotate/delete/...).
+        return {"ok": False, "error": "write_error", "detail": str(e)}
     return {"ok": True, "mode": "rango", "output": out_path, "pages": end - start + 1}
 
 
@@ -299,6 +307,8 @@ def rotate_pages_do(pypdf, reader, path, angle, indices):
 
         return {"ok": True, "output": output, "rotated_count": len(indices)}
     except (pypdf.errors.PdfReadError, OSError) as e:
+        return {"ok": False, "error": str(e)}
+    except Exception as e:
         return {"ok": False, "error": str(e)}
 
 
@@ -320,6 +330,8 @@ def delete_pages_do(pypdf, reader, path, indices):
         return {"ok": True, "output": output, "deleted": len(indices), "remaining": remaining}
     except (pypdf.errors.PdfReadError, OSError) as e:
         return {"ok": False, "error": str(e)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 def reorder_pages_do(pypdf, reader, path, new_order):
@@ -336,6 +348,8 @@ def reorder_pages_do(pypdf, reader, path, new_order):
 
         return {"ok": True, "output": output}
     except (pypdf.errors.PdfReadError, OSError) as e:
+        return {"ok": False, "error": str(e)}
+    except Exception as e:
         return {"ok": False, "error": str(e)}
 
 
@@ -360,6 +374,8 @@ def extract_text_do(pypdf, reader, path):
 
         return {"ok": True, "output": output, "chars": len(full_text)}
     except (pypdf.errors.PdfReadError, OSError) as e:
+        return {"ok": False, "error": "extract_error", "detail": str(e)}
+    except Exception as e:
         return {"ok": False, "error": "extract_error", "detail": str(e)}
 
 
@@ -436,15 +452,17 @@ def unprotect_pdf_do(pypdf, reader, password, base_name):
     except Exception:
         return {"ok": False, "error": "wrong_password_or_corrupt"}
 
-    writer = pypdf.PdfWriter()
-    for page in reader.pages:
-        writer.add_page(page)
-
-    output = _safe_output_path(f"{base_name}_desprotegido.pdf")
     try:
+        writer = pypdf.PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+
+        output = _safe_output_path(f"{base_name}_desprotegido.pdf")
         with open(output, "wb") as f:
             writer.write(f)
     except OSError as e:
+        return {"ok": False, "error": "write_error", "detail": str(e)}
+    except Exception as e:
         return {"ok": False, "error": "write_error", "detail": str(e)}
 
     return {"ok": True, "output": output}
@@ -452,16 +470,18 @@ def unprotect_pdf_do(pypdf, reader, password, base_name):
 
 def protect_pdf_do(pypdf, reader, password, base_name):
     """Agrega proteccion con `password` a un PDF ya abierto (sin cifrar)."""
-    writer = pypdf.PdfWriter()
-    for page in reader.pages:
-        writer.add_page(page)
-    writer.encrypt(password)
-
-    output = _safe_output_path(f"{base_name}_protegido.pdf")
     try:
+        writer = pypdf.PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+        writer.encrypt(password)
+
+        output = _safe_output_path(f"{base_name}_protegido.pdf")
         with open(output, "wb") as f:
             writer.write(f)
     except OSError as e:
+        return {"ok": False, "error": "write_error", "detail": str(e)}
+    except Exception as e:
         return {"ok": False, "error": "write_error", "detail": str(e)}
 
     return {"ok": True, "output": output}
@@ -488,6 +508,8 @@ def clean_metadata_do(pypdf, reader, path):
 
         return {"ok": True, "output": output}
     except (pypdf.errors.PdfReadError, OSError) as e:
+        return {"ok": False, "error": str(e)}
+    except Exception as e:
         return {"ok": False, "error": str(e)}
 
 
@@ -549,7 +571,7 @@ def _open_pdf_reader(prompt_text="[bold]Ruta del PDF[/bold]"):
         if result["error"] == "not_found":
             console.print("[red]Archivo no encontrado.[/red]")
         elif result["error"] == "corrupt":
-            console.print(f"[red]Error al leer PDF (archivo corrupto o invalido): {result['detail']}[/red]")
+            console.print(f"[red]Error al leer PDF (archivo corrupto o invalido): {escape(str(result['detail']))}[/red]")
         elif result["error"] == "encrypted":
             console.print("[red]El PDF esta protegido con contrasena y no se puede procesar.[/red]")
         return None
@@ -573,7 +595,7 @@ def merge_pdfs() -> None:
         if not path:
             break
         if not os.path.isfile(path):
-            console.print(f"  [red]Archivo no encontrado: {path}[/red]")
+            console.print(f"  [red]Archivo no encontrado: {escape(path)}[/red]")
             continue
         paths.append(path)
 
@@ -589,7 +611,7 @@ def merge_pdfs() -> None:
     result = merge_pdfs_do(paths, output)
 
     for w in result.get("warnings", []):
-        console.print(f"  [red]{w}[/red]")
+        console.print(f"  [red]{escape(w)}[/red]")
 
     if not result["ok"]:
         if result["error"] == "same_as_input":
@@ -600,10 +622,10 @@ def merge_pdfs() -> None:
         elif result["error"] == "no_pages":
             console.print("[red]No se pudieron leer paginas de ninguno de los PDFs.[/red]")
         elif result["error"] == "write_error":
-            console.print(f"[red]Error al unir PDFs: {result['detail']}[/red]")
+            console.print(f"[red]Error al unir PDFs: {escape(str(result['detail']))}[/red]")
         return
 
-    console.print(f"\n[bold green]PDF unido creado: {result['output']} ({result['total_pages']} paginas)[/bold green]")
+    console.print(f"\n[bold green]PDF unido creado: {escape(result['output'])} ({result['total_pages']} paginas)[/bold green]")
 
 
 def split_pdf() -> None:
@@ -622,7 +644,7 @@ def split_pdf() -> None:
         if open_result["error"] == "not_found":
             console.print("[red]Archivo no encontrado.[/red]")
         elif open_result["error"] == "corrupt":
-            console.print(f"[red]Error al leer PDF (archivo corrupto o invalido): {open_result['detail']}[/red]")
+            console.print(f"[red]Error al leer PDF (archivo corrupto o invalido): {escape(str(open_result['detail']))}[/red]")
         return
 
     pypdf, reader, total = open_result["pypdf"], open_result["reader"], open_result["total"]
@@ -647,7 +669,7 @@ def split_pdf() -> None:
 
     if not exec_result["ok"]:
         if exec_result["error"] == "write_error":
-            console.print(f"[red]Error al escribir archivo (revisa permisos o espacio en disco): {exec_result['detail']}[/red]")
+            console.print(f"[red]Error al escribir archivo (revisa permisos o espacio en disco): {escape(str(exec_result['detail']))}[/red]")
         elif exec_result["error"] == "invalid_range":
             console.print(f"[red]Rango invalido. El PDF tiene paginas 1-{total}.[/red]")
         elif exec_result["error"] == "invalid_format":
@@ -655,9 +677,9 @@ def split_pdf() -> None:
         return
 
     if exec_result["mode"] == "individual":
-        console.print(f"\n[bold green]{exec_result['total']} archivos creados en: {exec_result['output_dir']}[/bold green]")
+        console.print(f"\n[bold green]{exec_result['total']} archivos creados en: {escape(exec_result['output_dir'])}[/bold green]")
     else:
-        console.print(f"\n[bold green]PDF creado: {exec_result['output']} ({exec_result['pages']} paginas)[/bold green]")
+        console.print(f"\n[bold green]PDF creado: {escape(exec_result['output'])} ({exec_result['pages']} paginas)[/bold green]")
 
 
 def rotate_pages() -> None:
@@ -691,16 +713,16 @@ def rotate_pages() -> None:
     else:
         indices, error = parse_page_selection(scope, total)
         if indices is None:
-            console.print(f"[red]{error}[/red]")
+            console.print(f"[red]{escape(str(error))}[/red]")
             return
 
     exec_result = rotate_pages_do(pypdf, reader, path, angle, indices)
     if not exec_result["ok"]:
-        console.print(f"[red]Error al rotar PDF: {exec_result['error']}[/red]")
+        console.print(f"[red]Error al rotar PDF: {escape(str(exec_result['error']))}[/red]")
         return
 
     console.print(
-        f"\n[bold green]PDF rotado creado: {exec_result['output']} "
+        f"\n[bold green]PDF rotado creado: {escape(exec_result['output'])} "
         f"({exec_result['rotated_count']} paginas rotadas {angle}°)[/bold green]"
     )
 
@@ -724,7 +746,7 @@ def delete_pages() -> None:
 
     indices, error = parse_page_selection(selection, total)
     if indices is None:
-        console.print(f"[red]{error}[/red]")
+        console.print(f"[red]{escape(str(error))}[/red]")
         return
 
     if len(indices) >= total:
@@ -733,11 +755,11 @@ def delete_pages() -> None:
 
     exec_result = delete_pages_do(pypdf, reader, path, indices)
     if not exec_result["ok"]:
-        console.print(f"[red]Error al editar PDF: {exec_result['error']}[/red]")
+        console.print(f"[red]Error al editar PDF: {escape(str(exec_result['error']))}[/red]")
         return
 
     console.print(
-        f"\n[bold green]PDF creado: {exec_result['output']} "
+        f"\n[bold green]PDF creado: {escape(exec_result['output'])} "
         f"({exec_result['deleted']} paginas eliminadas, {exec_result['remaining']} restantes)[/bold green]"
     )
 
@@ -761,15 +783,15 @@ def reorder_pages() -> None:
 
     new_order, error = parse_reorder(order_str, total)
     if new_order is None:
-        console.print(f"[red]{error}[/red]")
+        console.print(f"[red]{escape(str(error))}[/red]")
         return
 
     exec_result = reorder_pages_do(pypdf, reader, path, new_order)
     if not exec_result["ok"]:
-        console.print(f"[red]Error al reordenar PDF: {exec_result['error']}[/red]")
+        console.print(f"[red]Error al reordenar PDF: {escape(str(exec_result['error']))}[/red]")
         return
 
-    console.print(f"\n[bold green]PDF reordenado creado: {exec_result['output']}[/bold green]")
+    console.print(f"\n[bold green]PDF reordenado creado: {escape(exec_result['output'])}[/bold green]")
 
 
 def extract_text() -> None:
@@ -790,10 +812,10 @@ def extract_text() -> None:
         if exec_result["error"] == "no_text":
             console.print("[yellow]No se pudo extraer texto del PDF (puede ser un PDF escaneado/imagen).[/yellow]")
         elif exec_result["error"] == "extract_error":
-            console.print(f"[red]Error al extraer texto: {exec_result['detail']}[/red]")
+            console.print(f"[red]Error al extraer texto: {escape(str(exec_result['detail']))}[/red]")
         return
 
-    console.print(f"\n[bold green]Texto extraido: {exec_result['output']} ({exec_result['chars']:,} caracteres)[/bold green]")
+    console.print(f"\n[bold green]Texto extraido: {escape(exec_result['output'])} ({exec_result['chars']:,} caracteres)[/bold green]")
 
 
 def images_to_pdf() -> None:
@@ -813,11 +835,11 @@ def images_to_pdf() -> None:
         if not path:
             break
         if not os.path.isfile(path):
-            console.print(f"  [red]Archivo no encontrado: {path}[/red]")
+            console.print(f"  [red]Archivo no encontrado: {escape(path)}[/red]")
             continue
         ext = os.path.splitext(path)[1].lower()
         if ext not in valid_exts:
-            console.print(f"  [red]Formato no soportado: {ext}. Usa JPG, PNG, BMP o WEBP.[/red]")
+            console.print(f"  [red]Formato no soportado: {escape(ext)}. Usa JPG, PNG, BMP o WEBP.[/red]")
             continue
         paths.append(path)
 
@@ -833,10 +855,10 @@ def images_to_pdf() -> None:
 
     exec_result = images_to_pdf_do(Image, paths, output)
     if not exec_result["ok"]:
-        console.print(f"[red]Error al crear PDF (posible imagen invalida o demasiado grande): {exec_result['error']}[/red]")
+        console.print(f"[red]Error al crear PDF (posible imagen invalida o demasiado grande): {escape(str(exec_result['error']))}[/red]")
         return
 
-    console.print(f"\n[bold green]PDF creado: {exec_result['output']} ({exec_result['count']} imagenes)[/bold green]")
+    console.print(f"\n[bold green]PDF creado: {escape(exec_result['output'])} ({exec_result['count']} imagenes)[/bold green]")
 
 
 def pdf_to_images() -> None:
@@ -862,7 +884,7 @@ def pdf_to_images() -> None:
     dpi_str = Prompt.ask("[bold]DPI[/bold] (resolucion)", default="150").strip()
     dpi, error = parse_dpi(dpi_str)
     if dpi is None:
-        console.print(f"[red]{error}[/red]")
+        console.print(f"[red]{escape(str(error))}[/red]")
         return
 
     output_dir = Prompt.ask(
@@ -872,11 +894,11 @@ def pdf_to_images() -> None:
 
     exec_result = pdf_to_images_do(fitz, path, fmt, dpi, output_dir)
     if not exec_result["ok"]:
-        console.print(f"[red]Error al convertir PDF a imagenes: {exec_result['error']}[/red]")
+        console.print(f"[red]Error al convertir PDF a imagenes: {escape(str(exec_result['error']))}[/red]")
         return
 
     console.print(
-        f"\n[bold green]{exec_result['count']} imagenes creadas en: {exec_result['output_dir']} "
+        f"\n[bold green]{exec_result['count']} imagenes creadas en: {escape(exec_result['output_dir'])} "
         f"({exec_result['dpi']} DPI)[/bold green]"
     )
 
@@ -897,7 +919,7 @@ def protect_pdf() -> None:
 
     open_result = read_pdf_for_protect(path)
     if not open_result["ok"]:
-        console.print(f"[red]Error al leer PDF: {open_result.get('detail', '')}[/red]")
+        console.print(f"[red]Error al leer PDF: {escape(str(open_result.get('detail', '')))}[/red]")
         return
     pypdf, reader = open_result["pypdf"], open_result["reader"]
 
@@ -915,10 +937,10 @@ def protect_pdf() -> None:
             elif exec_result["error"] == "wrong_password_or_corrupt":
                 console.print("[red]Password incorrecto o PDF corrupto.[/red]")
             elif exec_result["error"] == "write_error":
-                console.print(f"[red]Error al guardar PDF (revisa permisos o espacio en disco): {exec_result['detail']}[/red]")
+                console.print(f"[red]Error al guardar PDF (revisa permisos o espacio en disco): {escape(str(exec_result['detail']))}[/red]")
             return
 
-        console.print(f"\n[bold green]PDF desprotegido creado: {exec_result['output']}[/bold green]")
+        console.print(f"\n[bold green]PDF desprotegido creado: {escape(exec_result['output'])}[/bold green]")
     else:
         # Proteger
         console.print("[dim]El PDF no tiene proteccion.[/dim]")
@@ -934,10 +956,10 @@ def protect_pdf() -> None:
 
         exec_result = protect_pdf_do(pypdf, reader, password, base_name)
         if not exec_result["ok"]:
-            console.print(f"[red]Error al guardar PDF (revisa permisos o espacio en disco): {exec_result['detail']}[/red]")
+            console.print(f"[red]Error al guardar PDF (revisa permisos o espacio en disco): {escape(str(exec_result['detail']))}[/red]")
             return
 
-        console.print(f"\n[bold green]PDF protegido creado: {exec_result['output']}[/bold green]")
+        console.print(f"\n[bold green]PDF protegido creado: {escape(exec_result['output'])}[/bold green]")
 
 
 def pdf_metadata() -> None:
@@ -960,7 +982,7 @@ def pdf_metadata() -> None:
         fields = get_pdf_metadata_fields(meta)
         if fields:
             for label, value in fields:
-                console.print(f"  {label}: {value}")
+                console.print(f"  {label}: {escape(str(value))}")
         else:
             console.print("  [dim]No hay metadatos adicionales.[/dim]")
     else:
@@ -975,9 +997,9 @@ def pdf_metadata() -> None:
     if action == "si":
         exec_result = clean_metadata_do(pypdf, reader, path)
         if not exec_result["ok"]:
-            console.print(f"[red]Error al limpiar metadatos: {exec_result['error']}[/red]")
+            console.print(f"[red]Error al limpiar metadatos: {escape(str(exec_result['error']))}[/red]")
             return
-        console.print(f"\n[bold green]PDF sin metadatos creado: {exec_result['output']}[/bold green]")
+        console.print(f"\n[bold green]PDF sin metadatos creado: {escape(exec_result['output'])}[/bold green]")
 
 
 def pdf_menu() -> None:

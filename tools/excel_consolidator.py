@@ -3,6 +3,7 @@
 import os
 import zipfile
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.panel import Panel
 from rich import box
@@ -56,7 +57,7 @@ def _merge_files(paths: list[str], output: str) -> dict:
     for path in paths:
         try:
             src_wb = openpyxl.load_workbook(path, data_only=True)
-        except (OSError, KeyError, zipfile.BadZipFile) as e:
+        except (OSError, KeyError, zipfile.BadZipFile, openpyxl.utils.exceptions.InvalidFileException) as e:
             open_errors.append((os.path.basename(path), str(e)))
             continue
         base = os.path.splitext(os.path.basename(path))[0]
@@ -143,7 +144,7 @@ def _merge_sheets(filepath: str, output: str, skip_header: bool = True) -> dict:
 
     try:
         src_wb = openpyxl.load_workbook(filepath, data_only=True)
-    except (OSError, KeyError, zipfile.BadZipFile) as e:
+    except (OSError, KeyError, zipfile.BadZipFile, openpyxl.utils.exceptions.InvalidFileException) as e:
         return {
             "ok": False, "rows": 0, "output": None, "open_error": str(e),
             "input_conflict": False, "forced_xlsx": False, "save_error": None,
@@ -223,7 +224,7 @@ def consolidator_menu() -> None:
             if not path:
                 break
             if not os.path.isfile(path):
-                console.print(f"  [red]Archivo no encontrado: {path}[/red]")
+                console.print(f"  [red]Archivo no encontrado: {escape(path)}[/red]")
                 continue
             if not path.lower().endswith((".xlsx", ".xlsm")):
                 console.print("  [red]Solo se soportan archivos .xlsx y .xlsm[/red]")
@@ -249,7 +250,7 @@ def consolidator_menu() -> None:
             result = _merge_files(paths, output)
 
         for basename, err in result["open_errors"]:
-            console.print(f"  [red]No se pudo abrir {basename}: {err}[/red]")
+            console.print(f"  [red]No se pudo abrir {escape(basename)}: {escape(err)}[/red]")
 
         if result["forced_xlsx"]:
             console.print(
@@ -265,11 +266,11 @@ def consolidator_menu() -> None:
 
         if result["save_error"]:
             console.print(
-                f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {result['save_error']}[/red]"
+                f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {escape(result['save_error'])}[/red]"
             )
 
         if result["sheets"]:
-            console.print(f"\n[bold green]Consolidado creado: {result['output']} ({result['sheets']} hojas)[/bold green]")
+            console.print(f"\n[bold green]Consolidado creado: {escape(result['output'])} ({result['sheets']} hojas)[/bold green]")
 
     elif mode == "2":
         console.print("\n[bold cyan]Unir hojas en una sola[/bold cyan]\n")
@@ -277,6 +278,10 @@ def consolidator_menu() -> None:
         filepath = Prompt.ask("[bold]Ruta del archivo Excel[/bold]").strip().strip('"')
         if not os.path.isfile(filepath):
             console.print("[red]Archivo no encontrado.[/red]")
+            return
+
+        if not filepath.lower().endswith((".xlsx", ".xlsm")):
+            console.print("[red]Solo se soportan archivos .xlsx y .xlsm[/red]")
             return
 
         base, ext = os.path.splitext(filepath)
@@ -314,7 +319,7 @@ def consolidator_menu() -> None:
             result = _merge_sheets(filepath, output, skip_header=(has_header == "s"))
 
         if result["open_error"]:
-            console.print(f"  [red]No se pudo abrir el archivo: {result['open_error']}[/red]")
+            console.print(f"  [red]No se pudo abrir el archivo: {escape(result['open_error'])}[/red]")
 
         if result["input_conflict"]:
             console.print(
@@ -330,11 +335,11 @@ def consolidator_menu() -> None:
 
         if result["save_error"]:
             console.print(
-                f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {result['save_error']}[/red]"
+                f"[red]Error al guardar archivo (revisa que no este abierto o el espacio en disco): {escape(result['save_error'])}[/red]"
             )
 
         if result["rows"]:
-            console.print(f"\n[bold green]Archivo creado: {result['output']} ({result['rows']} filas)[/bold green]")
+            console.print(f"\n[bold green]Archivo creado: {escape(result['output'])} ({result['rows']} filas)[/bold green]")
 
     elif mode == "0":
         return

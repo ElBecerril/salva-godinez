@@ -158,6 +158,18 @@ class PanelPrestaciones(ToolPanel):
             return None
         return valor
 
+    def _leer_anos(self, var: tk.StringVar) -> float | None:
+        """Los anos aceptan decimales: la prima de antiguedad y los 20 dias/ano
+        se pagan tambien por la fraccion de anio."""
+        texto = var.get().strip().replace(",", ".")
+        try:
+            valor = float(texto)
+        except ValueError:
+            return None
+        if valor < 0:
+            return None
+        return valor
+
     def _calcular(self) -> None:
         self._estado.limpiar()
         self._total_label.configure(text="")
@@ -166,21 +178,21 @@ class PanelPrestaciones(ToolPanel):
 
         salario = self._leer_salario()
         if salario is None:
-            self._estado.alerta("Escribe un numero, por ejemplo 15000")
+            self._estado.alerta("Escribe el salario diario, por ejemplo 500")
             return
 
         calculo = self._var_calculo.get()
 
         anos = 0
         if calculo != "aguinaldo":
-            anos = self._leer_entero(self._var_anos)
+            anos = self._leer_anos(self._var_anos)
             if anos is None:
-                self._estado.alerta("Escribe un numero, por ejemplo 15000")
+                self._estado.alerta("Escribe los anos de antiguedad, por ejemplo 5.5")
                 return
 
         dias = self._leer_entero(self._var_dias)
         if dias is None:
-            self._estado.alerta("Escribe un numero, por ejemplo 15000")
+            self._estado.alerta("Escribe los dias trabajados en el ano, por ejemplo 180")
             return
 
         if calculo == "aguinaldo":
@@ -201,7 +213,7 @@ class PanelPrestaciones(ToolPanel):
         self._fila("Gravado", fmt(result["gravado"]))
         self._total_label.configure(text=f"Aguinaldo bruto: {fmt(result['bruto'])}")
 
-    def _mostrar_vacaciones(self, salario: float, anos: int, dias: int) -> None:
+    def _mostrar_vacaciones(self, salario: float, anos: float, dias: int) -> None:
         result = calculate_vacaciones(salario, anos, dias)
         self._fila("Dias de vacaciones", f"{result['dias']:.1f}")
         self._fila("Prima vacacional bruta", fmt(result["prima_bruta"]), negrita=True)
@@ -209,7 +221,7 @@ class PanelPrestaciones(ToolPanel):
         self._fila("Prima gravada", fmt(result["prima_gravada"]))
         self._total_label.configure(text=f"Prima vacacional: {fmt(result['prima_bruta'])}")
 
-    def _mostrar_finiquito(self, salario: float, anos: int, dias: int) -> None:
+    def _mostrar_finiquito(self, salario: float, anos: float, dias: int) -> None:
         result = calculate_finiquito(salario, anos, dias)
         self._fila("Aguinaldo proporcional", fmt(result["aguinaldo"]))
         self._fila(
@@ -221,7 +233,7 @@ class PanelPrestaciones(ToolPanel):
         self._fila("Total finiquito", fmt(result["total"]), negrita=True)
         self._total_label.configure(text=f"Total finiquito: {fmt(result['total'])}")
 
-    def _mostrar_liquidacion(self, salario: float, anos: int, dias: int) -> None:
+    def _mostrar_liquidacion(self, salario: float, anos: float, dias: int) -> None:
         result = calculate_liquidacion(salario, anos, dias)
         self._fila("Aguinaldo proporcional", fmt(result["aguinaldo"]))
         self._fila(

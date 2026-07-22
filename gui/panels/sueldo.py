@@ -139,7 +139,7 @@ class PanelSueldo(ToolPanel):
 
         self._fila("Salario bruto", fmt(bruto), negrita=True)
 
-        self._fila("Deducciones IMSS", "")
+        self._fila("Deducciones IMSS (SBC integrado)", "")
         for concepto, monto in imss.items():
             self._fila(f"  {concepto}", f"-{fmt(monto)}")
         self._fila("  Total IMSS", f"-{fmt(total_imss)}", negrita=True)

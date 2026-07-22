@@ -4,7 +4,7 @@ las carpetas conocidas de Office/Windows."""
 import os
 from datetime import datetime
 
-from config import RECOVERY_PATHS, TEMP_PREFIXES
+from config import RECOVERY_PATHS, RECOVERY_EXTENSIONS, TEMP_PREFIXES
 from utils import format_size as _format_size
 
 
@@ -25,9 +25,11 @@ def _has_temp_signature(filename: str) -> bool:
     if any(lower.startswith(p) for p in TEMP_PREFIXES):
         return True
     # Extensiones genericas de temporal/autorecuperacion (no exclusivas de
-    # Office: cualquier app puede dejar un .tmp/.asd por ahi).
+    # Office: cualquier app puede dejar un .tmp/.asd por ahi). La lista vive en
+    # config.RECOVERY_EXTENSIONS para compartirla con disk_cleaner (que las
+    # PROTEGE al limpiar %TEMP%).
     ext = os.path.splitext(lower)[1]
-    return ext in (".tmp", ".xlk", ".wbk", ".xar", ".asd")
+    return ext in RECOVERY_EXTENSIONS
 
 
 def _is_recoverable(filename: str, base_path: str) -> bool:

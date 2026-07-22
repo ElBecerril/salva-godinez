@@ -199,7 +199,7 @@ def usb_disinfect_menu() -> None:
                 "Revisalos manualmente:[/yellow]"
             )
             for t in medium_risk:
-                console.print(f"  - {t['archivo']} ({t['tipo']})")
+                console.print(f"  - {escape(t['archivo'])} ({t['tipo']})")
 
     # Ofrecer restaurar carpetas ocultas
     restore = Prompt.ask(

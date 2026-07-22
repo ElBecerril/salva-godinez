@@ -2,6 +2,7 @@
 
 import os
 
+from rich.markup import escape
 from rich.progress import Progress, BarColumn, TextColumn
 from rich.prompt import Prompt
 from utils import console
@@ -151,7 +152,7 @@ def image_converter_menu() -> None:
     images = collected["images"]
 
     if collected["error"]:
-        console.print(f"[red]{collected['error']}[/red]")
+        console.print(f"[red]{escape(collected['error'])}[/red]")
 
     if not images:
         console.print("[yellow]No se encontraron imagenes para convertir.[/yellow]")
@@ -176,7 +177,11 @@ def image_converter_menu() -> None:
         "[bold]Carpeta de salida[/bold]",
         default=default_out,
     ).strip().strip('"')
-    os.makedirs(output_dir, exist_ok=True)
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except OSError as e:
+        console.print(f"[red]No se pudo crear la carpeta de salida (revisa permisos o ruta): {escape(str(e))}[/red]")
+        return
 
     # Convertir con barra de progreso
     converted = 0
@@ -195,13 +200,13 @@ def image_converter_menu() -> None:
             result = _convert_image(Image, src, target_ext, output_dir)
             if result["multiframe"]:
                 console.print(
-                    f"  [yellow]{os.path.basename(src)} tiene {result['multiframe']} frames/paginas; "
+                    f"  [yellow]{escape(os.path.basename(src))} tiene {result['multiframe']} frames/paginas; "
                     "solo se convertira el primero.[/yellow]"
                 )
             if result["ok"]:
                 converted += 1
             else:
-                console.print(f"  [red]Error con {os.path.basename(src)}: {result['error']}[/red]")
+                console.print(f"  [red]Error con {escape(os.path.basename(src))}: {escape(str(result['error']))}[/red]")
                 failed += 1
             progress.advance(task)
 
@@ -209,4 +214,4 @@ def image_converter_menu() -> None:
     console.print(f"  Convertidos: [bold]{converted}[/bold]")
     if failed:
         console.print(f"  Fallidos: [red]{failed}[/red]")
-    console.print(f"  Carpeta: [bold]{output_dir}[/bold]")
+    console.print(f"  Carpeta: [bold]{escape(output_dir)}[/bold]")

@@ -193,7 +193,7 @@ def _share_printer() -> None:
     elif result["error_kind"] == "timeout":
         console.print("[red]Timeout al intentar compartir la impresora.[/red]")
     elif result["error_kind"] == "os":
-        console.print(f"[red]Error del sistema: {result['message']}[/red]")
+        console.print(f"[red]Error del sistema: {escape(result['message'])}[/red]")
     else:
         console.print(f"[red]Error al compartir: {escape(result['message'])}[/red]")
 
@@ -251,7 +251,7 @@ def _unshare_printer() -> None:
     elif result["error_kind"] == "timeout":
         console.print("[red]Timeout al intentar modificar la impresora.[/red]")
     elif result["error_kind"] == "os":
-        console.print(f"[red]Error del sistema: {result['message']}[/red]")
+        console.print(f"[red]Error del sistema: {escape(result['message'])}[/red]")
     else:
         console.print(f"[red]Error: {escape(result['message'])}[/red]")
 

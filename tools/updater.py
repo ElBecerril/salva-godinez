@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shutil
+import ssl
 import sys
 import tempfile
 import urllib.request
@@ -28,9 +29,49 @@ MAX_DOWNLOAD_SIZE = 200 * 1024 * 1024  # 200 MB
 # --- Logica (sin UI) ---
 
 
+_SSL_CTX = None
+
+
+def _get_ssl_context() -> ssl.SSLContext:
+    """Contexto SSL con CA certs empaquetados (certifi).
+
+    En el .exe congelado (PyInstaller/Windows), el modulo `ssl` no encuentra
+    los certificados raiz del sistema, asi que `urlopen` contra
+    https://api.github.com fallaba con CERTIFICATE_VERIFY_FAILED y el chequeo
+    de actualizaciones volvia vacio EN SILENCIO (por eso el dialogo "no salia"
+    sin haber tocado nunca la red con exito). certifi trae su propio bundle de
+    CAs (el de Mozilla) y se empaqueta en el .exe, garantizando la
+    verificacion en cualquier entorno.
+
+    `import certifi` es perezoso a proposito: si no esta disponible (dev en
+    Linux sin instalarlo), se cae al contexto por defecto del sistema, que ahi
+    si funciona. La verificacion de certificado NUNCA se desactiva.
+    """
+    global _SSL_CTX
+    if _SSL_CTX is None:
+        try:
+            import certifi
+            _SSL_CTX = ssl.create_default_context(cafile=certifi.where())
+        except Exception:
+            _SSL_CTX = ssl.create_default_context()
+    return _SSL_CTX
+
+
 def _parse_version(tag: str) -> tuple:
-    """'v3.0.0' -> (3, 0, 0)"""
-    return tuple(int(x) for x in tag.lstrip("vV").split("."))
+    """'v3.0.0' -> (3, 0, 0); tolera sufijos tipo '-beta'/'-rc1'.
+
+    Antes se hacia `int(x) for x in tag.lstrip("vV").split(".")`, que lanzaba
+    ValueError con un tag no estrictamente numerico (p.ej. 'v2.6.0-beta') y
+    mataba el chequeo de actualizaciones EN SILENCIO en la GUI (misma clase de
+    fallo que el bug de SSL). Ahora se extrae la parte numerica inicial; si el
+    tag no trae una version reconocible se devuelve (0,), que nunca se
+    interpreta como mas nueva que la local (fail-safe: mejor no ofrecer update
+    que tronar el chequeo).
+    """
+    match = re.match(r"v?(\d+(?:\.\d+)*)", tag.strip())
+    if not match:
+        return (0,)
+    return tuple(int(x) for x in match.group(1).split("."))
 
 
 def _extract_sha256(body: str, filename: str) -> str | None:
@@ -68,7 +109,7 @@ def fetch_latest_release() -> dict:
             GITHUB_API_URL,
             headers={"User-Agent": "SalvaGodinez-Updater"},
         )
-        resp = urllib.request.urlopen(req, timeout=5)
+        resp = urllib.request.urlopen(req, timeout=5, context=_get_ssl_context())
         data = json.loads(resp.read().decode("utf-8"))
         return {"ok": True, "data": data}
     except Exception as e:
@@ -135,7 +176,7 @@ def download_update(
 
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "SalvaGodinez-Updater"})
-        resp = urllib.request.urlopen(req, timeout=30)
+        resp = urllib.request.urlopen(req, timeout=30, context=_get_ssl_context())
         total = int(resp.headers.get("Content-Length", 0))
 
         if total > MAX_DOWNLOAD_SIZE:

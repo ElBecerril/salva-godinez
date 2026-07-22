@@ -4,6 +4,7 @@ import os
 import re
 import zipfile
 
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -70,7 +71,11 @@ def _mostrar_valor(value: str) -> str:
     """
     for char, etiqueta in _ETIQUETAS_INVISIBLES.items():
         value = value.replace(char, etiqueta)
-    return f'"{value}"'
+    # Se escapa el string YA ENSAMBLADO (con las etiquetas ya insertadas) para
+    # que rich no interprete los corchetes de las etiquetas ("[tab]", etc.)
+    # como markup y las muestre tal cual, y para que un valor de celda con
+    # corchetes (p.ej. "[total]") no rompa ni se trague al imprimirse.
+    return escape(f'"{value}"')
 
 
 def clean_file(filepath: str) -> dict:
@@ -141,7 +146,7 @@ def cell_cleaner_menu() -> None:
 
     if not result.get("ok"):
         if result.get("error"):
-            console.print(f"[red]No se pudo abrir el archivo Excel (corrupto o formato invalido): {result['error']}[/red]")
+            console.print(f"[red]No se pudo abrir el archivo Excel (corrupto o formato invalido): {escape(str(result['error']))}[/red]")
         return
 
     wb = result.pop("_wb", None)
@@ -162,7 +167,7 @@ def cell_cleaner_menu() -> None:
     table.add_column("Despues", style="green")
 
     for change in result["changes"][:20]:
-        table.add_row(change["hoja"], change["celda"], change["antes"], change["despues"])
+        table.add_row(escape(change["hoja"]), escape(change["celda"]), change["antes"], change["despues"])
 
     if len(result["changes"]) > 20:
         table.add_row("...", f"+{len(result['changes']) - 20} mas", "", "")
@@ -182,8 +187,8 @@ def cell_cleaner_menu() -> None:
     output = _safe_output_path(f"{base}_limpio{ext}")
     try:
         wb.save(output)
-        console.print(f"\n[bold green]Archivo guardado: {output}[/bold green]")
+        console.print(f"\n[bold green]Archivo guardado: {escape(output)}[/bold green]")
     except OSError as e:
-        console.print(f"[red]Error al guardar archivo (revisa que no este abierto en Excel): {e}[/red]")
+        console.print(f"[red]Error al guardar archivo (revisa que no este abierto en Excel): {escape(str(e))}[/red]")
     finally:
         wb.close()

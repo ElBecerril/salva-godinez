@@ -20,9 +20,14 @@ from utils import console
 
 # --- Logica (sin UI) ---
 
-def _get_vacation_days(years: int) -> int:
+def _get_vacation_days(years: float) -> int:
     """Dias de vacaciones segun antiguedad (LFT Art. 76, reforma "vacaciones
-    dignas" 2023+)."""
+    dignas" 2023+).
+
+    El derecho a vacaciones sube por anio CUMPLIDO, asi que se usa la parte
+    entera de la antiguedad (aunque `years` venga con decimales para el calculo
+    proporcional de prima de antiguedad / 20 dias)."""
+    years = int(years)
     if years <= 0:
         return 0
     if years <= 20:
@@ -52,12 +57,16 @@ def calculate_aguinaldo(daily_salary: float, days_worked: int) -> dict:
     return {"bruto": proportional, "exento": min(proportional, exempt), "gravado": taxable}
 
 
-def calculate_vacaciones(daily_salary: float, years: int, days_worked: int) -> dict:
+def calculate_vacaciones(daily_salary: float, years: float, days_worked: int) -> dict:
     """Calcula prima vacacional proporcional (25%).
 
     Returns:
         dict con dias, prima_bruta, prima_exenta (15 UMA)
     """
+    # Topar a 365 igual que el aguinaldo: sin esto, un dato erroneo (>365 dias)
+    # infla la prima proporcional por encima del derecho de un anio completo,
+    # y contamina finiquito/liquidacion que llaman a esta funcion.
+    days_worked = min(days_worked, 365)
     vac_days = _get_vacation_days(years)
     prop_days = (days_worked / 365) * vac_days
     prima = prop_days * daily_salary * 0.25
@@ -70,20 +79,24 @@ def calculate_vacaciones(daily_salary: float, years: int, days_worked: int) -> d
     }
 
 
-def calculate_finiquito(daily_salary: float, years: int, days_worked: int) -> dict:
+def calculate_finiquito(daily_salary: float, years: float, days_worked: int) -> dict:
     """Calcula finiquito (renuncia voluntaria).
 
     Incluye: aguinaldo proporcional + vacaciones proporcionales + prima vacacional.
     Si la antiguedad es >= 15 anos, incluye ademas prima de antiguedad
     (Art. 162-III LFT: la renuncia voluntaria solo genera este derecho a
     partir de 15 anos de servicio).
+
+    `years` acepta decimales: la prima de antiguedad se paga tambien por la
+    fraccion de anio (Art. 162-I LFT), asi que 5.5 anos rinde 5.5 x 12 dias.
     """
     ag = calculate_aguinaldo(daily_salary, days_worked)
     vac = calculate_vacaciones(daily_salary, years, days_worked)
     vac_salary = vac["dias"] * daily_salary
 
-    # Prima de antiguedad: 12 dias por ano, tope de 2 veces el SALARIO MINIMO
-    # general diario (Art. 162/486 LFT) — NO 2 veces la UMA.
+    # Prima de antiguedad: 12 dias por ano (proporcional por fraccion, Art.
+    # 162-I LFT), tope de 2 veces el SALARIO MINIMO general diario (Art.
+    # 162/486 LFT) — NO 2 veces la UMA.
     seniority_daily = min(daily_salary, SALARIO_MINIMO_DAILY * 2)
     seniority = seniority_daily * 12 * years if years >= 15 else 0.0
 
@@ -98,7 +111,7 @@ def calculate_finiquito(daily_salary: float, years: int, days_worked: int) -> di
     }
 
 
-def calculate_liquidacion(daily_salary: float, years: int, days_worked: int) -> dict:
+def calculate_liquidacion(daily_salary: float, years: float, days_worked: int) -> dict:
     """Calcula liquidacion (despido injustificado).
 
     Incluye: finiquito + 3 meses constitucional + 20 dias/ano + prima antiguedad.
@@ -106,21 +119,21 @@ def calculate_liquidacion(daily_salary: float, years: int, days_worked: int) -> 
     fin = calculate_finiquito(daily_salary, years, days_worked)
 
     # SDI (Salario Diario Integrado, Art. 89 LFT) con factor de integracion
-    # minimo, usado para la indemnizacion de 20 dias/ano.
+    # minimo, usado para la indemnizacion (3 meses y 20 dias/ano).
     sdi = daily_salary * (365 + AGUINALDO_MIN_DAYS + _get_vacation_days(years) * 0.25) / 365
 
-    # Los 3 meses constitucionales se dejan con el salario diario simple (no
-    # SDI): es un punto legalmente debatido (algunos criterios de la SCJN
-    # usan SDI para todo, otros solo para el 20 dias/ano); aqui se opta por
-    # el criterio mas conservador para los 3 meses.
-    three_months = daily_salary * 90
+    # Los 3 meses constitucionales se calculan con SDI, igual que el 20 dias/ano
+    # (Art. 89 LFT: las indemnizaciones se pagan con el salario INTEGRADO). Es
+    # el criterio dominante de la SCJN para toda indemnizacion por despido.
+    three_months = sdi * 90
     twenty_per_year = sdi * 20 * years
 
-    # Prima de antiguedad: 12 dias por ano, tope de 2 veces el SALARIO MINIMO
-    # general diario (Art. 162/486 LFT) — NO 2 veces la UMA. En despido
-    # (a diferencia de la renuncia) se paga sin importar la antiguedad, por
-    # lo que aqui se recalcula en vez de reusar la de calculate_finiquito
-    # (que solo aplica desde 15 anos) para no perderla ni duplicarla.
+    # Prima de antiguedad: 12 dias por ano (proporcional por fraccion, Art.
+    # 162-I LFT), tope de 2 veces el SALARIO MINIMO general diario (Art.
+    # 162/486 LFT) — NO 2 veces la UMA. En despido (a diferencia de la
+    # renuncia) se paga sin importar la antiguedad, por lo que aqui se
+    # recalcula en vez de reusar la de calculate_finiquito (que solo aplica
+    # desde 15 anos) para no perderla ni duplicarla.
     seniority_daily = min(daily_salary, SALARIO_MINIMO_DAILY * 2)
     seniority = seniority_daily * 12 * years
 
@@ -142,6 +155,21 @@ def _ask_int(prompt: str) -> int | None:
     val = Prompt.ask(prompt).strip()
     try:
         result = int(val)
+        if result < 0:
+            console.print("[red]El valor no puede ser negativo.[/red]")
+            return None
+        return result
+    except ValueError:
+        console.print("[red]Valor numerico invalido.[/red]")
+        return None
+
+
+def _ask_years(prompt: str) -> float | None:
+    """Pide anos de antiguedad: acepta decimales (la prima de antiguedad y los
+    20 dias/ano se pagan tambien por la fraccion de anio) y permite 0."""
+    val = Prompt.ask(prompt).strip().replace(",", ".")
+    try:
+        result = float(val)
         if result < 0:
             console.print("[red]El valor no puede ser negativo.[/red]")
             return None
@@ -177,7 +205,7 @@ def _option_vacaciones() -> None:
     salary = _ask_float("[bold]Salario diario[/bold]")
     if not salary:
         return
-    years = _ask_int("[bold]Anos de antiguedad[/bold]")
+    years = _ask_years("[bold]Anos de antiguedad[/bold] (acepta decimales, ej: 5.5)")
     if years is None:
         return
     days = _ask_int("[bold]Dias trabajados en el ano[/bold]")
@@ -202,7 +230,7 @@ def _option_finiquito() -> None:
     salary = _ask_float("[bold]Salario diario[/bold]")
     if not salary:
         return
-    years = _ask_int("[bold]Anos de antiguedad[/bold]")
+    years = _ask_years("[bold]Anos de antiguedad[/bold] (acepta decimales, ej: 5.5)")
     if years is None:
         return
     days = _ask_int("[bold]Dias trabajados en el ano actual[/bold]")
@@ -229,7 +257,7 @@ def _option_liquidacion() -> None:
     salary = _ask_float("[bold]Salario diario[/bold]")
     if not salary:
         return
-    years = _ask_int("[bold]Anos de antiguedad[/bold]")
+    years = _ask_years("[bold]Anos de antiguedad[/bold] (acepta decimales, ej: 5.5)")
     if years is None:
         return
     days = _ask_int("[bold]Dias trabajados en el ano actual[/bold]")

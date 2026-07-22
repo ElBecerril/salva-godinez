@@ -224,20 +224,22 @@ class PanelCarpetasRed(ToolPanel):
             return
 
         args = [letra, ruta, "/persistent:yes"]
+        clave = None
         if self._var_requiere_creds.get():
             usuario = self._var_usuario.get().strip()
             clave = self._var_clave.get()
             if not usuario:
                 self._estado.alerta("Escribe el usuario para conectarte.")
                 return
-            # Mismo orden que usa net use: letra, ruta, clave, /user:, /persistent.
-            args = [letra, ruta, clave, f"/user:{usuario}", "/persistent:yes"]
+            # La clave va con '*' (net use la pide por stdin), NO como argumento:
+            # en argv seria visible en la lista de procesos del sistema.
+            args = [letra, ruta, "*", f"/user:{usuario}", "/persistent:yes"]
 
         self._btn_conectar.configure(state="disabled")
         self._estado.info(f"Conectando {letra}...")
 
         def trabajo():
-            return _conectar_unidad(args)
+            return _conectar_unidad(args, clave)
 
         def on_done(ok: bool, resultado) -> None:
             self._btn_conectar.configure(state="normal")
@@ -287,9 +289,9 @@ def _desconectar_unidad(letra: str) -> dict:
     return {"ok": False, "error": error}
 
 
-def _conectar_unidad(args: list[str]) -> dict:
+def _conectar_unidad(args: list[str], password: str | None = None) -> dict:
     try:
-        resultado = _run_net_use(args)
+        resultado = _run_net_use(args, password)
     except NetUseError as e:
         return {"ok": False, "error": str(e)}
 

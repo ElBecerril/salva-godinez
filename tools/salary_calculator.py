@@ -3,7 +3,7 @@
 from rich.table import Table
 from rich import box
 
-from config import ISR_MONTHLY_TABLE, IMSS_EMPLOYEE_RATES, UMA_DAILY
+from config import ISR_MONTHLY_TABLE, IMSS_EMPLOYEE_RATES, UMA_DAILY, AGUINALDO_MIN_DAYS, VACATION_DAYS_TABLE
 from tools._fiscal_helpers import DISCLAIMER, ask_float as _ask_float, fmt as _fmt, find_bracket as _find_bracket
 from utils import console
 
@@ -14,6 +14,15 @@ from utils import console
 # Se usa el mismo factor mensual (30.4) que ya usa el resto de este archivo
 # para convertir el UMA diario a UMA mensual.
 SBC_MONTHLY_CAP = UMA_DAILY * 25 * 30.4
+
+# Factor de integracion MINIMO del SBC (Art. 27 LSS): el salario base de
+# cotizacion integra la parte proporcional de aguinaldo (15 dias) y prima
+# vacacional (25% de las vacaciones). Factor = 1 + 15/365 + (12 x 25%)/365,
+# usando las vacaciones del PRIMER anio (12 dias, reforma 2023). Es el piso
+# legal: crece con la antiguedad, pero esta calculadora no pide antiguedad,
+# asi que aplica el minimo (antes se usaba el bruto sin integrar, que
+# subestimaba las cuotas IMSS ~4.5%).
+FACTOR_INTEGRACION_SBC_MINIMO = 1 + (AGUINALDO_MIN_DAYS + VACATION_DAYS_TABLE[1] * 0.25) / 365
 
 # Subsidio para el empleo 2026 — Decreto DOF 31/12/2025, que sustituye la
 # tabla por rangos vigente hasta 2025 (Decreto 26/12/2013) por un MONTO UNICO
@@ -51,11 +60,12 @@ def calculate_subsidio_empleo(monthly_gross: float) -> float:
 def calculate_imss_deductions(monthly_gross: float) -> dict:
     """Calcula las cuotas obrero IMSS mensuales.
 
-    Se usa el SBC (Salario Base de Cotizacion) = salario bruto mensual,
-    topado a 25 UMA mensuales (tope legal de cotizacion, Art. 28 LSS).
+    Se usa el SBC (Salario Base de Cotizacion) = salario bruto mensual por el
+    factor de integracion minimo (integra aguinaldo y prima vacacional, Art.
+    27 LSS), topado a 25 UMA mensuales (tope legal de cotizacion, Art. 28 LSS).
     El excedente de Enf. y Mat. se calcula sobre lo que exceda 3 UMA mensuales.
     """
-    sbc = min(monthly_gross, SBC_MONTHLY_CAP)
+    sbc = min(monthly_gross * FACTOR_INTEGRACION_SBC_MINIMO, SBC_MONTHLY_CAP)
     three_uma_monthly = UMA_DAILY * 3 * 30.4
 
     deductions = {}
@@ -143,7 +153,7 @@ def salary_calculator_menu() -> None:
     table.add_row("", "")
 
     # Desglose IMSS
-    table.add_row("[yellow]Deducciones IMSS[/yellow]", "")
+    table.add_row("[yellow]Deducciones IMSS (SBC integrado)[/yellow]", "")
     for concept, amount in imss.items():
         table.add_row(f"  {concept}", f"[red]-{_fmt(amount)}[/red]")
     table.add_row("  [bold]Total IMSS[/bold]", f"[red]-{_fmt(total_imss)}[/red]")

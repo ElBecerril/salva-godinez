@@ -1,13 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    # El cacert.pem de certifi: el auto-updater lo usa para verificar el HTTPS
+    # de api.github.com desde el .exe (el ssl del binario congelado no ve los
+    # CA del sistema). PyInstaller ya trae un hook para certifi, pero se
+    # empaqueta explicito para no depender de que el hook siga vigente.
+    datas=collect_data_files('certifi'),
     # main.py importa la GUI de forma perezosa (solo con --gui), asi que el
     # analisis estatico de PyInstaller podria no arrastrar el paquete entero.
     # Se recolecta TODO `gui` en vez de listar pantalla por pantalla: son 23 y
