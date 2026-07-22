@@ -117,20 +117,34 @@ def _extract_sha256(body: str, filename: str) -> str | None:
     """Extrae hash SHA-256 del body del Release.
 
     Busca patrones como:
+        abc123...  SalvaGodinez.exe        (formato sha256sum, el preferido)
         SHA-256: abc123...
-        `abc123...` SalvaGodinez.exe
-        abc123...  SalvaGodinez.exe
+        SHA-256:
+        ```
+        abc123...
+        ```                                 (hash dentro de un bloque markdown)
     """
     if not body:
         return None
     # Primero el patron que ata el hash al filename del asset (mas
     # especifico): <hex>  <filename>. Se intenta antes del patron generico
     # para no agarrar el hash de otro asset cuando el body lista varios.
-    match = re.search(rf"([0-9a-fA-F]{{64}})\s+\S*{re.escape(filename)}", body)
+    # [\s`]+ tolera un backtick de cierre entre el hash y el nombre (formato
+    # `<hex>` <archivo>), ademas de los espacios del formato sha256sum.
+    match = re.search(rf"([0-9a-fA-F]{{64}})[\s`]+\S*{re.escape(filename)}", body)
     if match:
         return match.group(1).lower()
-    # Fallback generico: SHA-256: <hex> o SHA256: <hex>
-    match = re.search(r"SHA-?256\s*:\s*([0-9a-fA-F]{64})", body)
+    # Fallback: una etiqueta "SHA-256" seguida del hash, TOLERANDO lo que haya
+    # en medio (dos puntos, saltos de linea, y hasta un bloque de codigo ```).
+    # Antes se exigia "SHA-256:\s*<hex>" en la misma linea, y un hash dentro de
+    # un fence markdown quedaba fuera de alcance -> el updater rechazaba la
+    # actualizacion por "sin firma" aunque el hash SI estuviera en las notas
+    # (bug real cazado en la VM). Los lookarounds fijan el hash a EXACTAMENTE
+    # 64 hex (no agarra un hash mas largo). DOTALL para que `.` cruce saltos.
+    match = re.search(
+        r"SHA-?256.*?(?<![0-9a-fA-F])([0-9a-fA-F]{64})(?![0-9a-fA-F])",
+        body, re.DOTALL | re.IGNORECASE,
+    )
     if match:
         return match.group(1).lower()
     return None
