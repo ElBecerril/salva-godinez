@@ -117,16 +117,22 @@ def _mostrar_aviso_origen(root, version: str) -> None:
         style="Subtitle.TLabel", justify="left", wraplength=420,
     ).pack(anchor="w", pady=(8, 18))
 
-    ttk.Button(cont, text="Entendido", style="Accent.TButton",
-               command=dlg.destroy).pack(anchor="e")
+    # El aviso se marca como visto al CERRARLO, no antes: si la app se cae o el
+    # usuario la mata sin haberlo leido, debe volver a salir en el proximo
+    # arranque (es un aviso anti-clon; marcarlo antes de tiempo lo silenciaba).
+    def _confirmar():
+        if version:
+            _marcar_origen_visto(version)
+        dlg.destroy()
 
-    dlg.bind("<Escape>", lambda _e: dlg.destroy())
-    dlg.protocol("WM_DELETE_WINDOW", dlg.destroy)
+    ttk.Button(cont, text="Entendido", style="Accent.TButton",
+               command=_confirmar).pack(anchor="e")
+
+    dlg.bind("<Escape>", lambda _e: _confirmar())
+    dlg.protocol("WM_DELETE_WINDOW", _confirmar)
     _centrar(dlg, root)
     dlg.grab_set()
     dlg.focus_set()
-    if version:
-        _marcar_origen_visto(version)
     root.wait_window(dlg)
 
 
@@ -197,6 +203,12 @@ def _dialogo_actualizacion(root, version: str, remote_tag: str, data: dict) -> N
         # Cambiar la UI a "descargando": fuera los botones, entra la barra.
         for w in botones.winfo_children():
             w.configure(state="disabled")
+        # Mientras baja y verifica, no se puede cerrar el dialogo: cerrarlo
+        # dejaria el hilo trabajando sin UI que muestre el resultado. (Ademas el
+        # archivo final se instala de forma atomica, asi que aun matando la app
+        # entera nunca queda un .exe a medias en el Escritorio.)
+        dlg.unbind("<Escape>")
+        dlg.protocol("WM_DELETE_WINDOW", lambda: None)
         estado.configure(text="Descargando y verificando...")
         estado.pack(anchor="w", pady=(6, 6))
         barra.pack(anchor="w", pady=(0, 6))
@@ -229,6 +241,9 @@ def _dialogo_actualizacion(root, version: str, remote_tag: str, data: dict) -> N
                 )
             else:
                 estado.configure(text=_texto_error(result), foreground=theme.DANGER)
+            # Termino (exito o error): se vuelve a permitir cerrar el dialogo.
+            dlg.bind("<Escape>", lambda _e: _cerrar())
+            dlg.protocol("WM_DELETE_WINDOW", _cerrar)
             # Un solo boton para cerrar.
             for w in botones.winfo_children():
                 w.destroy()

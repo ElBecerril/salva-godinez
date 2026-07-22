@@ -7,7 +7,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import ssl
 import sys
 import tempfile
@@ -55,6 +54,46 @@ def _get_ssl_context() -> ssl.SSLContext:
         except Exception:
             _SSL_CTX = ssl.create_default_context()
     return _SSL_CTX
+
+
+def _get_desktop_path() -> str:
+    """Ruta REAL del Escritorio, resolviendo la redireccion de OneDrive (KFM).
+
+    En oficinas con Microsoft 365, OneDrive suele redirigir el Escritorio a
+    `~/OneDrive/Desktop` (o `Escritorio`); el `~/Desktop` hardcodeado ya no
+    existe, y el move de la actualizacion fallaba con FileNotFoundError DESPUES
+    de haber verificado bien la descarga (el usuario veia "no se pudo
+    descargar" con el hash correcto). `SHGetKnownFolderPath` devuelve la ruta
+    real. Fuera de Windows (dev) o si algo falla, cae a `~/Desktop`.
+    """
+    try:
+        import ctypes
+
+        class _GUID(ctypes.Structure):
+            _fields_ = [
+                ("Data1", ctypes.c_ulong),
+                ("Data2", ctypes.c_ushort),
+                ("Data3", ctypes.c_ushort),
+                ("Data4", ctypes.c_ubyte * 8),
+            ]
+
+        # FOLDERID_Desktop = {B4BFCC3A-DB2C-424C-B029-7FE99A87C641}
+        folderid_desktop = _GUID(
+            0xB4BFCC3A, 0xDB2C, 0x424C,
+            (ctypes.c_ubyte * 8)(0xB0, 0x29, 0x7F, 0xE9, 0x9A, 0x87, 0xC6, 0x41),
+        )
+        path_ptr = ctypes.c_wchar_p()
+        res = ctypes.windll.shell32.SHGetKnownFolderPath(
+            ctypes.byref(folderid_desktop), 0, None, ctypes.byref(path_ptr)
+        )
+        if res == 0 and path_ptr.value:
+            path = path_ptr.value
+            ctypes.windll.ole32.CoTaskMemFree(path_ptr)
+            if os.path.isdir(path):
+                return path
+    except Exception:
+        pass
+    return os.path.join(os.path.expanduser("~"), "Desktop")
 
 
 def _parse_version(tag: str) -> tuple:
@@ -168,10 +207,20 @@ def download_update(
         "removed_old" (lista de rutas eliminadas), "old_errors" (lista de
         (ruta, error) para versiones anteriores que no se pudieron borrar).
     """
-    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+    desktop = _get_desktop_path()
     dest = os.path.join(desktop, filename)
 
-    tmp_fd, tmp_path = tempfile.mkstemp(prefix="salvagodinez_update_", suffix=".tmp")
+    # El temporal se crea EN EL MISMO directorio que el destino (el Escritorio),
+    # no en %TEMP%, para que el paso final sea un rename ATOMICO en el mismo
+    # volumen (os.replace) en vez de una copia cross-volume (shutil.move) que,
+    # si se interrumpe a la mitad, dejaria un .exe truncado que "ya paso" la
+    # verificacion. Con esto, un corte a media descarga solo deja un .tmp
+    # inofensivo; el .exe final aparece completo o no aparece.
+    try:
+        os.makedirs(desktop, exist_ok=True)
+    except OSError:
+        pass
+    tmp_fd, tmp_path = tempfile.mkstemp(prefix="salvagodinez_update_", suffix=".tmp", dir=desktop)
     os.close(tmp_fd)
 
     try:
@@ -224,17 +273,20 @@ def download_update(
             return {"ok": False, "reason": "no_reference_hash"}
 
         # Solo ahora, con la descarga ya verificada, es seguro tocar el Escritorio.
-        # Primero se mueve el archivo temporal a su destino final; solo si el
-        # move fue exitoso se procede a borrar versiones anteriores del
-        # Escritorio. Asi, si el move falla, las versiones viejas siguen ahi.
-        shutil.move(tmp_path, dest)
+        # os.replace es un rename ATOMICO en el mismo volumen (el tmp vive en el
+        # Escritorio): el .exe destino aparece completo de golpe, nunca a medias.
+        # Solo si el move fue exitoso se borran versiones anteriores; si falla,
+        # las versiones viejas siguen ahi.
+        os.replace(tmp_path, dest)
 
-        current_exe = os.path.abspath(sys.executable) if getattr(sys, "frozen", False) else ""
-        dest_abs = os.path.abspath(dest)
+        current_exe = os.path.normcase(os.path.abspath(sys.executable)) if getattr(sys, "frozen", False) else ""
+        dest_abs = os.path.normcase(os.path.abspath(dest))
         removed_old = []
         old_errors = []
         for old in glob.glob(os.path.join(desktop, "SalvaGodinez*.exe")):
-            old_abs = os.path.abspath(old)
+            # normcase: en Windows el filesystem es case-insensitive; sin esto,
+            # un casing distinto podria intentar borrar el .exe en ejecucion.
+            old_abs = os.path.normcase(os.path.abspath(old))
             if old_abs != current_exe and old_abs != dest_abs:
                 try:
                     os.remove(old)

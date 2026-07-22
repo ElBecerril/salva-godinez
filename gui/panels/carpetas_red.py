@@ -11,6 +11,7 @@ scripts que dependan de esa letra, asi que pasa SIEMPRE por
 confirmar_destructivo() con default No antes de tocar nada.
 """
 
+import subprocess
 import tkinter as tk
 from tkinter import ttk
 
@@ -191,6 +192,11 @@ class PanelCarpetasRed(ToolPanel):
 
         def on_done(ok: bool, resultado) -> None:
             self._btn_actualizar.configure(state="normal")
+            # Rehabilitar "Desconectar" segun la seleccion actual: si no, tras un
+            # error queda gris hasta que el usuario cambie de fila (parece trabado).
+            self._btn_desconectar.configure(
+                state="normal" if self._tabla.selection() else "disabled"
+            )
             if not ok or not resultado.get("ok"):
                 mensaje = resultado.get("error", "Error desconocido") if ok else str(resultado)
                 self._estado.alerta(f"No se pudo desconectar: {mensaje}")
@@ -270,17 +276,24 @@ class PanelCarpetasRed(ToolPanel):
 # ----------------------------------------------------------------------
 
 
+# Fallos reales de net use: NetUseError lo lanza _parse_net_use_output, pero
+# _run_net_use lanza TimeoutExpired/OSError crudos. Se atrapan los tres para no
+# dejar escapar una excepcion cruda (que la UI mostraria como repr ilegible).
+_NET_ERRORES = (NetUseError, subprocess.TimeoutExpired, OSError)
+
+
 def _listar_unidades() -> list[dict]:
-    try:
-        return _parse_net_use_output()
-    except NetUseError:
-        return []
+    # NO atrapar el error aqui: si se traga y se devuelve [], el panel lo
+    # muestra como "no hay carpetas conectadas" cuando en realidad net use
+    # fallo (servicio Workstation caido, timeout). Se deja propagar para que
+    # run_async lo convierta en ok=False y el panel muestre el error real.
+    return _parse_net_use_output()
 
 
 def _desconectar_unidad(letra: str) -> dict:
     try:
         resultado = _run_net_use([letra, "/delete"])
-    except NetUseError as e:
+    except _NET_ERRORES as e:
         return {"ok": False, "error": str(e)}
 
     if resultado.returncode == 0:
@@ -292,7 +305,7 @@ def _desconectar_unidad(letra: str) -> dict:
 def _conectar_unidad(args: list[str], password: str | None = None) -> dict:
     try:
         resultado = _run_net_use(args, password)
-    except NetUseError as e:
+    except _NET_ERRORES as e:
         return {"ok": False, "error": str(e)}
 
     if resultado.returncode == 0:

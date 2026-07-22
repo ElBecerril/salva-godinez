@@ -63,6 +63,16 @@ def _find_locking_processes(filepath: str) -> dict:
                 ctypes.byref(reboot_reasons),
             )
 
+            # ret esperado: 0 (no hay procesos) o ERROR_MORE_DATA (234: hay
+            # procesos y hay que reservar buffer). Cualquier OTRO codigo es un
+            # fallo de la API (p.ej. acceso denegado en un archivo de sistema),
+            # no "archivo libre": caer al metodo alterno con certero=False en
+            # vez de afirmar "sin procesos con certeza" (una mentira que haria
+            # creer al usuario que el archivo no esta bloqueado).
+            ERROR_MORE_DATA = 234
+            if ret not in (0, ERROR_MORE_DATA):
+                return _fallback_find_locking(filepath)
+
             if n_proc_info_needed.value == 0:
                 return {"procesos": [], "certero": True}
 

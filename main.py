@@ -583,7 +583,11 @@ def main() -> None:
             elif choice == "5":
                 utilities_menu()
             elif choice == "6":
-                abrir_gui()
+                # Si el usuario cierra la ventana para SALIR, no reaparecer el
+                # menu de texto (la GUI ya mostro su despedida). "consola"/
+                # "fallo" si regresan al menu.
+                if abrir_gui() == "salir":
+                    break
             elif choice == "0":
                 show_farewell()
                 break

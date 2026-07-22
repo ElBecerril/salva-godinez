@@ -242,21 +242,38 @@ class PanelRescate(ToolPanel):
             return
 
         dest_path = compute_unique_dest_path(carpeta_destino, resuelto["nombre"])
-        resultado_copia = copy_restored_file(resuelto["source"], dest_path)
 
-        if resultado_copia["ok"]:
-            self._estado.exito(f"Archivo recuperado en: {resultado_copia['dest']}")
-            self.aviso(
-                "Archivo recuperado",
-                f"El archivo quedo guardado en:\n\n{resultado_copia['dest']}",
+        # La copia puede tardar: archivo grande, o desde una shadow copy
+        # (\\?\GLOBALROOT\...) que es lenta. Antes corria en el hilo de la UI y
+        # congelaba la ventana ("No responde"); si el usuario la mataba, quedaba
+        # un archivo truncado. Va al hilo de fondo, y destructivo=True para que
+        # no se pueda cerrar la app a media copia.
+        self._btn_recuperar.configure(state="disabled")
+        self._estado.info(f"Copiando {resuelto['nombre']}...")
+
+        def _trabajo():
+            return copy_restored_file(resuelto["source"], dest_path)
+
+        def _on_copiado(ok: bool, resultado) -> None:
+            self._btn_recuperar.configure(
+                state="normal" if self._tabla.selection() else "disabled"
             )
-        else:
-            self.error(
-                "No se pudo copiar el archivo",
-                "No se pudo guardar el archivo en la carpeta elegida. "
-                "Revisa que haya espacio disponible y que tengas permiso "
-                "para escribir ahi.",
-            )
+            if ok and isinstance(resultado, dict) and resultado.get("ok"):
+                self._estado.exito(f"Archivo recuperado en: {resultado['dest']}")
+                self.aviso(
+                    "Archivo recuperado",
+                    f"El archivo quedo guardado en:\n\n{resultado['dest']}",
+                )
+            else:
+                self._estado.alerta("No se pudo copiar el archivo.")
+                self.error(
+                    "No se pudo copiar el archivo",
+                    "No se pudo guardar el archivo en la carpeta elegida. "
+                    "Revisa que haya espacio disponible y que tengas permiso "
+                    "para escribir ahi.",
+                )
+
+        self.run_async(_trabajo, _on_copiado, destructivo=True)
 
 
 # ----------------------------------------------------------------------
