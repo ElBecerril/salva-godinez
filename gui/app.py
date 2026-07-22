@@ -87,6 +87,22 @@ class App(tk.Tk):
         self._construir()
         self._mostrar(_todos_los_paneles()[0])
 
+        # Aviso de origen (una vez por version) + revision de actualizaciones,
+        # ya como ventanas. Van con after() para que la ventana principal se
+        # pinte primero y los dialogos salgan centrados sobre ella. Antes esto
+        # vivia en la consola (main.arranque_comun) y obligaba a mostrar la
+        # ventana negra al arrancar; ahora la consola puede esconderse de una.
+        self.after(400, self._arranque_gui)
+
+    def _arranque_gui(self) -> None:
+        """Aviso de origen + auto-update en ventana. Best-effort: si falla, la
+        app sigue abierta igual."""
+        try:
+            from gui.actualizacion import arranque_gui
+            arranque_gui(self, self._version)
+        except Exception:  # noqa: BLE001
+            pass
+
     def _ajustar_tamano(self) -> None:
         """Elige un tamano que SI quepa en la pantalla, y centra la ventana.
 

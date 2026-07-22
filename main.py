@@ -595,17 +595,27 @@ if __name__ == "__main__":
         # "Volver al modo texto" de la ventana, y automaticamente si la
         # interfaz grafica no se puede abrir en esa maquina.
         #
-        # Antes de elegir interfaz: revisar si hay version nueva y avisar del
-        # origen oficial. Va aqui y no dentro de main() para que tambien pase
-        # cuando se abre la ventana, que es el caso normal.
-        arranque_comun()
-
+        # El arranque (revisar version nueva + aviso de origen oficial) corre
+        # en la interfaz ACTIVA, no antes de elegirla: en consola lo hace
+        # arranque_comun (texto); con ventanas lo hace la propia GUI como
+        # dialogos (gui/actualizacion). Asi la consola negra se esconde de una
+        # en vez de quedar visible mientras se contesta "hay version nueva?" —
+        # que era justo lo que se veia poco confiable al arrancar.
         if "--consola" in sys.argv:
+            arranque_comun()
             main()
-        elif abrir_gui() != "salir":
-            # "consola" (el usuario lo pidio) o "fallo" (tkinter no jalo):
-            # en ambos casos se cae al menu de texto en vez de dejarlo sin app.
-            main()
+        else:
+            resultado = abrir_gui()  # esconde la consola; la GUI hace su arranque
+            if resultado == "fallo":
+                # La ventana no pudo abrir: nunca mostro esos dialogos. Se cae a
+                # consola y el arranque de texto se hace aqui.
+                arranque_comun()
+                main()
+            elif resultado == "consola":
+                # El usuario pidio modo texto DESPUES de que la GUI ya mostro
+                # origen/updates; no se repite el arranque.
+                main()
+            # "salir": termina.
     except Exception:
         import traceback
         # Guardar traceback completo en archivo para diagnostico.
