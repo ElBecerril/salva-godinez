@@ -13,10 +13,12 @@ Todos los cambios notables del proyecto se documentan aqui.
   colgaba del arranque viejo quedo huerfano al mover el punto de entrada
 
 ### Agregado
-- **Despedida en la version con ventanas.** Al cerrar la app sale un cuadro
-  "Te sirvio SalvaGodinez?" con botones que abren YouTube y Facebook con un
+- **Despedida en la version con ventanas.** Al cerrar la app sale un cuadro de
+  agradecimiento con botones que abren YouTube, Facebook e Instagram con un
   clic (antes, en el modo texto, habia que escribir un numero). El mensaje solo
   sale al cerrar para salir, no al volver al modo texto (que ya tiene el suyo)
+- **Instagram** (@el_becerril) se suma a las redes, tanto en la despedida de
+  ventanas como en la de texto
 
 ### Cambiado
 - Las redes ahora viven en un solo lugar (`config.CANALES_APOYO`), usado por las

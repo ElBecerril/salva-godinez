@@ -36,14 +36,15 @@ def mostrar_despedida(parent: tk.Misc) -> None:
     cont.pack(fill="both", expand=True)
 
     ttk.Label(
-        cont, text="Te sirvio SalvaGodinez?", style="Title.TLabel",
+        cont, text="Espero haberte salvado el dia", style="Title.TLabel",
     ).pack(anchor="w")
 
     ttk.Label(
         cont,
         text=(
-            "Esta herramienta es 100% gratis. Si te ayudo, ver mis videos me "
-            "ayuda muchisimo a seguir haciendola."
+            "SalvaGodinez es gratis y siempre lo sera. Lo hago yo solo; si te "
+            "sirvio, date una vuelta por mis redes: ahi hay mas cosas para "
+            "sobrevivir la oficina."
         ),
         style="Subtitle.TLabel", justify="left", wraplength=420,
     ).pack(anchor="w", pady=(8, 18))

@@ -81,6 +81,7 @@ OLD_DOWNLOAD_DAYS = 30
 CANALES_APOYO = [
     ("YouTube", "@el_becerril", "https://www.youtube.com/@el_becerril"),
     ("Facebook", "El Becerril", "https://www.facebook.com/elbecerrilslim"),
+    ("Instagram", "@el_becerril", "https://www.instagram.com/el_becerril"),
 ]
 
 # ─── Simulador de prestaciones — constantes laborales Mexico ──
