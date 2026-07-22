@@ -64,7 +64,7 @@ from tools.printer_share import printer_share_menu
 from tools.salary_calculator import salary_calculator_menu
 from tools.retention_calculator import retention_calculator_menu
 from tools.updater import check_for_updates
-from utils import console, ocultar_consola, mostrar_consola
+from utils import console, asegurar_consola_texto
 from config import CANALES_APOYO
 
 
@@ -515,29 +515,39 @@ def _show_source_notice() -> None:
 def abrir_gui() -> str:
     """Abre la version con ventanas. Devuelve "salir", "consola" o "fallo".
 
-    Mientras la ventana esta abierta se esconde la consola: el .exe se compila
-    como app de consola para que el modo texto siga funcionando, y sin esto
-    quedaria una ventana negra de cmd detras de la interfaz grafica.
+    El .exe se compila como app de VENTANA (console=False): al arrancar NO hay
+    consola negra que esconder. El truco viejo (compilar como consola y
+    esconderla con ShowWindow) ya NO funciona en Windows 11 — la consola la
+    hospeda Windows Terminal, que ignora el hide, y la ventana negra quedaba
+    detras de la GUI. Ahora no se crea ninguna.
 
-    El import va adentro y no arriba a proposito: si tkinter falta o la ventana
-    truena al construirse, la consola tiene que seguir funcionando. Es el
-    respaldo de toda la app.
+    Si tkinter falta o la ventana truena, se devuelve "fallo" y main.py cae a
+    modo texto, que crea su propia consola on-demand. El import va adentro a
+    proposito: es el respaldo si la GUI no abre en esa maquina.
     """
     try:
         from gui.app import run as run_gui
-    except Exception as e:
-        console.print(f"[red]No se pudo abrir la version con ventanas: {e}[/red]")
+        return run_gui(__version__)
+    except Exception:
+        # Sin consola no hay donde imprimir; se registra en el log para
+        # diagnostico y se cae a modo texto (el fallback crea la consola).
+        _registrar_error_gui()
         return "fallo"
 
-    escondida = ocultar_consola()
+
+def _registrar_error_gui() -> None:
+    """Guarda en salva_error.log el motivo de que la GUI no abriera."""
+    import traceback
     try:
-        return run_gui(__version__)
-    except Exception as e:
-        console.print(f"[red]La version con ventanas se cerro por un error: {e}[/red]")
-        return "fallo"
-    finally:
-        if escondida:
-            mostrar_consola()
+        if getattr(sys, "frozen", False):
+            base_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(base_dir, "salva_error.log"), "a", encoding="utf-8") as f:
+            f.write("\n--- No se pudo abrir la version con ventanas ---\n")
+            traceback.print_exc(file=f)
+    except OSError:
+        pass
 
 
 def arranque_comun() -> None:
@@ -602,18 +612,22 @@ if __name__ == "__main__":
         # en vez de quedar visible mientras se contesta "hay version nueva?" —
         # que era justo lo que se veia poco confiable al arrancar.
         if "--consola" in sys.argv:
+            asegurar_consola_texto()  # el .exe es app de ventana; crear consola
             arranque_comun()
             main()
         else:
-            resultado = abrir_gui()  # esconde la consola; la GUI hace su arranque
+            resultado = abrir_gui()  # app de ventana: abre limpia, sin consola
             if resultado == "fallo":
                 # La ventana no pudo abrir: nunca mostro esos dialogos. Se cae a
-                # consola y el arranque de texto se hace aqui.
+                # consola (que hay que crear) y el arranque de texto se hace aqui.
+                asegurar_consola_texto()
                 arranque_comun()
                 main()
             elif resultado == "consola":
                 # El usuario pidio modo texto DESPUES de que la GUI ya mostro
-                # origen/updates; no se repite el arranque.
+                # origen/updates; no se repite el arranque, pero si hace falta la
+                # consola.
+                asegurar_consola_texto()
                 main()
             # "salir": termina.
     except Exception:
@@ -633,6 +647,8 @@ if __name__ == "__main__":
                 traceback.print_exc(file=f)
         except OSError:
             log_path = None
+        # El .exe es app de ventana: para mostrar el error hace falta una consola.
+        asegurar_consola_texto()
         console.print("\n[bold red]Ocurrio un error inesperado.[/bold red]")
         if log_path:
             console.print(f"[dim]Detalles guardados en: {log_path}[/dim]")

@@ -36,7 +36,12 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    # App de VENTANA (sin consola). En Windows 11 no se puede esconder la
+    # consola de forma confiable (ShowWindow no la oculta con Windows Terminal),
+    # asi que no se crea ninguna: la GUI abre limpia. El modo texto (--consola,
+    # fallback, o un crash) crea/adjunta una consola on-demand via
+    # utils.asegurar_consola_texto().
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

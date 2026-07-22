@@ -4,11 +4,45 @@ import ctypes
 import os
 import string
 import struct
+import sys
 
 from rich.console import Console
 
-# Instancia compartida de Console para todo el proyecto.
+# Instancia compartida de Console para todo el proyecto. Se crea SIN archivo
+# fijo a proposito: rich toma sys.stdout de forma dinamica, asi que si el modo
+# texto crea una consola despues (asegurar_consola_texto) y redirige stdout,
+# este console empieza a escribir ahi sin recrearse.
 console = Console()
+
+
+def asegurar_consola_texto() -> None:
+    """Crea o adjunta una consola para el modo texto. Solo Windows.
+
+    El .exe se compila como app de VENTANA (console=False): al abrir con la GUI
+    no aparece ninguna consola negra. El truco viejo era compilar como consola y
+    esconderla con ShowWindow(SW_HIDE), pero en Windows 11 eso ya NO funciona —
+    la consola la hospeda Windows Terminal, que ignora ese hide, y la ventana
+    negra quedaba detras de la GUI en vez de ocultarse.
+
+    Como sin consola el modo texto no tendria donde imprimir, aqui se crea una
+    SOLO cuando de verdad se usa (--consola, fallback de la GUI, o un crash):
+    si el .exe se lanzo desde una cmd/PowerShell se reusa esa; si no, se crea
+    una nueva. Luego se reconecta el stdio de Python a esa consola.
+    """
+    if os.name != "nt":
+        return
+    try:
+        kernel32 = ctypes.windll.kernel32
+        ATTACH_PARENT_PROCESS = -1  # ctypes lo pasa como DWORD 0xFFFFFFFF
+        if not kernel32.AttachConsole(ATTACH_PARENT_PROCESS):
+            kernel32.AllocConsole()
+        sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
+        sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
+        sys.stdin = open("CONIN$", "r", encoding="utf-8", errors="replace")
+    except OSError:
+        # Si algo falla al montar la consola, el modo texto no imprimira, pero
+        # la app no debe tumbarse por eso.
+        pass
 
 
 def ps_escape(value: str) -> str:
