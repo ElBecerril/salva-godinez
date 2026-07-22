@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.6.0
+**by El_Becerril** | v2.6.1
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -88,7 +88,7 @@ programa gratuito recien salido. Para abrirlo:
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.6.0: la app abre como ventana limpia (se acabo la consola negra en Windows 11), el auto-updater vuelve a conectar a GitHub desde el .exe (certificados SSL empaquetados), y una ronda de auditoria cierra crashes por nombres con corchetes, protege los autorecuperados de Office al liberar espacio, y afina los calculos fiscales. Ver [CHANGELOG](CHANGELOG.md).
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.6.1: segunda ronda de la auditoria completa — el auto-updater instala de forma atomica y encuentra el Escritorio real (OneDrive), el rescate ya no oculta archivos de la papelera, se cierran congelamientos y falsos positivos en varias pantallas, y se paga deuda tecnica. v2.6.0 dejo la app como ventana limpia (adios consola negra) y el updater conectando desde el .exe. Ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 

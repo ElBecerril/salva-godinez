@@ -2,6 +2,58 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.6.1] - 2026-07-22
+
+Segunda ronda de la auditoria completa de v2.6.0: se cierran los bugs con
+impacto real que quedaron abiertos (updater, rescate, congelamientos de la
+interfaz, falsos positivos) y se paga deuda tecnica. Verificado en Windows real.
+
+### Seguridad
+- **Auto-updater: instalacion atomica.** El .exe nuevo se descarga a un temporal
+  EN el mismo Escritorio y se coloca con un rename atomico. Antes, si la
+  descarga se interrumpia a la mitad, podia quedar un .exe truncado; ahora un
+  corte solo deja un archivo temporal inofensivo. Ademas el aviso de descarga no
+  se puede cerrar mientras baja y verifica.
+- **Auto-updater: encuentra el Escritorio real.** En equipos con OneDrive (comun
+  en oficinas), el Escritorio esta redirigido; antes la actualizacion fallaba al
+  guardarse. Ahora se resuelve la ruta real.
+- **Verificacion de la firma mas robusta.** El SHA-256 de las notas del release
+  se lee aunque este dentro de un bloque de formato; antes, en ese caso, el
+  updater rechazaba la actualizacion como "sin firma".
+
+### Corregido
+- **Recuperar archivos: ya no oculta resultados de la papelera.** Dos archivos
+  borrados sin carpeta original registrada se mostraban como uno solo; ahora
+  aparecen todos.
+- **La ventana ya no se congela** al guardar/comparar archivos de Excel grandes
+  ni al recuperar un archivo pesado (esas tareas corren en segundo plano). La
+  tabla de diferencias se limita para no trabar la app con archivos enormes.
+- **Menos crashes silenciosos en la interfaz:** cambiar de pantalla o de
+  operacion a media tarea ya no deja la ventana trabada ni impide cerrarla.
+- **PDF protegido con contrasena:** al dividirlo ya no se reporta como "danado";
+  ahora avisa que esta protegido.
+- **Revisar USB: menos falsos "USB falsa".** La prueba ya no marca como
+  sospechosa una USB legitima casi llena.
+- **Comparar Excel** avisa cuando el resultado "identicos" puede deberse a
+  formulas sin valor guardado (evita un falso negativo).
+- **Carpetas de red:** si `net use` falla, se muestra el error real en vez de
+  decir "no hay carpetas conectadas".
+- **Datos del equipo:** si no se puede leer la MAC real, se muestra "No
+  disponible" en vez de una direccion inventada.
+- **Desbloquear archivo en uso:** ya no afirma "sin procesos" con falsa certeza
+  cuando el sistema no pudo consultarlo.
+
+### Cambiado
+- **Guardar respeta "Reemplazar".** Al unir/crear PDF o guardar un Excel limpio,
+  si confirmas reemplazar un archivo existente se escribe con ese nombre exacto
+  (antes creaba una copia con "_1"). Nunca se pisa un archivo de ENTRADA.
+- **Guardar Excel conserva la extension** del original (no guarda un .xlsm con
+  macros como .xlsx, que las perderia).
+- **Prestaciones/liquidacion:** la antiguedad acepta decimales para pagar la
+  parte proporcional del anio; mensajes de ayuda mas claros por campo.
+- **Menos parpadeos y mensajes ambiguos** (papelera vacia vs. no vaciada, avisos
+  de carpetas de red) y limpieza interna de codigo sin uso.
+
 ## [2.6.0] - 2026-07-22
 
 Ronda grande: se cierra la consola negra de Windows 11, el auto-updater vuelve
