@@ -83,6 +83,14 @@ def search_shadow_copies(name_filter: str, original_path: str = "") -> list[dict
 
         # Si conocemos la ruta original, buscar directamente
         if original_path:
+            # Si la shadow copy es de otra unidad, no aplica: evita
+            # reportar como "copia de seguridad" un archivo de otro volumen
+            # que por casualidad tiene la misma ruta relativa.
+            shadow_drive = shadow.get("drive", "").strip(":").upper()
+            if len(original_path) > 1 and original_path[1] == ":" and shadow_drive:
+                if original_path[0].upper() != shadow_drive:
+                    continue
+
             # Convertir C:\Users\... a \\?\GLOBALROOT\...\Users\...
             rel_path = original_path
             if len(rel_path) > 2 and rel_path[1] == ":":

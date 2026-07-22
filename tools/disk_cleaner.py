@@ -546,7 +546,12 @@ def disk_cleaner_menu() -> None:
     if resultado["papelera_vaciada"]:
         console.print("  [green]Papelera vaciada.[/green]")
     if resultado["papelera_fallo"]:
-        console.print("  [dim]La papelera ya estaba vacia o no se pudo vaciar.[/dim]")
+        # Distinguir los dos casos opuestos: si _query_recycle_bin habia
+        # reportado archivos, es que fallo el vaciado; si no, ya estaba vacia.
+        if recycle_count > 0:
+            console.print("  [yellow]No se pudo vaciar la papelera.[/yellow]")
+        else:
+            console.print("  [dim]La papelera ya estaba vacia.[/dim]")
     if resultado["descargas_movidas"]:
         console.print(
             f"  [green]{resultado['descargas_movidas']} archivo(s) movido(s) a la "

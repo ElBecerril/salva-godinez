@@ -193,6 +193,13 @@ class PanelLimpiarCeldas(ToolPanel):
         if not destino:
             return
 
+        # El dialogo permite escribir cualquier extension a mano: forzar la
+        # del original para no guardar .xlsm con macros como .xlsx (se
+        # pierden) ni .xlsx como .xlsm (queda invalido).
+        destino_base, destino_ext = os.path.splitext(destino)
+        if destino_ext.lower() != ext.lower():
+            destino = destino_base + ext
+
         if os.path.abspath(destino) == os.path.abspath(self._filepath):
             self.error(
                 "No se puede sobrescribir el original",

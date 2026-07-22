@@ -68,12 +68,15 @@ def _merge_files(paths: list[str], output: str) -> dict:
             existing = {s.title for s in dest_wb.worksheets}
             if sheet_name in existing:
                 # Agregar sufijo numerico si el nombre truncado ya existe
-                for n in range(2, 100):
+                # (while garantiza nombre libre sin importar cuantas colisiones haya)
+                n = 2
+                while True:
                     suffix = f"_{n}"
                     candidate = f"{base}_{ws.title}"[:31 - len(suffix)] + suffix
                     if candidate not in existing:
                         sheet_name = candidate
                         break
+                    n += 1
             dest_ws = dest_wb.create_sheet(title=sheet_name)
 
             for row in ws.iter_rows():

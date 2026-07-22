@@ -244,13 +244,8 @@ class PanelEspacio(ToolPanel):
             ).pack(anchor="w", padx=8)
 
     # ------------------------------------------------------------------
-    # Sincronizacion entre la casilla de la categoria y las de cada archivo
+    # Marcado masivo de descargas
     # ------------------------------------------------------------------
-    #
-    # Hay dos niveles de casillas y el usuario no tiene por que entender la
-    # jerarquia: marca lo que quiere borrar y ya. Se mantienen alineadas en
-    # ambos sentidos para que lo que se ve en pantalla sea exactamente lo que
-    # la app va a hacer.
 
     def _marcar_descargas(self, valor: bool) -> None:
         """Marca o desmarca todas las descargas de golpe."""
@@ -351,7 +346,11 @@ class PanelEspacio(ToolPanel):
                 "recuperarlos."
             )
         if res["papelera_fallo"]:
-            partes.append("La papelera ya estaba vacia o no se pudo vaciar.")
+            _, papelera_count = self._papelera
+            if papelera_count > 0:
+                partes.append("No se pudo vaciar la papelera.")
+            else:
+                partes.append("La papelera ya estaba vacia.")
         if res["descargas_fallaron"]:
             partes.append(
                 "No pude mover las descargas a la Papelera, asi que no borre ninguna: "

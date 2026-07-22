@@ -20,9 +20,16 @@ def get_system_info() -> dict:
         info["ip"] = socket.gethostbyname(info["hostname"])
     except socket.gaierror:
         info["ip"] = "No disponible"
-    info["mac"] = ":".join(
-        f"{(uuid.getnode() >> i) & 0xFF:02x}" for i in range(40, -1, -8)
-    )
+    node = uuid.getnode()
+    if node & (1 << 40):
+        # Bit multicast activo: uuid.getnode() no pudo leer la MAC real de
+        # hardware y devolvio un numero aleatorio. Mostrarlo como MAC real
+        # enganaria al usuario.
+        info["mac"] = "No disponible"
+    else:
+        info["mac"] = ":".join(
+            f"{(node >> i) & 0xFF:02x}" for i in range(40, -1, -8)
+        )
     info["sistema"] = f"{platform.system()} {platform.release()}"
     info["version"] = platform.version()
     info["arquitectura"] = platform.machine()

@@ -15,6 +15,7 @@ import urllib.request
 from rich.panel import Panel
 from rich.progress import Progress, BarColumn, DownloadColumn, TransferSpeedColumn
 from rich.prompt import Confirm
+from rich.markup import escape
 from utils import console
 
 REPO = "ElBecerril/salva-godinez"
@@ -162,8 +163,8 @@ def fetch_latest_release() -> dict:
             GITHUB_API_URL,
             headers={"User-Agent": "SalvaGodinez-Updater"},
         )
-        resp = urllib.request.urlopen(req, timeout=5, context=_get_ssl_context())
-        data = json.loads(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(req, timeout=5, context=_get_ssl_context()) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
         return {"ok": True, "data": data}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -341,7 +342,7 @@ def check_for_updates(current_version: str) -> None:
     try:
         _check_for_updates(current_version)
     except Exception as e:
-        console.print(f"[dim]No se pudo verificar actualizaciones: {e}[/dim]")
+        console.print(f"[dim]No se pudo verificar actualizaciones: {escape(str(e))}[/dim]")
 
 
 def _check_for_updates(current_version: str) -> None:
@@ -351,7 +352,7 @@ def _check_for_updates(current_version: str) -> None:
         # Esto solo cubre la verificacion de si hay una version nueva
         # (llamada a la API de GitHub): sin internet, timeout, API error, etc.
         # No cubre la descarga en si, que reporta sus propios errores abajo.
-        console.print(f"[dim]No se pudo verificar actualizaciones: {release['error']}[/dim]")
+        console.print(f"[dim]No se pudo verificar actualizaciones: {escape(str(release['error']))}[/dim]")
         return
 
     data = release["data"]
@@ -363,7 +364,7 @@ def _check_for_updates(current_version: str) -> None:
 
     console.print(
         Panel(
-            f"[bold]Nueva version disponible:[/bold] {remote_tag}\n"
+            f"[bold]Nueva version disponible:[/bold] {escape(remote_tag)}\n"
             f"[dim]Tu version actual: v{current_version}[/dim]",
             title="[bold yellow]Actualizacion disponible[/bold yellow]",
             border_style="yellow",
@@ -406,9 +407,9 @@ def _check_for_updates(current_version: str) -> None:
 
     if result["ok"]:
         console.print("[green]SHA-256 verificado correctamente.[/green]")
-        console.print(f"[bold green]Guardado en:[/bold green] {result['dest']}")
+        console.print(f"[bold green]Guardado en:[/bold green] {escape(result['dest'])}")
         for old, err in result.get("old_errors", []):
-            console.print(f"[yellow]No se pudo eliminar version anterior {old}: {err}[/yellow]")
+            console.print(f"[yellow]No se pudo eliminar version anterior {escape(old)}: {escape(str(err))}[/yellow]")
         return
 
     reason = result.get("reason")
@@ -441,4 +442,4 @@ def _check_for_updates(current_version: str) -> None:
             "GitHub si lo necesitas.[/dim]"
         )
     elif reason == "exception":
-        console.print(f"[bold red]Error al descargar la actualizacion: {result['error']}[/bold red]")
+        console.print(f"[bold red]Error al descargar la actualizacion: {escape(str(result['error']))}[/bold red]")

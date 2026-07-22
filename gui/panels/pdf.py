@@ -23,7 +23,6 @@ from gui.base import EstadoLabel, ToolPanel
 from tools.pdf_tools import (
     _import_pillow,
     _import_pymupdf,
-    _safe_output_path,
     clean_metadata_do,
     delete_pages_do,
     extract_text_do,
@@ -291,8 +290,12 @@ class PanelPdf(ToolPanel):
             if not salida:
                 return
 
+            # overwrite=True: el dialogo nativo ya pregunto "reemplazar?" si el
+            # archivo existia y el usuario confirmo, asi que se escribe en el
+            # nombre exacto en vez de renombrar a "_1". merge_pdfs_do respeta
+            # igual el guard de no pisar un PDF de entrada (same_as_input).
             def trabajo():
-                return merge_pdfs_do(paths, salida)
+                return merge_pdfs_do(paths, salida, overwrite=True)
 
             def al_terminar(resultado) -> None:
                 if not resultado.get("ok"):
@@ -855,10 +858,12 @@ class PanelPdf(ToolPanel):
             )
             if not salida:
                 return
-            # images_to_pdf_do no protege contra sobrescritura por si sola
-            # (a diferencia de las demas *_do): el flujo de consola aplica
-            # _safe_output_path ANTES de llamarla, y aqui se hace lo mismo.
-            salida = _safe_output_path(salida)
+            # images_to_pdf_do no protege contra sobrescritura por si sola,
+            # pero aca la salida es un PDF nuevo a partir de imagenes (no
+            # hay riesgo de pisar un archivo de entrada): si "salida" ya
+            # existia, el dialogo nativo ya pregunto "reemplazar?" y el
+            # usuario confirmo, asi que se escribe en el nombre exacto en
+            # vez de renombrar a "_1" (eso contradiria esa confirmacion).
 
             def trabajo():
                 return images_to_pdf_do(Image, paths, salida)

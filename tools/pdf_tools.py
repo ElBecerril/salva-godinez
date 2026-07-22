@@ -215,8 +215,13 @@ def get_pdf_metadata_fields(meta):
     return [(label, value) for label, value in fields if value]
 
 
-def merge_pdfs_do(paths, output):
+def merge_pdfs_do(paths, output, overwrite=False):
     """Une multiples PDFs (paths) en un solo archivo (output).
+
+    Si overwrite=True (la interfaz YA confirmo reemplazar, p.ej. el dialogo
+    nativo de Windows pregunto "el archivo existe, reemplazar?"), se escribe en
+    la ruta exacta en vez de renombrar a "_1". El guard "no pisar un PDF de
+    entrada" (same_as_input) SIEMPRE se respeta, con o sin overwrite.
 
     Retorna dict {"ok": True, "output", "total_pages", "warnings"} o
     {"ok": False, "error": "no_pypdf"|"same_as_input"|"no_pages"|"write_error",
@@ -230,7 +235,8 @@ def merge_pdfs_do(paths, output):
     if os.path.abspath(output) in input_abspaths:
         return {"ok": False, "error": "same_as_input"}
 
-    output = _safe_output_path(output)
+    if not overwrite:
+        output = _safe_output_path(output)
 
     warnings = []
     try:
