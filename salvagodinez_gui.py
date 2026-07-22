@@ -1,8 +1,7 @@
-"""Entrada de la interfaz grafica (PILOTO).
+"""Entrada directa a la interfaz grafica (atajo de desarrollo).
 
-Deliberadamente separado de main.py: la app de consola es la que se distribuye
-hoy y no debe verse afectada por este piloto. Cuando se decida si la GUI
-reemplaza a la consola o convive con ella, esto se integra o se descarta.
+La GUI es la interfaz por default desde v2.5.0; el .exe la abre via main.py.
+Este archivo es solo un atajo para lanzarla sin pasar por el menu de consola.
 
 Uso:  python salvagodinez_gui.py
 """

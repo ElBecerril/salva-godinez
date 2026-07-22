@@ -91,11 +91,10 @@ def open_pdf(path):
 
 
 def read_pdf_total(path):
-    """Abre un PDF y retorna su total de paginas (sin manejo de cifrado).
+    """Abre un PDF y retorna su total de paginas (maneja cifrado como open_pdf).
 
-    Replica el comportamiento original de split_pdf: no intenta descifrar.
     Retorna dict {"ok": True, "pypdf", "reader", "total"} o
-    {"ok": False, "error": "no_pypdf"|"not_found"|"corrupt", "detail": opcional}.
+    {"ok": False, "error": "no_pypdf"|"not_found"|"corrupt"|"encrypted", "detail": opcional}.
     """
     pypdf = _import_pypdf()
     if not pypdf:
@@ -104,8 +103,23 @@ def read_pdf_total(path):
         return {"ok": False, "error": "not_found"}
     try:
         reader = pypdf.PdfReader(path)
-        total = len(reader.pages)
     except (pypdf.errors.PdfReadError, pypdf.errors.PdfStreamError, OSError) as e:
+        return {"ok": False, "error": "corrupt", "detail": str(e)}
+
+    # Igual que open_pdf: un PDF cifrado no falla al abrir con PdfReader, pero
+    # tumba len(reader.pages) con FileNotDecryptedError. Intentamos descifrar
+    # con password vacio antes de reportar "corrupto" (mensaje falso).
+    if reader.is_encrypted:
+        try:
+            reader.decrypt("")
+        except Exception:
+            pass
+        if reader.is_encrypted:
+            return {"ok": False, "error": "encrypted"}
+
+    try:
+        total = len(reader.pages)
+    except Exception as e:
         return {"ok": False, "error": "corrupt", "detail": str(e)}
     return {"ok": True, "pypdf": pypdf, "reader": reader, "total": total}
 
@@ -244,12 +258,11 @@ def merge_pdfs_do(paths, output):
 
 
 def split_pdf_do(pypdf, reader, path, output_dir, mode, rango=None):
-    """Ejecuta la division de un PDF ya abierto (individual o por rango).
-
-    NOTA: preserva el comportamiento original de no envolver os.makedirs
-    en try/except (si falla, se propaga).
-    """
-    os.makedirs(output_dir, exist_ok=True)
+    """Ejecuta la division de un PDF ya abierto (individual o por rango)."""
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except OSError as e:
+        return {"ok": False, "error": "write_error", "detail": str(e)}
     base_name = os.path.splitext(os.path.basename(path))[0]
     total = len(reader.pages)
 
@@ -416,12 +429,11 @@ def images_to_pdf_do(Image, paths, output):
 
 
 def pdf_to_images_do(fitz, path, fmt, dpi, output_dir):
-    """Convierte cada pagina de un PDF a imagen.
-
-    NOTA: preserva el comportamiento original: os.makedirs no esta
-    envuelto en el try/except (si falla, se propaga).
-    """
-    os.makedirs(output_dir, exist_ok=True)
+    """Convierte cada pagina de un PDF a imagen."""
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except OSError as e:
+        return {"ok": False, "error": "write_error", "detail": str(e)}
     try:
         doc = fitz.open(path)
         base_name = os.path.splitext(os.path.basename(path))[0]
@@ -645,6 +657,11 @@ def split_pdf() -> None:
             console.print("[red]Archivo no encontrado.[/red]")
         elif open_result["error"] == "corrupt":
             console.print(f"[red]Error al leer PDF (archivo corrupto o invalido): {escape(str(open_result['detail']))}[/red]")
+        elif open_result["error"] == "encrypted":
+            console.print(
+                "[red]El PDF esta protegido con contrasena. Usa primero la opcion "
+                "'Proteger/Desproteger PDF' para quitarle la proteccion.[/red]"
+            )
         return
 
     pypdf, reader, total = open_result["pypdf"], open_result["reader"], open_result["total"]
@@ -928,7 +945,7 @@ def protect_pdf() -> None:
     if reader.is_encrypted:
         # Desproteger
         console.print("[dim]El PDF esta protegido con password.[/dim]")
-        password = getpass.getpass("Password actual: ").strip()
+        password = getpass.getpass("Password actual: ")
 
         exec_result = unprotect_pdf_do(pypdf, reader, password, base_name)
         if not exec_result["ok"]:
@@ -944,12 +961,12 @@ def protect_pdf() -> None:
     else:
         # Proteger
         console.print("[dim]El PDF no tiene proteccion.[/dim]")
-        password = getpass.getpass("Nueva password: ").strip()
+        password = getpass.getpass("Nueva password: ")
         if not password:
             console.print("[yellow]Password vacio, operacion cancelada.[/yellow]")
             return
 
-        confirm = getpass.getpass("Confirmar password: ").strip()
+        confirm = getpass.getpass("Confirmar password: ")
         if password != confirm:
             console.print("[red]Las passwords no coinciden.[/red]")
             return

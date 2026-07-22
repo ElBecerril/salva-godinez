@@ -36,9 +36,10 @@ class PanelUsbExpulsar(ToolPanel):
         )
         self._combo.pack(side="left", padx=(10, 10))
 
-        ttk.Button(
+        self._btn_detectar = ttk.Button(
             fila_unidad, text="Actualizar lista", command=self._detectar,
-        ).pack(side="left")
+        )
+        self._btn_detectar.pack(side="left")
 
         self._estado = EstadoLabel(self.body)
         self._estado.pack(anchor="w", pady=(12, 6))
@@ -89,6 +90,9 @@ class PanelUsbExpulsar(ToolPanel):
     # ------------------------------------------------------------------
 
     def _expulsar(self) -> None:
+        if getattr(self, "_expulsando", False):
+            return
+
         drive = self._var_drive.get()
         if not drive:
             return
@@ -102,7 +106,9 @@ class PanelUsbExpulsar(ToolPanel):
             self._estado.info("Operacion cancelada.")
             return
 
+        self._expulsando = True
         self._btn_expulsar.configure(state="disabled")
+        self._btn_detectar.configure(state="disabled")
         self._combo.configure(state="disabled")
         self._estado.info(f"Expulsando {drive}...")
 
@@ -112,7 +118,9 @@ class PanelUsbExpulsar(ToolPanel):
         self.run_async(trabajo, self._expulsion_lista)
 
     def _expulsion_lista(self, ok: bool, resultado) -> None:
+        self._expulsando = False
         self._combo.configure(state="readonly")
+        self._btn_detectar.configure(state="normal")
         if self._drives:
             self._btn_expulsar.configure(state="normal")
 

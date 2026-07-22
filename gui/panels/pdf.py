@@ -18,11 +18,10 @@ import os
 import tkinter as tk
 from tkinter import filedialog, ttk
 
-from PIL import Image
-
 from gui import theme
 from gui.base import EstadoLabel, ToolPanel
 from tools.pdf_tools import (
+    _import_pillow,
     _import_pymupdf,
     _safe_output_path,
     clean_metadata_do,
@@ -204,7 +203,8 @@ class PanelPdf(ToolPanel):
         boton.configure(state="disabled")
 
         def _done(ok: bool, resultado) -> None:
-            boton.configure(state="normal")
+            if boton.winfo_exists():
+                boton.configure(state="normal")
             if not ok:
                 self._estado.alerta("Ocurrio un error inesperado.")
                 self.error(
@@ -839,6 +839,14 @@ class PanelPdf(ToolPanel):
             paths = list(estado_local["paths"])
             if not paths:
                 self._estado.alerta("Agrega al menos una imagen.")
+                return
+            Image = _import_pillow()
+            if not Image:
+                self.error(
+                    "Funcion no disponible",
+                    "Esta version no incluye la libreria Pillow, necesaria "
+                    "para convertir imagenes a PDF.",
+                )
                 return
             salida = filedialog.asksaveasfilename(
                 parent=self, title="Guardar PDF como",

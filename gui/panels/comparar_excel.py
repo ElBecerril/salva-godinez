@@ -174,14 +174,35 @@ class PanelCompararExcel(ToolPanel):
                 encabezado = "Los dos archivos no tienen ninguna hoja en comun."
             else:
                 encabezado = "Los archivos son identicos en las hojas comunes."
+                aviso = resultado.get("data_only_warning")
+                if aviso:
+                    partes.append(f"Aviso: {aviso}")
             partes.insert(0, encabezado)
             self._estado.exito(" ".join(partes))
             self._cerrar_libros()
             return
 
+        # Tope de filas en la tabla: con dos archivos grandes y muy distintos
+        # puede haber cientos de miles de diferencias, y cada insert() corre
+        # en el hilo de la UI. Sin tope la ventana se congela igual que sin
+        # run_async. La consola capea a 30 por hoja; aca se usa un tope mas
+        # generoso (500 en total) porque la tabla se puede scrollear.
+        TOPE_FILAS = 500
+        filas_insertadas = 0
         for hoja, diffs in resultado["common_diffs"].items():
             for d in diffs:
+                if filas_insertadas >= TOPE_FILAS:
+                    break
                 self._tabla.insert("", "end", values=(hoja, d["celda"], d["v1"], d["v2"]))
+                filas_insertadas += 1
+            if filas_insertadas >= TOPE_FILAS:
+                break
+
+        if total_diffs > TOPE_FILAS:
+            self._tabla.insert(
+                "", "end",
+                values=("...", "", f"y {total_diffs - TOPE_FILAS} mas", ""),
+            )
 
         partes.insert(0, f"{total_diffs} diferencia(s) encontrada(s).")
         self._estado.exito(" ".join(partes))
@@ -212,19 +233,41 @@ class PanelCompararExcel(ToolPanel):
             return
 
         self._comparacion["_wb1"] = self._wb1
-        try:
-            _generate_diff_report(self._path1, self._path2, self._comparacion, destino)
-        except OSError as e:
+
+        # _generate_diff_report pinta celdas y guarda a disco: con archivos
+        # grandes puede tardar, asi que corre en el hilo de trabajo de
+        # run_async para no congelar la ventana. wb1/comparacion son
+        # atributos simples (no widgets), se leen aca y no se tocan de nuevo
+        # hasta el callback de UI.
+        path1, path2, comparacion = self._path1, self._path2, self._comparacion
+        self._btn_reporte.configure(state="disabled")
+        self._estado.info("Guardando reporte...")
+
+        def _trabajo():
+            _generate_diff_report(path1, path2, comparacion, destino)
+            return destino
+
+        self.run_async(_trabajo, lambda ok, res: self._on_reporte_guardado(ok, res, destino))
+
+    def _on_reporte_guardado(self, ok: bool, resultado, destino: str) -> None:
+        if not ok:
+            # _generate_diff_report solo cierra/guarda wb1 en el path de
+            # exito: si fallo, wb1 y wb2 siguen abiertos y utilizables para
+            # reintentar sin tener que comparar de nuevo. Se reactiva el
+            # boton para que el siguiente clic no caiga en silencio.
+            self._btn_reporte.configure(state="normal")
+            detalle = f"\n\nDetalle: {resultado}" if isinstance(resultado, OSError) else ""
+            self._estado.alerta("No se pudo guardar el reporte.")
             self.error(
                 "No se pudo guardar",
                 "No se pudo guardar el reporte. Revisa que no este abierto en Excel "
-                f"y que haya espacio en el disco.\n\nDetalle: {e}",
+                f"y que haya espacio en el disco.{detalle}",
             )
             return
-        finally:
-            # _generate_diff_report ya guarda y cierra wb1; wb2 sigue abierto.
-            self._wb1 = None
-            self._cerrar_libros()
+
+        # _generate_diff_report ya guardo y cerro wb1; wb2 sigue abierto.
+        self._wb1 = None
+        self._cerrar_libros()
 
         self._estado.exito(f"Reporte guardado en: {destino}")
         self._btn_reporte.configure(state="disabled")

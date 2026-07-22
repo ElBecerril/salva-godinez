@@ -42,9 +42,10 @@ class PanelUsbRespaldo(ToolPanel):
         )
         self._combo.pack(side="left", padx=(10, 10))
 
-        ttk.Button(
+        self._btn_detectar = ttk.Button(
             fila_unidad, text="Actualizar lista", command=self._detectar,
-        ).pack(side="left")
+        )
+        self._btn_detectar.pack(side="left")
 
         self._btn_calcular = ttk.Button(
             fila_unidad, text="Ver que se va a respaldar", style="Accent.TButton",
@@ -119,6 +120,8 @@ class PanelUsbRespaldo(ToolPanel):
             w.destroy()
         self._btn_calcular.configure(state="disabled")
         self._btn_respaldar.configure(state="disabled")
+        self._btn_detectar.configure(state="disabled")
+        self._combo.configure(state="disabled")
         self._estado.info("Calculando cuanto se va a respaldar...")
 
         def trabajo():
@@ -127,6 +130,8 @@ class PanelUsbRespaldo(ToolPanel):
         self.run_async(trabajo, lambda ok, res: self._calculo_listo(ok, res, drive))
 
     def _calculo_listo(self, ok: bool, resultado, drive: str) -> None:
+        self._combo.configure(state="readonly")
+        self._btn_detectar.configure(state="normal")
         self._btn_calcular.configure(state="normal" if self._drives else "disabled")
 
         if not ok:
@@ -194,6 +199,7 @@ class PanelUsbRespaldo(ToolPanel):
         self._respaldando = True
         self._btn_respaldar.configure(state="disabled")
         self._btn_calcular.configure(state="disabled")
+        self._btn_detectar.configure(state="disabled")
         self._combo.configure(state="disabled")
         self._barra.configure(maximum=max(self._total_bytes, 1), value=0)
         self._barra.pack(fill="x", pady=(4, 0))
@@ -225,6 +231,7 @@ class PanelUsbRespaldo(ToolPanel):
         if self._drives:
             self._btn_calcular.configure(state="normal")
             self._btn_respaldar.configure(state="normal")
+        self._btn_detectar.configure(state="normal")
         self._combo.configure(state="readonly")
 
         if not ok:

@@ -12,6 +12,16 @@ from utils import get_openpyxl as _get_openpyxl, console
 
 # --- Logica (sin UI) ---
 
+# Aviso de data_only: si un archivo nunca se abrio/recalculo en Excel, sus
+# celdas con formula quedan sin valor cacheado (leen None) y el comparador
+# los ve "iguales" a otra celda vacia aunque los archivos sean distintos.
+# Mismo aviso que usa excel_consolidator.py para load_workbook(data_only=True).
+DATA_ONLY_WARNING = (
+    "Si alguno de los dos archivos tiene formulas y nunca fue abierto/"
+    "recalculado en Excel antes de esto, esas celdas pueden leerse como "
+    "vacias y el resultado 'identico' puede ser enganoso."
+)
+
 
 def _safe_output_path(path: str) -> str:
     """Evita sobrescribir un archivo existente agregando un sufijo numerico."""
@@ -92,6 +102,9 @@ def compare_files(path1: str, path2: str) -> dict:
         # veian iguales cuando no habia diferencias.
         "common_count": len(names1 & names2),
         "common_diffs": {},
+        # Se expone aca para que la GUI tambien pueda mostrarlo (no solo la
+        # ruta de consola).
+        "data_only_warning": DATA_ONLY_WARNING,
         "_wb1": wb1,
         "_wb2": wb2,
     }
@@ -172,6 +185,7 @@ def comparator_menu() -> None:
                 console.print("\n[bold green]Los dos archivos no tienen ninguna hoja en comun.[/bold green]")
             else:
                 console.print("\n[bold green]Los archivos son identicos en las hojas comunes.[/bold green]")
+                console.print(f"[yellow]Aviso:[/yellow] {DATA_ONLY_WARNING}")
             return
 
         console.print(f"\n[bold yellow]{total_diffs} diferencia(s) encontrada(s):[/bold yellow]")

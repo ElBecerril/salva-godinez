@@ -45,9 +45,10 @@ class PanelUsbVirus(ToolPanel):
         )
         self._combo.pack(side="left", padx=(10, 10))
 
-        ttk.Button(
+        self._btn_detectar = ttk.Button(
             fila_unidad, text="Actualizar lista", command=self._detectar,
-        ).pack(side="left")
+        )
+        self._btn_detectar.pack(side="left")
 
         self._btn_escanear = ttk.Button(
             fila_unidad, text="Escanear", style="Accent.TButton",
@@ -119,6 +120,7 @@ class PanelUsbVirus(ToolPanel):
         self._btn_borrar.configure(state="disabled")
         self._btn_restaurar.configure(state="disabled")
         self._btn_escanear.configure(state="disabled")
+        self._btn_detectar.configure(state="disabled")
         self._combo.configure(state="disabled")
         self._estado.info(f"Escaneando {drive}, puede tardar un momento...")
 
@@ -129,6 +131,7 @@ class PanelUsbVirus(ToolPanel):
 
     def _escaneo_listo(self, ok: bool, resultado, drive: str) -> None:
         self._combo.configure(state="readonly")
+        self._btn_detectar.configure(state="normal")
         self._btn_escanear.configure(state="normal" if self._drives else "disabled")
         self._btn_restaurar.configure(state="normal" if self._drives else "disabled")
 
@@ -236,6 +239,8 @@ class PanelUsbVirus(ToolPanel):
         self._btn_borrar.configure(state="disabled")
         self._btn_escanear.configure(state="disabled")
         self._btn_restaurar.configure(state="disabled")
+        self._btn_detectar.configure(state="disabled")
+        self._combo.configure(state="disabled")
         self._estado.info("Eliminando...")
 
         def trabajo():
@@ -245,6 +250,8 @@ class PanelUsbVirus(ToolPanel):
 
     def _eliminacion_lista(self, ok: bool, resultado) -> None:
         self._borrando = False
+        self._combo.configure(state="readonly")
+        self._btn_detectar.configure(state="normal")
         if self._drives:
             self._btn_escanear.configure(state="normal")
             self._btn_restaurar.configure(state="normal")
@@ -277,6 +284,9 @@ class PanelUsbVirus(ToolPanel):
             return
 
         self._btn_restaurar.configure(state="disabled")
+        self._btn_escanear.configure(state="disabled")
+        self._btn_detectar.configure(state="disabled")
+        self._combo.configure(state="disabled")
         self._estado.info("Restaurando carpetas ocultas...")
 
         def trabajo():
@@ -285,8 +295,11 @@ class PanelUsbVirus(ToolPanel):
         self.run_async(trabajo, self._restauracion_lista)
 
     def _restauracion_lista(self, ok: bool, resultado) -> None:
+        self._combo.configure(state="readonly")
+        self._btn_detectar.configure(state="normal")
         if self._drives:
             self._btn_restaurar.configure(state="normal")
+            self._btn_escanear.configure(state="normal")
 
         if not ok:
             self._estado.alerta("No se pudo completar la restauracion. Intenta de nuevo.")

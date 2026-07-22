@@ -142,6 +142,23 @@ def _speed_test(drive: str, size_mb: int = 10) -> dict:
             pass
 
 
+def _select_offsets(test_size: int, chunk_size: int, max_points: int = 4) -> list[int]:
+    """Elige hasta `max_points` offsets distribuidos sobre `test_size`,
+    garantizando una separacion minima de `chunk_size` entre offsets
+    consecutivos para que los chunks de prueba nunca se solapen (ver
+    docstring de `_detect_fake_usb`). Si `test_size` no alcanza para
+    separar varios puntos, cae a los que si quepan (minimo 1: el offset 0).
+    """
+    if test_size <= chunk_size:
+        return [0]
+    rango_util = test_size - chunk_size
+    # cuantos puntos caben sin que sus chunks se solapen
+    puntos = min(max_points, rango_util // chunk_size + 1)
+    if puntos <= 1:
+        return [0]
+    return [int(rango_util * i / (puntos - 1)) for i in range(puntos)]
+
+
 def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
     """Prueba rapida (NO concluyente) de posible capacidad USB falsificada.
 
@@ -156,12 +173,13 @@ def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
     que no es viable en un diagnostico rapido.
 
     Como mejora sobre la version anterior, se escribe y verifica un
-    patron distinto en varios puntos distribuidos (10%, 50% y 90%) de
-    la capacidad reportada, acotados a un tamano maximo de prueba
-    (_FAKE_TEST_CAP) para mantener el chequeo rapido. Si la unidad
-    "falsea" mas capacidad de la que este limite cubre, esta prueba no
-    lo detectara — por eso el resultado se reporta como "sin indicios
-    de falsificacion" y NO como "autentica".
+    patron distinto en hasta 4 puntos distribuidos (inicio, ~10%, ~50%,
+    ~90%) de la capacidad reportada, acotados a un tamano maximo de prueba
+    (_FAKE_TEST_CAP) para mantener el chequeo rapido. La cantidad real de
+    puntos se ajusta segun quepan sin solaparse (ver `_select_offsets`). Si
+    la unidad "falsea" mas capacidad de la que este limite cubre, esta
+    prueba no lo detectara — por eso el resultado se reporta como "sin
+    indicios de falsificacion" y NO como "autentica".
     """
     _FAKE_TEST_CAP = 256 * 1024 * 1024  # limite de prueba: 256 MB
     chunk_size = 256 * 1024  # 256 KB por punto verificado
@@ -187,29 +205,28 @@ def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
                 "detail": "No se pudo completar la prueba por falta de espacio libre en la unidad",
             }
 
-    if test_size >= chunk_size * 2:
-        offsets_fraction = [0.0, 0.10, 0.50, 0.90]
-    else:
-        # No conocemos la capacidad reportada (o es muy chica): solo
-        # se puede probar el inicio de la unidad.
-        offsets_fraction = [0.0]
-        test_size = max(test_size, chunk_size)
+    test_size = max(test_size, chunk_size)
+
+    # Los offsets se calculaban antes como fracciones fijas (0%, 10%, 50%,
+    # 90%) de (test_size - chunk_size). Si test_size era chico (entre
+    # ~512 KB y ~2.8 MB, algo comun en una USB legitima casi llena), esas
+    # fracciones quedaban tan juntas que el chunk escrito en un offset
+    # pisaba la cola del chunk anterior; al releer no coincidia el patron
+    # y la funcion reportaba "posible USB falsa" siendo mentira. Ahora se
+    # eligen offsets espaciados por AL MENOS chunk_size entre si, y si no
+    # caben los 4 puntos se usan los que si quepan sin solaparse (minimo
+    # 1, el offset 0).
+    offsets = _select_offsets(test_size, chunk_size)
 
     def _pattern_for(offset: int) -> bytes:
         seed = (offset % 251) + 1
         return bytes((seed + i) % 256 for i in range(chunk_size))
 
-    def _offset_for(frac: float) -> int:
-        if test_size <= chunk_size:
-            return 0
-        return int((test_size - chunk_size) * frac)
-
     test_file = os.path.join(drive, ".salva_faketest.tmp")
 
     try:
         with open(test_file, "wb") as f:
-            for frac in offsets_fraction:
-                offset = _offset_for(frac)
+            for offset in offsets:
                 f.seek(offset)
                 f.write(_pattern_for(offset))
             f.flush()
@@ -217,8 +234,7 @@ def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
 
         all_match = True
         with open(test_file, "rb") as f:
-            for frac in offsets_fraction:
-                offset = _offset_for(frac)
+            for offset in offsets:
                 f.seek(offset)
                 read_back = f.read(chunk_size)
                 if read_back != _pattern_for(offset):
@@ -230,7 +246,7 @@ def _detect_fake_usb(drive: str, reported_size: int = 0) -> dict:
                 "authentic": True,
                 "detail": (
                     f"Sin indicios de falsificacion en la prueba rapida "
-                    f"({len(offsets_fraction)} punto(s) verificado(s) — no concluyente)"
+                    f"({len(offsets)} punto(s) verificado(s) — no concluyente)"
                 ),
             }
         else:

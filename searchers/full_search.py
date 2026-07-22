@@ -97,7 +97,17 @@ def search_everywhere(name: str, progress_callback=None, stage_callback=None) ->
         # concatenada completa (gana la primera aparicion de cada ruta).
         nuevos = []
         for r in crudos:
-            clave = r.get("ruta", "")
+            # Preferir la ruta FISICA (unica por item) cuando exista: la
+            # papelera de reciclaje pone "Desconocida" en "ruta" para todo
+            # archivo borrado sin carpeta original registrada, y usar ese
+            # valor como clave colapsaba todos esos items en uno solo,
+            # descartando en silencio los demas (ver recycle_bin.py,
+            # campo "ruta_fisica"). Con "ruta_fisica" como clave preferente
+            # cada item borrado tiene su propia clave unica dentro de
+            # $Recycle.Bin, y el dedup legitimo (mismo archivo real, misma
+            # "ruta") se mantiene igual para el resto de las etapas, que no
+            # traen "ruta_fisica".
+            clave = r.get("ruta_fisica") or r.get("ruta", "")
             if clave not in vistos:
                 vistos.add(clave)
                 nuevos.append(r)

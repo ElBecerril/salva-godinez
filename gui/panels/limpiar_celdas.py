@@ -200,18 +200,38 @@ class PanelLimpiarCeldas(ToolPanel):
             )
             return
 
-        try:
-            self._wb.save(destino)
-        except OSError as e:
+        # El guardado escribe a disco: con un libro grande puede tardar. Corre
+        # en el hilo de trabajo de run_async para no congelar la ventana; el
+        # wb solo se toca aca (atributo simple, no widget) y en el callback de
+        # UI, nunca desde otro lado al mismo tiempo.
+        wb = self._wb
+        self._btn_guardar.configure(state="disabled")
+        self._estado.info("Guardando archivo...")
+
+        def _trabajo():
+            wb.save(destino)
+            return destino
+
+        self.run_async(_trabajo, self._on_guardado)
+
+    def _on_guardado(self, ok: bool, resultado) -> None:
+        if not ok:
+            # Si el guardado falla, el wb NO se cierra: se deja intacto para
+            # poder reintentar sin tener que volver a analizar el archivo. El
+            # boton se reactiva para que el siguiente clic no caiga en
+            # silencio sobre "if self._wb is None: return".
+            self._btn_guardar.configure(state="normal")
+            detalle = f"\n\nDetalle: {resultado}" if isinstance(resultado, OSError) else ""
+            self._estado.alerta("No se pudo guardar el archivo.")
             self.error(
                 "No se pudo guardar",
                 "No se pudo guardar el archivo. Revisa que no este abierto en Excel "
-                f"y que haya espacio en el disco.\n\nDetalle: {e}",
+                f"y que haya espacio en el disco.{detalle}",
             )
             return
-        finally:
-            self._cerrar_wb_actual()
 
+        destino = resultado
+        self._cerrar_wb_actual()
         self._estado.exito(f"Archivo guardado en: {destino}")
         self._btn_guardar.configure(state="disabled")
         self.aviso("Archivo guardado", f"El archivo limpio quedo guardado en:\n\n{destino}")

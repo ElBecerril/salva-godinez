@@ -42,9 +42,10 @@ class PanelUsbEstado(ToolPanel):
         )
         self._combo.pack(side="left", padx=(10, 10))
 
-        ttk.Button(
+        self._btn_detectar = ttk.Button(
             fila_unidad, text="Actualizar lista", command=self._detectar,
-        ).pack(side="left")
+        )
+        self._btn_detectar.pack(side="left")
 
         self._btn_revisar = ttk.Button(
             fila_unidad, text="Revisar", style="Accent.TButton",
@@ -120,6 +121,7 @@ class PanelUsbEstado(ToolPanel):
         self._btn_revisar.configure(state="disabled")
         self._btn_diag.configure(state="disabled")
         self._btn_chkdsk.configure(state="disabled")
+        self._btn_detectar.configure(state="disabled")
         self._combo.configure(state="disabled")
         self._estado.info(f"Obteniendo informacion de {drive}...")
 
@@ -130,6 +132,7 @@ class PanelUsbEstado(ToolPanel):
 
     def _info_lista(self, ok: bool, resultado, drive: str) -> None:
         self._combo.configure(state="readonly")
+        self._btn_detectar.configure(state="normal")
         self._btn_revisar.configure(state="normal" if self._drives else "disabled")
 
         if not ok:
@@ -180,6 +183,9 @@ class PanelUsbEstado(ToolPanel):
 
         self._btn_diag.configure(state="disabled")
         self._btn_chkdsk.configure(state="disabled")
+        self._btn_revisar.configure(state="disabled")
+        self._btn_detectar.configure(state="disabled")
+        self._combo.configure(state="disabled")
         self._estado.info("Midiendo velocidad y revisando autenticidad, un momento...")
 
         reported_size = self._info.get("size", 0)
@@ -192,9 +198,17 @@ class PanelUsbEstado(ToolPanel):
         self.run_async(trabajo, self._diagnostico_listo)
 
     def _diagnostico_listo(self, ok: bool, resultado) -> None:
+        self._combo.configure(state="readonly")
+        self._btn_detectar.configure(state="normal")
         if self._drives:
             self._btn_diag.configure(state="normal")
             self._btn_chkdsk.configure(state="normal")
+            self._btn_revisar.configure(state="normal")
+
+        # Cinturon extra: si mientras corria el trabajo el usuario le dio a
+        # "Revisar" o "Actualizar lista", la zona de resultados ya no existe.
+        if not hasattr(self, "_resultados_diag") or not self._resultados_diag.winfo_exists():
+            return
 
         if not ok:
             self._estado.alerta(
@@ -243,6 +257,9 @@ class PanelUsbEstado(ToolPanel):
 
         self._btn_diag.configure(state="disabled")
         self._btn_chkdsk.configure(state="disabled")
+        self._btn_revisar.configure(state="disabled")
+        self._btn_detectar.configure(state="disabled")
+        self._combo.configure(state="disabled")
         self._estado.info("Revisando el sistema de archivos, esto puede tardar varios minutos...")
 
         def trabajo():
@@ -251,9 +268,12 @@ class PanelUsbEstado(ToolPanel):
         self.run_async(trabajo, self._chkdsk_listo)
 
     def _chkdsk_listo(self, ok: bool, resultado) -> None:
+        self._combo.configure(state="readonly")
+        self._btn_detectar.configure(state="normal")
         if self._drives:
             self._btn_diag.configure(state="normal")
             self._btn_chkdsk.configure(state="normal")
+            self._btn_revisar.configure(state="normal")
 
         if not ok:
             self._estado.alerta(

@@ -1,8 +1,7 @@
 """Ventana principal de la GUI: barra lateral + area de contenido.
 
-PILOTO: por ahora solo tres herramientas. La consola sigue siendo la interfaz
-completa (main.py) y no se toca; esto es una segunda puerta de entrada para
-evaluar si vale la pena portar las 23.
+Es la interfaz que abre por default desde v2.5.0, con las 23 herramientas. El
+modo texto (main.py) sigue disponible como fallback y desde el menu de la GUI.
 """
 
 import tkinter as tk

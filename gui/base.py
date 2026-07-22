@@ -109,8 +109,18 @@ class ToolPanel(ttk.Frame):
                 while True:
                     tipo, carga = cola.get_nowait()
                     if tipo == "progress":
-                        if on_progress:
-                            on_progress(*carga)
+                        # No entregar progreso a un panel ya destruido, y que un
+                        # on_progress que lance (p.ej. TclError si el widget
+                        # murio a media operacion) NO mate el sondeo: si _drenar
+                        # muere aqui, el "done" nunca llega y, en un trabajo
+                        # destructivo, el contador se queda arriba y la ventana
+                        # queda imposible de cerrar. El on_done tiene su propia
+                        # red (baja el contador antes de pintar).
+                        if on_progress and self.winfo_exists():
+                            try:
+                                on_progress(*carga)
+                            except Exception:  # noqa: BLE001 - se ignora, no mata el sondeo
+                                pass
                     else:
                         entregado = True
                         # Bajar el contador ANTES de on_done: si la pantalla
