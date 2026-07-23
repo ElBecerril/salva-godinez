@@ -29,7 +29,14 @@ a = Analysis(
     # Se recolecta TODO `gui` en vez de listar pantalla por pantalla: son 23 y
     # olvidar una en esta lista solo se descubre cuando el .exe ya esta en la
     # calle y esa pantalla truena al abrirse.
-    hiddenimports=collect_submodules('gui') + pymupdf_hidden + docx_hidden + ['fitz'],
+    # `tools` entero por la misma razon que `gui`: hay modulos que solo se
+    # importan DENTRO de una funcion (tools.minisign_verify lo importa el
+    # updater al verificar la firma, tools.office_to_pdf lo importa el menu de
+    # PDF al elegir la opcion). Si el analisis estatico no los arrastra, el
+    # fallo aparece recien en la calle y justo en el peor momento: al
+    # verificar una actualizacion.
+    hiddenimports=(collect_submodules('gui') + collect_submodules('tools')
+                   + pymupdf_hidden + docx_hidden + ['fitz']),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

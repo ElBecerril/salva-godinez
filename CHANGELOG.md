@@ -2,6 +2,42 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.9.0] - 2026-07-23
+
+### Agregado
+- **Word, Excel y PowerPoint a PDF.** Convierte un documento de Office a PDF
+  usando el Office que ya tienes instalado, asi que el PDF sale con el formato
+  EXACTO del documento (fuentes, encabezados, saltos de pagina) en vez de una
+  reconstruccion aproximada. Cubre Word (.doc/.docx/.rtf/.odt), Excel
+  (.xls/.xlsx/.xlsm/.csv) y PowerPoint (.ppt/.pptx). Esta en la GUI (Editar PDF)
+  y en el menu de PDF de la consola. Si no hay Office instalado lo dice claro,
+  y si el archivo esta protegido con contrasena o abierto en otro programa
+  tambien avisa en vez de quedarse colgado. No engorda el `.exe`: usa la
+  automatizacion de Office via PowerShell, sin librerias nuevas.
+
+### Seguridad
+- **Verificacion de firma digital (minisign) en el auto-updater.** Hasta ahora
+  la actualizacion se validaba con el SHA-256 publicado en las notas del
+  release; el problema es que ese hash vive en el mismo GitHub que sirve el
+  `.exe`, asi que quien tomara la cuenta podia cambiar los dos a la vez y el
+  updater instalaba el archivo alterado sin notarlo. Ahora el `.exe` puede
+  verificarse ademas contra una firma Ed25519 hecha con una llave privada que
+  NUNCA toca GitHub. Si la firma no cuadra, no se instala nada y el Escritorio
+  queda intacto. La verificacion no suma peso al `.exe` (Ed25519 implementado
+  sobre la libreria estandar, en vez de los ~10 MB de `cryptography`), y trae
+  su propio test de regresion contra los vectores oficiales del RFC 8032.
+  Queda inactiva hasta publicar el primer release firmado, asi que esta version
+  se actualiza igual que siempre.
+- `urlopen` de la descarga ahora se cierra siempre: los cortes por tamano
+  excesivo dejaban el socket abierto hasta que pasara el recolector de basura.
+
+### Cambiado
+- **Quitar virus de la USB (consola): se eligen los archivos uno por uno.**
+  Antes era todo o nada: o se borraban las N amenazas de riesgo Alto o ninguna.
+  Como el borrado en una USB es permanente (no va a la papelera), ahora se
+  listan numeradas y se elige cuales, con una confirmacion aparte antes de
+  borrar. La interfaz grafica ya funcionaba asi.
+
 ## [2.8.2] - 2026-07-23
 
 ### Corregido

@@ -4,7 +4,7 @@ import os
 import subprocess
 
 from rich.markup import escape
-from rich.prompt import Prompt
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from tools import get_removable_drives
@@ -247,6 +247,67 @@ def unhide_folders(drive: str) -> dict:
 # --- Interfaz de consola ---
 
 
+def _ask_threats_to_delete(high_risk: list[dict]) -> list[dict]:
+    """Pregunta CUALES amenazas de riesgo Alto borrar, una por una.
+
+    Antes esto era un si/no en bloque: o se borraban las N o ninguna. El
+    borrado es con `os.remove` (NO va a la papelera: es una unidad
+    extraible), asi que es irreversible y el usuario tiene que poder
+    salvar un archivo concreto que reconozca como suyo. Mismo criterio
+    que la GUI, que ya lista las de riesgo Alto con casillas sin
+    pre-marcar.
+
+    Enter en vacio = cancelar (nunca borrar por inercia). La confirmacion
+    final es un `Confirm.ask(default=False)` SEPARADO de la seleccion.
+    Retorna la lista de amenazas a borrar (vacia si se cancela).
+    """
+    console.print(
+        f"\n[bold]{len(high_risk)} amenaza(s) de riesgo Alto[/bold] "
+        "(autorun.inf / nombres de malware conocidos):"
+    )
+    for i, t in enumerate(high_risk, 1):
+        console.print(f"  [cyan]{i}[/cyan] - {escape(t['archivo'])} ({escape(t['tipo'])})")
+
+    console.print(
+        "[dim]Se borran de forma PERMANENTE (no van a la papelera, es una "
+        "USB).[/dim]"
+    )
+
+    choice = Prompt.ask(
+        "[bold]Cuales elimino? (numeros separados por coma, 'todos', "
+        "o Enter para cancelar)[/bold]",
+        default="",
+    ).strip().lower()
+
+    if not choice:
+        console.print("[yellow]No se borro nada.[/yellow]")
+        return []
+
+    if choice == "todos":
+        chosen = list(high_risk)
+    else:
+        try:
+            indices = {int(x.strip()) - 1 for x in choice.split(",")}
+        except ValueError:
+            console.print("[red]Entrada invalida. No se borro nada.[/red]")
+            return []
+        chosen = [high_risk[i] for i in sorted(indices) if 0 <= i < len(high_risk)]
+
+    if not chosen:
+        console.print("[yellow]Ningun numero valido. No se borro nada.[/yellow]")
+        return []
+
+    console.print(f"\n[bold red]Vas a borrar {len(chosen)} archivo(s) para siempre:[/bold red]")
+    for t in chosen:
+        console.print(f"  - {escape(t['archivo'])}")
+
+    if not Confirm.ask("[bold]Confirmas el borrado?[/bold]", default=False):
+        console.print("[yellow]Cancelado. No se borro nada.[/yellow]")
+        return []
+
+    return chosen
+
+
 def usb_disinfect_menu() -> None:
     """Interfaz principal del desinfectante de USB."""
     console.print("\n[bold cyan]Quitar Virus de la USB[/bold cyan]\n")
@@ -292,15 +353,9 @@ def usb_disinfect_menu() -> None:
         medium_risk = [t for t in threats if t["riesgo"] != "Alto"]
 
         if high_risk:
-            console.print(
-                f"\n[bold]{len(high_risk)} amenaza(s) de riesgo Alto[/bold] "
-                "(autorun.inf / nombres de malware conocidos)."
-            )
-            confirm = Prompt.ask(
-                "[bold]Eliminar solo las de riesgo Alto?[/bold]", choices=["s", "n"], default="n"
-            )
-            if confirm == "s":
-                clean_results = clean_usb(drive, threats)
+            chosen = _ask_threats_to_delete(high_risk)
+            if chosen:
+                clean_results = clean_usb(drive, chosen)
                 removed = 0
                 for r in clean_results:
                     if r["ok"]:

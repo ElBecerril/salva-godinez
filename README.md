@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.8.2
+**by El_Becerril** | v2.9.0
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -88,7 +88,7 @@ programa gratuito recien salido. Para abrirlo:
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 11 funciones. v2.8.2: el **desinfectante de USB** deja de dar un falso "carpetas restauradas" y ahora detecta la USB con **sistema de archivos danado** (no confundir con virus) y avisa que no se formatee. v2.8.1 corrigio el **rescate por Shadow Copies (VSS)**, que nunca devolvia resultados. v2.8.0 agrego **PDF a Word** (extrae el texto de un PDF a un .docx editable, via PyMuPDF + python-docx). v2.7.0 activo PDF a imagenes; v2.6.1 cerro la segunda ronda de la auditoria (updater atomico, rescate, congelamientos, deuda) y v2.6.0 dejo la app como ventana limpia. Ver [CHANGELOG](CHANGELOG.md).
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 12 funciones. v2.9.0 agrega **Word/Excel/PowerPoint a PDF** (usa el Office instalado, asi que el PDF conserva el formato exacto) y prepara el auto-updater para **verificar la firma digital** de cada actualizacion, no solo su SHA-256; ademas, quitar virus de la USB en consola ahora deja elegir los archivos uno por uno. v2.8.2: el **desinfectante de USB** deja de dar un falso "carpetas restauradas" y ahora detecta la USB con **sistema de archivos danado** (no confundir con virus) y avisa que no se formatee. v2.8.1 corrigio el **rescate por Shadow Copies (VSS)**, que nunca devolvia resultados. v2.8.0 agrego **PDF a Word** (extrae el texto de un PDF a un .docx editable, via PyMuPDF + python-docx). v2.7.0 activo PDF a imagenes; v2.6.1 cerro la segunda ronda de la auditoria (updater atomico, rescate, congelamientos, deuda) y v2.6.0 dejo la app como ventana limpia. Ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 
@@ -198,7 +198,7 @@ exigen la GPL y la AGPL.
 ### Fase 4 - Infraestructura
 - [x] Auto-updater desde GitHub Releases
 - [x] Version visible en banner
-- [x] Editor de PDF expandido (rotar, eliminar, reordenar, extraer texto, imagenes a PDF, PDF a imagenes, proteger/desproteger, metadatos)
+- [x] Editor de PDF expandido (rotar, eliminar, reordenar, extraer texto, imagenes a PDF, PDF a imagenes, PDF a Word, Word/Excel/PowerPoint a PDF, proteger/desproteger, metadatos)
 
 ### En veremos
 - Transformador de Texto (cuando haya GUI)

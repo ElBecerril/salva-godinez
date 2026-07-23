@@ -44,8 +44,21 @@ from tools.pdf_tools import (
     split_pdf_do,
     unprotect_pdf_do,
 )
+from tools.office_to_pdf import (
+    ERROR_MENSAJES,
+    get_app_for_extension,
+    office_to_pdf_do,
+)
 
 _FILTRO_PDF = [("Archivos PDF", "*.pdf")]
+_FILTRO_OFFICE = [
+    ("Documentos de Office", "*.doc *.docx *.docm *.rtf *.odt *.txt "
+                             "*.xls *.xlsx *.xlsm *.xlsb *.csv *.ods "
+                             "*.ppt *.pptx *.pptm *.odp"),
+    ("Word", "*.doc *.docx *.docm *.rtf *.odt"),
+    ("Excel", "*.xls *.xlsx *.xlsm *.xlsb *.csv"),
+    ("PowerPoint", "*.ppt *.pptx *.pptm"),
+]
 _EXTENSIONES_IMAGEN = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
@@ -93,6 +106,7 @@ class PanelPdf(ToolPanel):
         ("img_a_pdf", "Imagenes a PDF"),
         ("pdf_a_img", "PDF a imagenes"),
         ("pdf_a_word", "PDF a Word"),
+        ("office_a_pdf", "Word/Excel/PPT a PDF"),
         ("proteger", "Proteger / desproteger PDF"),
         ("metadatos", "Ver / limpiar metadatos"),
     ]
@@ -158,6 +172,7 @@ class PanelPdf(ToolPanel):
             "img_a_pdf": self._form_img_a_pdf,
             "pdf_a_img": self._form_pdf_a_img,
             "pdf_a_word": self._form_pdf_a_word,
+            "office_a_pdf": self._form_office_a_pdf,
             "proteger": self._form_proteger,
             "metadatos": self._form_metadatos,
         }
@@ -1116,7 +1131,81 @@ class PanelPdf(ToolPanel):
         btn.configure(command=_convertir)
 
     # ------------------------------------------------------------------
-    # 10. Proteger / desproteger PDF
+    # 10. Word/Excel/PowerPoint a PDF
+    # ------------------------------------------------------------------
+
+    def _form_office_a_pdf(self, frame) -> None:
+        self._seccion(
+            frame, "Word/Excel/PowerPoint a PDF",
+            "Convierte un documento de Office a PDF usando el Office instalado "
+            "en esta computadora, asi que el PDF queda con el formato exacto. "
+            "Necesita tener Office instalado.",
+        )
+
+        estado_local = {"path": None}
+        btn = self._boton_accion(frame, "Convertir a PDF")
+
+        archivo_lbl = ttk.Label(frame, text="Ningun archivo elegido.", style="Panel.TLabel")
+        archivo_lbl.pack(anchor="w", pady=(0, 10))
+
+        def _elegir() -> None:
+            path = filedialog.askopenfilename(
+                parent=self, title="Elige el documento", filetypes=_FILTRO_OFFICE,
+            )
+            if not path:
+                return
+            if not get_app_for_extension(os.path.splitext(path)[1]):
+                self._estado.alerta(
+                    "Ese tipo de archivo no se puede convertir. Sirve para Word, "
+                    "Excel y PowerPoint."
+                )
+                return
+            estado_local["path"] = path
+            archivo_lbl.configure(text=os.path.basename(path))
+            self._estado.limpiar()
+
+        ttk.Button(frame, text="Elegir documento...", command=_elegir).pack(anchor="w")
+
+        def _convertir() -> None:
+            path = estado_local["path"]
+            if not path:
+                self._estado.alerta("Primero elige un documento de Office.")
+                return
+
+            sugerido = os.path.splitext(os.path.basename(path))[0] + ".pdf"
+            salida = filedialog.asksaveasfilename(
+                parent=self, title="Guardar PDF como", defaultextension=".pdf",
+                initialfile=sugerido, filetypes=_FILTRO_PDF,
+            )
+            if not salida:
+                return
+
+            def trabajo():
+                # overwrite=True: el dialogo nativo ya confirmo reemplazar.
+                return office_to_pdf_do(path, salida, overwrite=True)
+
+            def al_terminar(resultado) -> None:
+                if not resultado.get("ok"):
+                    razon = resultado.get("error", "convert_error")
+                    self.error(
+                        "No se pudo convertir",
+                        ERROR_MENSAJES.get(razon, ERROR_MENSAJES["convert_error"]),
+                    )
+                    self._estado.alerta("No se pudo convertir el documento a PDF.")
+                    return
+                self._estado.exito(f"PDF creado: {resultado['output']}")
+                self.aviso(
+                    "Conversion lista", f"Se guardo en:\n\n{resultado['output']}",
+                )
+
+            # La primera conversion arranca Office en frio y puede tardar; por
+            # eso va en segundo plano (_ejecutar) y no en el hilo de la UI.
+            self._ejecutar(btn, trabajo, al_terminar)
+
+        btn.configure(command=_convertir)
+
+    # ------------------------------------------------------------------
+    # 11. Proteger / desproteger PDF
     # ------------------------------------------------------------------
 
     def _form_proteger(self, frame) -> None:
@@ -1240,7 +1329,7 @@ class PanelPdf(ToolPanel):
         subform.pack(anchor="w", fill="x", pady=(12, 0))
 
     # ------------------------------------------------------------------
-    # 10. Ver / limpiar metadatos
+    # 12. Ver / limpiar metadatos
     # ------------------------------------------------------------------
 
     def _form_metadatos(self, frame) -> None:

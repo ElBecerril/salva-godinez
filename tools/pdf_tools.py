@@ -1159,6 +1159,7 @@ def pdf_menu() -> None:
             "  [bold]9[/bold]  - Proteger/Desproteger PDF\n"
             "  [bold]10[/bold] - Ver/Limpiar Metadatos\n"
             "  [bold]11[/bold] - PDF a Word\n"
+            "  [bold]12[/bold] - Word/Excel/PowerPoint a PDF\n"
             "  [bold]0[/bold]  - Volver"
         )
         choice = Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
@@ -1185,6 +1186,11 @@ def pdf_menu() -> None:
             pdf_metadata()
         elif choice == "11":
             pdf_to_word()
+        elif choice == "12":
+            # Import local: office_to_pdf importa de este modulo
+            # (_safe_output_path), asi que importarlo arriba seria circular.
+            from tools.office_to_pdf import office_to_pdf_menu
+            office_to_pdf_menu()
         elif choice == "0":
             break
         else:

@@ -25,6 +25,7 @@ from tools.updater import (
     download_update,
     fetch_latest_release,
     get_exe_asset,
+    get_sig_asset,
     _extract_sha256,
 )
 
@@ -198,6 +199,8 @@ def _dialogo_actualizacion(root, version: str, remote_tag: str, data: dict) -> N
             return
 
         expected = _extract_sha256(data.get("body", ""), exe_asset["name"])
+        sig_asset = get_sig_asset(data, exe_asset["name"])
+        sig_url = sig_asset["browser_download_url"] if sig_asset else None
         filename = f"SalvaGodinez_{remote_tag}.exe"
 
         # Cambiar la UI a "descargando": fuera los botones, entra la barra.
@@ -218,6 +221,7 @@ def _dialogo_actualizacion(root, version: str, remote_tag: str, data: dict) -> N
             return download_update(
                 exe_asset["browser_download_url"], filename, expected,
                 progress_callback=lambda w, t: progress(w, t),
+                sig_url=sig_url,
             )
 
         def on_progress(written, total):
@@ -277,6 +281,16 @@ def _texto_error(result: dict) -> str:
         return ("El Release no trae la firma (SHA-256) para verificar la descarga. "
                 "Por seguridad no se instala algo que no se puede verificar. "
                 "Si lo necesitas, descarga la version nueva a mano desde el Release "
+                "oficial en GitHub.")
+    if reason in ("no_signature", "signature_download_failed"):
+        return ("Esta actualizacion no trae la firma digital del autor, asi que no "
+                "se puede comprobar que sea legitima. Por seguridad no se instalo "
+                "nada; tu Escritorio no fue modificado. Si lo necesitas, descarga "
+                "la version nueva a mano desde el Release oficial en GitHub.")
+    if reason == "bad_signature":
+        return ("La firma digital de la actualizacion NO es valida: el archivo pudo "
+                "haber sido alterado. No se instalo nada y tu Escritorio no fue "
+                "modificado. Descarga la version nueva a mano desde el Release "
                 "oficial en GitHub.")
     if reason in ("too_large_header", "too_large_stream"):
         mb = result.get("max_size", 0) // (1024 * 1024)

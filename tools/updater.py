@@ -25,6 +25,20 @@ GITHUB_API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 # descontroladas o respuestas maliciosas con Content-Length falso/ausente).
 MAX_DOWNLOAD_SIZE = 200 * 1024 * 1024  # 200 MB
 
+# Llave PUBLICA de minisign con la que se firman los releases (la privada vive
+# offline en la maquina del autor, nunca en el repo ni en GitHub Secrets).
+#
+# Mientras este vacia, el updater se comporta como siempre: verifica el SHA-256
+# publicado en las notas del Release y nada mas. En cuanto se pegue aqui la
+# llave, la firma pasa a ser OBLIGATORIA (fail-closed): un release sin .minisig
+# valido deja de instalarse. Por eso se activa cuando ya haya al menos un
+# release firmado; si no, el updater se rompe para todos los que tengan la
+# version vieja.
+#
+# Es solo la segunda linea del archivo minisign.pub (el base64), sin el
+# "untrusted comment:".
+MINISIGN_PUBLIC_KEY = ""
+
 
 # --- Logica (sin UI) ---
 
@@ -192,11 +206,41 @@ def get_exe_asset(release_data: dict) -> dict | None:
     return next((a for a in assets if a["name"].endswith(".exe")), None)
 
 
+def get_sig_asset(release_data: dict, exe_name: str) -> dict | None:
+    """Devuelve el asset con la firma minisign del .exe, o None.
+
+    Se busca `<nombre del exe>.minisig`, que es como lo nombra minisign por
+    defecto. Se cae a cualquier .minisig del release por si el asset se subio
+    con otro nombre.
+    """
+    assets = release_data.get("assets", [])
+    exacto = f"{exe_name}.minisig"
+    return (
+        next((a for a in assets if a["name"] == exacto), None)
+        or next((a for a in assets if a["name"].endswith(".minisig")), None)
+    )
+
+
+def _fetch_text(url: str, max_bytes: int = 8192) -> str | None:
+    """Baja un archivo chico de texto (la firma). None si falla.
+
+    Tope de tamano porque un .minisig legitimo son ~300 bytes: si el servidor
+    manda 2 GB, algo esta mal y no hay razon para tragarselo.
+    """
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "SalvaGodinez-Updater"})
+        with urllib.request.urlopen(req, timeout=15, context=_get_ssl_context()) as resp:
+            return resp.read(max_bytes).decode("utf-8", errors="replace")
+    except Exception:  # noqa: BLE001 - sin red, 404, timeout: todo es "no hay firma"
+        return None
+
+
 def download_update(
     url: str,
     filename: str,
     expected_sha256: str | None = None,
     progress_callback=None,
+    sig_url: str | None = None,
 ) -> dict:
     """Descarga un archivo a una ubicacion temporal, lo verifica y lo instala.
 
@@ -240,35 +284,38 @@ def download_update(
 
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "SalvaGodinez-Updater"})
-        resp = urllib.request.urlopen(req, timeout=30, context=_get_ssl_context())
-        total = int(resp.headers.get("Content-Length", 0))
+        # `with` sobre la respuesta: los returns tempranos de abajo
+        # (too_large_header / too_large_stream) salian sin cerrar el socket,
+        # que quedaba colgado hasta que el GC lo recogiera.
+        with urllib.request.urlopen(req, timeout=30, context=_get_ssl_context()) as resp:
+            total = int(resp.headers.get("Content-Length", 0))
 
-        if total > MAX_DOWNLOAD_SIZE:
-            return {
-                "ok": False,
-                "reason": "too_large_header",
-                "max_size": MAX_DOWNLOAD_SIZE,
-            }
+            if total > MAX_DOWNLOAD_SIZE:
+                return {
+                    "ok": False,
+                    "reason": "too_large_header",
+                    "max_size": MAX_DOWNLOAD_SIZE,
+                }
 
-        sha256 = hashlib.sha256()
-        written = 0
+            sha256 = hashlib.sha256()
+            written = 0
 
-        with open(tmp_path, "wb") as f:
-            while True:
-                chunk = resp.read(8192)
-                if not chunk:
-                    break
-                written += len(chunk)
-                if written > MAX_DOWNLOAD_SIZE:
-                    return {
-                        "ok": False,
-                        "reason": "too_large_stream",
-                        "max_size": MAX_DOWNLOAD_SIZE,
-                    }
-                f.write(chunk)
-                sha256.update(chunk)
-                if progress_callback:
-                    progress_callback(written, total)
+            with open(tmp_path, "wb") as f:
+                while True:
+                    chunk = resp.read(8192)
+                    if not chunk:
+                        break
+                    written += len(chunk)
+                    if written > MAX_DOWNLOAD_SIZE:
+                        return {
+                            "ok": False,
+                            "reason": "too_large_stream",
+                            "max_size": MAX_DOWNLOAD_SIZE,
+                        }
+                    f.write(chunk)
+                    sha256.update(chunk)
+                    if progress_callback:
+                        progress_callback(written, total)
 
         actual_hash = sha256.hexdigest()
 
@@ -286,6 +333,30 @@ def download_update(
             # de instalar "con precaucion": un Release sin hash no debe llegar al
             # Escritorio del usuario.
             return {"ok": False, "reason": "no_reference_hash"}
+
+        # --- Firma minisign -------------------------------------------------
+        # El SHA-256 vive en las notas del Release, o sea en el mismo GitHub que
+        # sirve el .exe: quien controle la cuenta cambia los dos a la vez y el
+        # hash no delata nada. La firma se hace con una llave privada que NUNCA
+        # esta en GitHub, asi que comprometer la cuenta ya no alcanza.
+        #
+        # Solo aplica si hay llave publica compilada en el .exe (ver
+        # MINISIGN_PUBLIC_KEY). Cuando aplica es fail-closed, igual que el hash.
+        if MINISIGN_PUBLIC_KEY:
+            if not sig_url:
+                return {"ok": False, "reason": "no_signature"}
+            sig_text = _fetch_text(sig_url)
+            if not sig_text:
+                return {"ok": False, "reason": "signature_download_failed"}
+            from tools.minisign_verify import verify_file
+            firma = verify_file(tmp_path, sig_text, MINISIGN_PUBLIC_KEY)
+            if not firma["ok"]:
+                return {
+                    "ok": False,
+                    "reason": "bad_signature",
+                    "sig_error": firma.get("error", ""),
+                    "sig_detail": firma.get("detail", ""),
+                }
 
         # Solo ahora, con la descarga ya verificada, es seguro tocar el Escritorio.
         # os.replace es un rename ATOMICO en el mismo volumen (el tmp vive en el
@@ -383,6 +454,9 @@ def _check_for_updates(current_version: str) -> None:
     release_body = data.get("body", "")
     expected_hash = _extract_sha256(release_body, exe_asset["name"])
 
+    sig_asset = get_sig_asset(data, exe_asset["name"])
+    sig_url = sig_asset["browser_download_url"] if sig_asset else None
+
     filename = f"SalvaGodinez_{remote_tag}.exe"
 
     with Progress(
@@ -403,10 +477,14 @@ def _check_for_updates(current_version: str) -> None:
             filename,
             expected_hash,
             progress_callback=_on_progress,
+            sig_url=sig_url,
         )
 
     if result["ok"]:
-        console.print("[green]SHA-256 verificado correctamente.[/green]")
+        if MINISIGN_PUBLIC_KEY:
+            console.print("[green]Firma digital y SHA-256 verificados correctamente.[/green]")
+        else:
+            console.print("[green]SHA-256 verificado correctamente.[/green]")
         console.print(f"[bold green]Guardado en:[/bold green] {escape(result['dest'])}")
         for old, err in result.get("old_errors", []):
             console.print(f"[yellow]No se pudo eliminar version anterior {escape(old)}: {escape(str(err))}[/yellow]")
@@ -440,6 +518,21 @@ def _check_for_updates(current_version: str) -> None:
             "verificar; el Escritorio no fue modificado.[/red]\n"
             "[dim]Descarga la version nueva manualmente desde el Release oficial en "
             "GitHub si lo necesitas.[/dim]"
+        )
+    elif reason in ("no_signature", "signature_download_failed"):
+        console.print(
+            "[bold red]Esta actualizacion no trae la firma digital del autor.[/bold red]\n"
+            "[red]Por seguridad no se instala; el Escritorio no fue modificado.[/red]\n"
+            "[dim]Descarga la version nueva manualmente desde el Release oficial en "
+            "GitHub si lo necesitas.[/dim]"
+        )
+    elif reason == "bad_signature":
+        console.print(
+            "[bold red]La firma digital de la actualizacion NO es valida.[/bold red]\n"
+            "[red]El archivo pudo haber sido alterado. No se instalo nada y el "
+            "Escritorio no fue modificado.[/red]\n"
+            f"[dim]Detalle: {escape(str(result.get('sig_error', '')))} "
+            f"{escape(str(result.get('sig_detail', '')))}[/dim]"
         )
     elif reason == "exception":
         console.print(f"[bold red]Error al descargar la actualizacion: {escape(str(result['error']))}[/bold red]")
