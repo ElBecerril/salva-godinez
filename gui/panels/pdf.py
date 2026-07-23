@@ -21,6 +21,7 @@ from tkinter import filedialog, ttk
 from gui import theme
 from gui.base import EstadoLabel, ToolPanel
 from tools.pdf_tools import (
+    _import_docx,
     _import_pillow,
     _import_pymupdf,
     clean_metadata_do,
@@ -34,6 +35,7 @@ from tools.pdf_tools import (
     parse_page_selection,
     parse_reorder,
     pdf_to_images_do,
+    pdf_to_word_do,
     protect_pdf_do,
     read_pdf_for_protect,
     read_pdf_total,
@@ -90,6 +92,7 @@ class PanelPdf(ToolPanel):
         ("extraer", "Extraer texto"),
         ("img_a_pdf", "Imagenes a PDF"),
         ("pdf_a_img", "PDF a imagenes"),
+        ("pdf_a_word", "PDF a Word"),
         ("proteger", "Proteger / desproteger PDF"),
         ("metadatos", "Ver / limpiar metadatos"),
     ]
@@ -129,9 +132,13 @@ class PanelPdf(ToolPanel):
         # elegir archivo, formato, resolucion y carpeta para recien entonces
         # decirle que no se puede.
         self._pymupdf_ok = _import_pymupdf() is not None
+        # PDF a Word necesita PyMuPDF (leer el PDF) Y python-docx (crear el .docx).
+        self._word_ok = self._pymupdf_ok and _import_docx() is not None
 
         for _id, etiqueta in self.OPERACIONES:
             if _id == "pdf_a_img" and not self._pymupdf_ok:
+                etiqueta = f"{etiqueta} (no disponible)"
+            elif _id == "pdf_a_word" and not self._word_ok:
                 etiqueta = f"{etiqueta} (no disponible)"
             self._lista.insert("end", etiqueta)
         self._lista.pack(fill="y")
@@ -150,6 +157,7 @@ class PanelPdf(ToolPanel):
             "extraer": self._form_extraer,
             "img_a_pdf": self._form_img_a_pdf,
             "pdf_a_img": self._form_pdf_a_img,
+            "pdf_a_word": self._form_pdf_a_word,
             "proteger": self._form_proteger,
             "metadatos": self._form_metadatos,
         }
@@ -1004,7 +1012,111 @@ class PanelPdf(ToolPanel):
         btn.configure(command=_convertir)
 
     # ------------------------------------------------------------------
-    # 9. Proteger / desproteger PDF
+    # 9. PDF a Word
+    # ------------------------------------------------------------------
+
+    def _form_pdf_a_word(self, frame) -> None:
+        self._seccion(
+            frame, "PDF a Word",
+            "Extrae el texto del PDF a un documento Word (.docx) editable. Es "
+            "texto simple: no reconstruye tablas ni columnas complejas.",
+        )
+
+        if not self._word_ok:
+            ttk.Label(
+                frame,
+                text=(
+                    "Esta version no incluye el componente necesario para "
+                    "convertir PDF a Word, asi que esta funcion no esta "
+                    "disponible.\n\nEl resto de las herramientas de PDF si "
+                    "funciona."
+                ),
+                style="Panel.TLabel", justify="left", wraplength=560,
+            ).pack(anchor="w", pady=(6, 0))
+            return
+
+        estado_local = {"path": None}
+        btn = self._boton_accion(frame, "Convertir a Word")
+
+        archivo_lbl = ttk.Label(frame, text="Ningun PDF elegido.", style="Panel.TLabel")
+        archivo_lbl.pack(anchor="w", pady=(0, 10))
+
+        def _elegir() -> None:
+            path = filedialog.askopenfilename(
+                parent=self, title="Elige el PDF", filetypes=_FILTRO_PDF,
+            )
+            if not path:
+                return
+            estado_local["path"] = path
+            archivo_lbl.configure(text=os.path.basename(path))
+            self._estado.limpiar()
+
+        ttk.Button(frame, text="Elegir PDF...", command=_elegir).pack(anchor="w")
+
+        def _convertir() -> None:
+            if not estado_local["path"]:
+                self._estado.alerta("Primero elige un PDF.")
+                return
+            fitz = _import_pymupdf()
+            Document = _import_docx()
+            if not fitz or not Document:
+                self.error(
+                    "Funcion no disponible",
+                    "Esta version no incluye las librerias necesarias para "
+                    "convertir PDF a Word.",
+                )
+                return
+
+            path = estado_local["path"]
+            sugerido = os.path.splitext(os.path.basename(path))[0] + ".docx"
+            salida = filedialog.asksaveasfilename(
+                parent=self, title="Guardar Word como", defaultextension=".docx",
+                initialfile=sugerido, filetypes=[("Documento Word", "*.docx")],
+            )
+            if not salida:
+                return
+
+            def trabajo():
+                # overwrite=True: el dialogo nativo ya confirmo reemplazar.
+                return pdf_to_word_do(fitz, Document, path, salida, overwrite=True)
+
+            def al_terminar(resultado) -> None:
+                if not resultado.get("ok"):
+                    if resultado.get("error") == "encrypted":
+                        self.error(
+                            "PDF protegido",
+                            "El PDF esta protegido con password. Desprotegelo "
+                            "primero con la opcion 'Proteger / desproteger PDF'.",
+                        )
+                    else:
+                        self.error(
+                            "No se pudo convertir",
+                            "No se pudo convertir el PDF a Word. Puede estar "
+                            "danado o no haber espacio en disco.",
+                        )
+                    self._estado.alerta("No se pudo convertir el PDF a Word.")
+                    return
+                if resultado.get("empty"):
+                    self._estado.info(
+                        "Listo, pero el PDF no tenia texto seleccionable (puede "
+                        "ser un escaneo): el Word quedo vacio."
+                    )
+                else:
+                    self._estado.exito(f"Word creado: {resultado['output']}")
+                extra = ("\n\nOjo: el PDF no tenia texto seleccionable, el Word "
+                         "quedo vacio." if resultado.get("empty") else "")
+                self.aviso(
+                    "Conversion lista",
+                    f"Se guardo en:\n\n{resultado['output']}\n\n"
+                    f"{resultado['pages']} paginas.{extra}",
+                )
+
+            self._ejecutar(btn, trabajo, al_terminar)
+
+        btn.configure(command=_convertir)
+
+    # ------------------------------------------------------------------
+    # 10. Proteger / desproteger PDF
     # ------------------------------------------------------------------
 
     def _form_proteger(self, frame) -> None:

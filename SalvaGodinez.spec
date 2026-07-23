@@ -9,23 +9,27 @@ from PyInstaller.utils.hooks import collect_submodules, collect_data_files, coll
 # de forma perezosa dentro de una funcion.
 pymupdf_datas, pymupdf_binaries, pymupdf_hidden = collect_all('pymupdf')
 
+# python-docx (import `docx`) trae plantillas .docx/.xml como datos; sin
+# collect_all, "PDF a Word" fallaria en runtime al crear el Document.
+docx_datas, docx_binaries, docx_hidden = collect_all('docx')
+
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=pymupdf_binaries,
+    binaries=pymupdf_binaries + docx_binaries,
     # El cacert.pem de certifi: el auto-updater lo usa para verificar el HTTPS
     # de api.github.com desde el .exe (el ssl del binario congelado no ve los
     # CA del sistema). PyInstaller ya trae un hook para certifi, pero se
     # empaqueta explicito para no depender de que el hook siga vigente.
-    # A eso se suman los datos de PyMuPDF (fuentes, etc.).
-    datas=collect_data_files('certifi') + pymupdf_datas,
+    # A eso se suman los datos de PyMuPDF (fuentes) y las plantillas de docx.
+    datas=collect_data_files('certifi') + pymupdf_datas + docx_datas,
     # main.py importa la GUI de forma perezosa (solo con --gui), asi que el
     # analisis estatico de PyInstaller podria no arrastrar el paquete entero.
     # Se recolecta TODO `gui` en vez de listar pantalla por pantalla: son 23 y
     # olvidar una en esta lista solo se descubre cuando el .exe ya esta en la
     # calle y esa pantalla truena al abrirse.
-    hiddenimports=collect_submodules('gui') + pymupdf_hidden + ['fitz'],
+    hiddenimports=collect_submodules('gui') + pymupdf_hidden + docx_hidden + ['fitz'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

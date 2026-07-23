@@ -21,6 +21,10 @@ terceros, cada uno con su propia licencia:
 - openpyxl — MIT
   https://foss.heptapod.net/openpyxl/openpyxl
 
+- python-docx — MIT
+  Se usa para la funcion "PDF a Word".
+  https://github.com/python-openxml/python-docx
+
 - Pillow — HPND (permisiva, tipo MIT)
   https://github.com/python-pillow/Pillow
 

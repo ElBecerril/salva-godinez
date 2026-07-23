@@ -59,6 +59,70 @@ def _import_pymupdf():
         return None
 
 
+def _import_docx():
+    """Import lazy de python-docx. Retorna la clase Document o None."""
+    try:
+        from docx import Document
+        return Document
+    except ImportError:
+        return None
+
+
+def pdf_to_word_do(fitz, Document, path, output, overwrite=False):
+    """Convierte un PDF a Word (.docx) extrayendo el texto por bloques.
+
+    Es extraccion de TEXTO simple (parrafos editables): NO reconstruye tablas ni
+    columnas complejas (eso requeriria pdf2docx + opencv, que pesa mucho). Cada
+    bloque de texto del PDF se agrega como un parrafo, en orden de lectura, con
+    un salto de pagina entre paginas.
+
+    Si overwrite=True (la interfaz ya confirmo reemplazar, p.ej. el dialogo
+    nativo), se escribe en la ruta exacta; si no, se evita sobrescribir con un
+    sufijo (_safe_output_path).
+
+    Retorna dict {"ok": True, "output", "pages", "empty"(bool)} o
+    {"ok": False, "error": "open_error"|"encrypted"|"convert_error", "detail"}.
+    """
+    try:
+        doc = fitz.open(path)
+    except Exception as e:  # noqa: BLE001 - archivo corrupto/invalido
+        return {"ok": False, "error": "open_error", "detail": str(e)}
+
+    # PDF cifrado: intentar con password vacio; si sigue cifrado, abortar.
+    if doc.is_encrypted and not doc.authenticate(""):
+        doc.close()
+        return {"ok": False, "error": "encrypted"}
+
+    try:
+        word = Document()
+        n_pages = doc.page_count
+        con_texto = False
+        for i in range(n_pages):
+            page = doc.load_page(i)
+            # (x0, y0, x1, y1, texto, block_no, block_type); block_type 1 = imagen.
+            bloques = page.get_text("blocks")
+            # Orden de lectura: arriba->abajo, luego izquierda->derecha.
+            bloques.sort(key=lambda b: (round(b[1]), round(b[0])))
+            for b in bloques:
+                if len(b) >= 7 and b[6] != 0:
+                    continue  # bloque de imagen, no de texto
+                texto = (b[4] or "").strip()
+                if texto:
+                    word.add_paragraph(texto)
+                    con_texto = True
+            if i < n_pages - 1:
+                word.add_page_break()
+
+        if not overwrite:
+            output = _safe_output_path(output)
+        word.save(output)
+        return {"ok": True, "output": output, "pages": n_pages, "empty": not con_texto}
+    except Exception as e:  # noqa: BLE001 - error al leer paginas o guardar
+        return {"ok": False, "error": "convert_error", "detail": str(e)}
+    finally:
+        doc.close()
+
+
 def open_pdf(path):
     """Abre un PdfReader manejando corrupcion y cifrado (password vacio).
 
@@ -926,6 +990,60 @@ def pdf_to_images() -> None:
     )
 
 
+def pdf_to_word() -> None:
+    """Convierte un PDF a Word (.docx) extrayendo su texto."""
+    fitz = _get_pymupdf()
+    if not fitz:
+        return
+    Document = _import_docx()
+    if not Document:
+        console.print(
+            "[red]Esta version no incluye python-docx, necesario para crear el "
+            "archivo Word.[/red]"
+        )
+        return
+
+    console.print("\n[bold cyan]PDF a Word[/bold cyan]")
+    console.print(
+        "[dim]Extrae el texto del PDF a un .docx editable. Es texto simple: no "
+        "reconstruye tablas ni columnas complejas.[/dim]"
+    )
+
+    path = Prompt.ask("[bold]Ruta del PDF[/bold]").strip().strip('"')
+    if not os.path.isfile(path):
+        console.print("[red]Archivo no encontrado.[/red]")
+        return
+
+    output = Prompt.ask(
+        "[bold]Ruta del Word de salida[/bold]",
+        default=os.path.splitext(path)[0] + ".docx",
+    ).strip().strip('"')
+
+    exec_result = pdf_to_word_do(fitz, Document, path, output)
+    if not exec_result["ok"]:
+        if exec_result["error"] == "encrypted":
+            console.print(
+                "[red]El PDF esta protegido con password. Desprotegelo primero "
+                "(opcion Proteger/Desproteger PDF).[/red]"
+            )
+        else:
+            console.print(
+                f"[red]No se pudo convertir el PDF a Word: "
+                f"{escape(str(exec_result.get('detail', exec_result['error'])))}[/red]"
+            )
+        return
+
+    if exec_result.get("empty"):
+        console.print(
+            "[yellow]El PDF no tenia texto seleccionable (puede ser un escaneo o "
+            "imagen); el Word quedo vacio.[/yellow]"
+        )
+    console.print(
+        f"\n[bold green]Word creado: {escape(exec_result['output'])} "
+        f"({exec_result['pages']} paginas)[/bold green]"
+    )
+
+
 def protect_pdf() -> None:
     """Protege o desprotege un PDF con password."""
     console.print("\n[bold cyan]Proteger/Desproteger PDF[/bold cyan]")
@@ -1040,6 +1158,7 @@ def pdf_menu() -> None:
             "  [bold]8[/bold]  - PDF a Imagenes\n"
             "  [bold]9[/bold]  - Proteger/Desproteger PDF\n"
             "  [bold]10[/bold] - Ver/Limpiar Metadatos\n"
+            "  [bold]11[/bold] - PDF a Word\n"
             "  [bold]0[/bold]  - Volver"
         )
         choice = Prompt.ask("[bold cyan]Opcion[/bold cyan]", default="0")
@@ -1064,6 +1183,8 @@ def pdf_menu() -> None:
             protect_pdf()
         elif choice == "10":
             pdf_metadata()
+        elif choice == "11":
+            pdf_to_word()
         elif choice == "0":
             break
         else:
