@@ -8,12 +8,16 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from tools import get_removable_drives
-from utils import read_lnk_target as _read_lnk_target, console
+from utils import read_lnk_target as _read_lnk_target, console, ps_escape
 
 
 # Nombres sospechosos comunes en USBs infectados
 SUSPICIOUS_FILES = {"autorun.inf", "desktop.ini.exe", "recycler.exe", "ravmon.exe"}
 SUSPICIOUS_EXTENSIONS = {".exe", ".scr", ".bat", ".cmd", ".vbs", ".wsf", ".pif", ".com"}
+
+# Atributos de Windows (WinNT.h) para detectar entradas ocultas/sistema.
+FILE_ATTRIBUTE_HIDDEN = 0x2
+FILE_ATTRIBUTE_SYSTEM = 0x4
 
 
 # --- Logica (sin UI) ---
@@ -105,25 +109,139 @@ def clean_usb(drive: str, threats: list[dict]) -> list[dict]:
     return results
 
 
-def unhide_folders(drive: str) -> dict:
-    """Restaura carpetas ocultas por malware usando attrib.
+def check_fs_health(drive: str) -> dict:
+    """Consulta el estado del sistema de archivos de la unidad via Get-Volume.
 
-    Retorna {"ok": True} en exito; {"ok": False, "returncode": int,
-    "detail": str} si attrib devolvio error; o {"ok": False, "error": str}
-    si el subprocess no se pudo ejecutar.
+    Sirve para distinguir "USB con virus" (atributos ocultos, recuperable con
+    attrib) de "USB con el sistema de archivos DANADO" (corrupcion de la tabla
+    de archivos), donde attrib no ayuda y formatear/reparar solo empeora las
+    chances de recuperar los datos.
+
+    Retorna {"healthy": True}; {"healthy": False, "status": str} si Windows lo
+    reporta danado; o {"unknown": True} si no se pudo consultar (fail-safe: el
+    llamador sigue como si estuviera sano).
     """
+    letter = drive.rstrip(":\\/")  # "F:\\" -> "F"
+    if not letter:
+        return {"unknown": True}
+    ps = (
+        f'$v = Get-Volume -DriveLetter "{ps_escape(letter[0])}" -ErrorAction Stop; '
+        'Write-Output ($v.HealthStatus.ToString() + "|" + $v.OperationalStatus)'
+    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=30, creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return {"unknown": True}
+
+    out = (result.stdout or "").strip()
+    if result.returncode != 0 or not out:
+        return {"unknown": True}
+
+    parts = out.split("|", 1)
+    health = parts[0].strip().lower()
+    oper = (parts[1] if len(parts) > 1 else "").strip().lower()
+    # "Full Repair Needed" / "Spot Fix Needed" / "Scan Needed" en OperationalStatus,
+    # o HealthStatus "Unhealthy", indican un volumen danado.
+    damaged = health == "unhealthy" or "repair" in oper or "needed" in oper
+    if damaged:
+        return {"healthy": False, "status": out}
+    return {"healthy": True}
+
+
+def _count_hidden(drive: str, max_depth: int = 3) -> tuple[int, int]:
+    """Cuenta entradas con atributo Oculto/Sistema hasta `max_depth` niveles.
+
+    Retorna (ocultas, errores). `errores` > 0 (sin poder leer casi nada) delata
+    un directorio danado. Usa scandir, que en Windows ya trae los atributos de
+    la enumeracion, asi que entry.stat() no cuesta syscalls extra.
+    """
+    hidden = 0
+    errors = 0
+
+    def walk(path: str, depth: int) -> None:
+        nonlocal hidden, errors
+        if depth > max_depth:
+            return
+        try:
+            with os.scandir(path) as it:
+                for entry in it:
+                    try:
+                        attrs = getattr(
+                            entry.stat(follow_symlinks=False), "st_file_attributes", 0
+                        )
+                        is_dir = entry.is_dir(follow_symlinks=False)
+                    except OSError:
+                        errors += 1
+                        continue
+                    if attrs & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM):
+                        hidden += 1
+                    if is_dir:
+                        walk(entry.path, depth + 1)
+        except OSError:
+            errors += 1
+
+    walk(drive, 1)
+    return hidden, errors
+
+
+def unhide_folders(drive: str) -> dict:
+    """Restaura carpetas ocultas por malware usando attrib, reportando lo que
+    REALMENTE cambio.
+
+    attrib devuelve codigo 0 aunque no toque nada (unidad sin nada oculto) o
+    aunque falle archivo por archivo ("Acceso denegado" va a stdout y aun asi
+    sale con 0). Confiar en ese returncode hacia que la app cantara "carpetas
+    restauradas" sin haber restaurado nada. Aqui se verifica el efecto real
+    contando lo oculto antes/despues, y se detecta el caso de USB danada.
+
+    Retorna uno de:
+      {"ok": True, "changed": N}                       -> N entradas quedaron
+          visibles (N puede ser 0: no habia nada oculto que restaurar).
+      {"ok": False, "fs_damaged": True, "status": str} -> el sistema de archivos
+          de la unidad esta danado (no es virus); attrib no aplica.
+      {"ok": False, "returncode": int, "detail": str, "remaining": R}
+          -> attrib fallo o quedaron R entradas ocultas sin poder restaurar.
+      {"ok": False, "error": str}                      -> no se pudo ejecutar attrib.
+    """
+    # 1) Si el volumen esta danado, attrib no ayuda: reportar la verdad en vez
+    #    de mentir "restaurado".
+    health = check_fs_health(drive)
+    if health.get("healthy") is False:
+        return {"ok": False, "fs_damaged": True, "status": health.get("status", "")}
+
+    # 2) Cuanto habia oculto ANTES. Si ni siquiera se puede leer el directorio
+    #    (errores y cero entradas), es probable corrupcion.
+    hidden_before, errors_before = _count_hidden(drive)
+    if errors_before and hidden_before == 0:
+        return {"ok": False, "fs_damaged": True, "status": "directorio ilegible"}
+
+    # 3) Ejecutar attrib.
     try:
         result = subprocess.run(
             ["attrib", "-h", "-s", "-r", "/s", "/d", f"{drive}*.*"],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
-        if result.returncode == 0:
-            return {"ok": True}
-        detail = (result.stderr or result.stdout or "").strip()
-        return {"ok": False, "returncode": result.returncode, "detail": detail}
     except (subprocess.TimeoutExpired, OSError) as e:
         return {"ok": False, "error": str(e)}
+
+    # 4) Verificar el efecto real.
+    hidden_after, _ = _count_hidden(drive)
+    changed = max(0, hidden_before - hidden_after)
+    detail = (result.stderr or result.stdout or "").strip()
+
+    if result.returncode != 0:
+        return {"ok": False, "returncode": result.returncode, "detail": detail,
+                "remaining": hidden_after}
+    if hidden_after > 0:
+        # attrib salio 0 pero quedaron entradas ocultas: no es exito real.
+        return {"ok": False, "returncode": 0, "detail": detail,
+                "remaining": hidden_after}
+    return {"ok": True, "changed": changed}
 
 
 # --- Interfaz de consola ---
@@ -209,13 +327,37 @@ def usb_disinfect_menu() -> None:
         console.print(f"[bold yellow]Restaurando carpetas ocultas en {drive}...[/bold yellow]")
         result = unhide_folders(drive)
         if result["ok"]:
-            console.print("[green]Atributos restaurados correctamente.[/green]")
-        elif "error" in result:
-            console.print(f"[red]Error al restaurar atributos: {result['error']}[/red]")
-        else:
+            changed = result.get("changed", 0)
+            if changed > 0:
+                console.print(
+                    f"[green]Listo: {changed} carpeta(s)/archivo(s) oculto(s) "
+                    "por el virus quedaron visibles de nuevo.[/green]"
+                )
+            else:
+                console.print(
+                    "[yellow]No habia carpetas ocultas por virus en esta USB, "
+                    "asi que no hubo nada que restaurar.[/yellow]"
+                )
+        elif result.get("fs_damaged"):
             console.print(
-                f"[red]attrib devolvio un error (codigo {result['returncode']}). "
-                "Es posible que no todas las carpetas/archivos se hayan restaurado.[/red]"
+                "[bold red]Esta USB parece tener el sistema de archivos DANADO "
+                "(no es un virus).[/bold red]"
             )
-            if result["detail"]:
-                console.print(f"[dim]{result['detail']}[/dim]")
+            console.print(
+                "[yellow]NO la formatees ni la 'repares': los archivos suelen "
+                "poder recuperarse con una herramienta de recuperacion, pero "
+                "formatear o reparar reduce las posibilidades.[/yellow]"
+            )
+            if result.get("status"):
+                console.print(f"[dim]Estado del volumen: {escape(result['status'])}[/dim]")
+        elif "error" in result:
+            console.print(f"[red]Error al restaurar atributos: {escape(result['error'])}[/red]")
+        else:
+            remaining = result.get("remaining", 0)
+            console.print(
+                f"[red]No se pudieron restaurar {remaining} elemento(s). Es "
+                "posible que necesiten permisos de administrador o que la "
+                "unidad tenga daño.[/red]"
+            )
+            if result.get("detail"):
+                console.print(f"[dim]{escape(result['detail'])}[/dim]")

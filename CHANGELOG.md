@@ -2,6 +2,33 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.8.2] - 2026-07-23
+
+### Corregido
+- **Desinfectante de USB: falso "carpetas restauradas".** `unhide_folders`
+  (`tools/usb_disinfect.py`) declaraba exito con solo que `attrib` devolviera
+  codigo 0, pero `attrib` sale con 0 aunque no cambie nada (unidad sin nada
+  oculto) o aunque falle archivo por archivo ("Acceso denegado" va a stdout y
+  aun asi sale 0). En una USB con el sistema de archivos danado la app cantaba
+  "restauradas correctamente" sin haber tocado nada. Ahora se verifica el
+  efecto REAL contando las entradas ocultas/sistema antes y despues, y se
+  reporta con honestidad: cuantas quedaron visibles, o que no habia nada que
+  restaurar, o que N no se pudieron restaurar. Cazado probando en una USB real
+  (una memoria con la FAT corrupta); las auditorias de lectura no lo veian.
+
+### Agregado
+- **Deteccion de USB con sistema de archivos danado.** Nuevo `check_fs_health`
+  consulta `Get-Volume` y distingue "USB con virus" (atributos ocultos,
+  recuperable con attrib) de "USB con el directorio/FAT corrupto", donde attrib
+  no ayuda. En ese caso la app avisa: "esta USB parece danada, NO es un virus;
+  no la formatees ni la repares — los archivos suelen poder recuperarse" en
+  lugar del falso exito. Aplica en consola (`usb_disinfect_menu`) y GUI
+  (`gui/panels/usb_virus.py`).
+
+### Seguridad
+- `escape()` en la salida de `attrib` impresa en consola (un dato externo con
+  corchetes podia romper el render de rich).
+
 ## [2.8.1] - 2026-07-23
 
 ### Corregido

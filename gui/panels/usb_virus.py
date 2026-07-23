@@ -306,11 +306,29 @@ class PanelUsbVirus(ToolPanel):
             return
 
         if resultado.get("ok"):
-            self._estado.exito("Carpetas y archivos ocultos por el virus quedaron visibles de nuevo.")
+            changed = resultado.get("changed", 0)
+            if changed > 0:
+                self._estado.exito(
+                    f"Listo: {changed} carpeta(s)/archivo(s) oculto(s) por el "
+                    "virus quedaron visibles de nuevo."
+                )
+            else:
+                self._estado.info(
+                    "No habia carpetas ocultas por virus en esta USB, asi que no "
+                    "hubo nada que restaurar."
+                )
+        elif resultado.get("fs_damaged"):
+            self._estado.alerta(
+                "Esta USB parece tener el sistema de archivos DANADO, no un "
+                "virus. NO la formatees ni la repares: los archivos normalmente "
+                "se pueden recuperar con una herramienta de recuperacion, pero "
+                "formatear o reparar baja las posibilidades."
+            )
         elif "error" in resultado:
             self._estado.alerta(f"No se pudo restaurar: {resultado['error']}")
         else:
+            remaining = resultado.get("remaining", 0)
             self._estado.alerta(
-                "No se pudieron restaurar todas las carpetas. Es posible que "
-                "no todas queden visibles."
+                f"No se pudieron restaurar {remaining} elemento(s). Puede que "
+                "necesiten permisos de administrador o que la unidad tenga daño."
             )
