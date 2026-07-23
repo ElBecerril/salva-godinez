@@ -37,7 +37,11 @@ MAX_DOWNLOAD_SIZE = 200 * 1024 * 1024  # 200 MB
 #
 # Es solo la segunda linea del archivo minisign.pub (el base64), sin el
 # "untrusted comment:".
-MINISIGN_PUBLIC_KEY = ""
+#
+# Activa desde v2.9.0 (key id 1711E34BADA12B30). Los .exe anteriores no la
+# traen y siguen actualizandose solo con SHA-256; de v2.9.0 en adelante, toda
+# actualizacion debe venir firmada o no se instala.
+MINISIGN_PUBLIC_KEY = "RWQwK6GtS+MRF6SeD1s+jwKuGr9dv6nXhN3uhmzyM21fxZPtCFmjD7K4"
 
 
 # --- Logica (sin UI) ---

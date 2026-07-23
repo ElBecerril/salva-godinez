@@ -46,8 +46,11 @@ Todos los cambios notables del proyecto se documentan aqui.
   queda intacto. La verificacion no suma peso al `.exe` (Ed25519 implementado
   sobre la libreria estandar, en vez de los ~10 MB de `cryptography`), y trae
   su propio test de regresion contra los vectores oficiales del RFC 8032.
-  Queda inactiva hasta publicar el primer release firmado, asi que esta version
-  se actualiza igual que siempre.
+  **Esta version ya viene firmada**: de v2.9.0 en adelante el updater exige una
+  firma valida para instalar una actualizacion. Quien tenga una version
+  anterior se actualiza a esta como siempre (con SHA-256), porque su `.exe` no
+  trae la llave. Si quieres comprobar la descarga a mano, la llave publica y el
+  comando estan en el README.
 - `urlopen` de la descarga ahora se cierra siempre: los cortes por tamano
   excesivo dejaban el socket abierto hasta que pasara el recolector de basura.
 

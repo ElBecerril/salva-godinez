@@ -67,6 +67,20 @@ Herramientas para resolver los problemas mas comunes del godinez: archivos perdi
 
 Baja el `.exe` de la [ultima release](https://github.com/ElBecerril/salva-godinez/releases/latest) y ejecutalo directamente, no requiere instalacion. Al abrir, SalvaGodinez verifica automaticamente si hay una version nueva disponible.
 
+### Verificar que la descarga es autentica (opcional)
+
+Cada release trae el SHA-256 en sus notas y, desde v2.9.0, una firma digital
+([minisign](https://jedisct1.github.io/minisign/)) en el archivo
+`SalvaGodinez.exe.minisig`. La firma se hace con una llave privada que no vive
+en GitHub, asi que comprueba que el `.exe` lo publico el autor y no alguien mas.
+
+```
+minisign -Vm SalvaGodinez.exe -P RWQwK6GtS+MRF6SeD1s+jwKuGr9dv6nXhN3uhmzyM21fxZPtCFmjD7K4
+```
+
+El auto-updater hace esta misma verificacion solo, antes de dejar la version
+nueva en tu Escritorio: si la firma no cuadra, no instala nada.
+
 ### "Windows protegio tu PC" — como abrirlo la primera vez
 
 La primera vez que lo abras, Windows te puede mostrar una pantalla azul que dice
