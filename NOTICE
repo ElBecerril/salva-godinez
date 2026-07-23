@@ -1,0 +1,33 @@
+SalvaGodinez — Avisos de terceros (NOTICE)
+==========================================
+
+SalvaGodinez se distribuye bajo la GNU General Public License v3.0
+(ver el archivo LICENSE). El ejecutable (.exe) empaqueta componentes de
+terceros, cada uno con su propia licencia:
+
+- PyMuPDF y MuPDF (Artifex Software, Inc.) — AGPL-3.0
+  Se usan para la funcion "PDF a imagenes".
+  https://github.com/pymupdf/PyMuPDF  /  https://mupdf.com
+  El codigo fuente COMPLETO de SalvaGodinez esta disponible publicamente en
+  https://github.com/ElBecerril/salva-godinez, cumpliendo el requisito de la
+  AGPL/GPL de liberar la fuente de la obra combinada.
+
+- rich — MIT
+  https://github.com/Textualize/rich
+
+- pypdf — BSD-3-Clause
+  https://github.com/py-pdf/pypdf
+
+- openpyxl — MIT
+  https://foss.heptapod.net/openpyxl/openpyxl
+
+- Pillow — HPND (permisiva, tipo MIT)
+  https://github.com/python-pillow/Pillow
+
+- certifi — MPL-2.0
+  https://github.com/certifi/python.certifi
+
+La GPL-3.0 y la AGPL-3.0 son compatibles. Al empaquetar PyMuPDF/MuPDF, la obra
+combinada se distribuye como software libre con el codigo fuente disponible en
+el repositorio de arriba. Mientras SalvaGodinez empaquete PyMuPDF, no puede
+volverse software propietario/closed-source.

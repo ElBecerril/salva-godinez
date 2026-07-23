@@ -2,6 +2,19 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.7.0] - 2026-07-22
+
+### Agregado
+- **PDF a imagenes.** Convierte cada pagina de un PDF en una imagen PNG o JPG,
+  con resolucion configurable (72-600 DPI). La herramienta ya existia en el menu
+  pero salia como "(no disponible)" porque faltaba el motor; ahora PyMuPDF viaja
+  dentro del `.exe` y la funcion esta activa. Verificado en Windows real.
+
+### Cambiado
+- El `.exe` crece ~17 MB (de ~23 a ~40 MB) por empaquetar PyMuPDF/MuPDF.
+- Se agrega el archivo `NOTICE` con la atribucion de PyMuPDF/MuPDF (AGPL-3.0) y
+  demas componentes de terceros. El codigo fuente completo sigue abierto (GPL/AGPL).
+
 ## [2.6.1] - 2026-07-22
 
 Segunda ronda de la auditoria completa de v2.6.0: se cierran los bugs con

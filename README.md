@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.6.1
+**by El_Becerril** | v2.7.0
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -88,7 +88,7 @@ programa gratuito recien salido. Para abrirlo:
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.6.1: segunda ronda de la auditoria completa — el auto-updater instala de forma atomica y encuentra el Escritorio real (OneDrive), el rescate ya no oculta archivos de la papelera, se cierran congelamientos y falsos positivos en varias pantallas, y se paga deuda tecnica. v2.6.0 dejo la app como ventana limpia (adios consola negra) y el updater conectando desde el .exe. Ver [CHANGELOG](CHANGELOG.md).
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.7.0: se activa **PDF a imagenes** (convierte cada pagina de un PDF en PNG/JPG, via PyMuPDF empaquetado). v2.6.1 cerro la segunda ronda de la auditoria (updater atomico + Escritorio OneDrive, rescate sin ocultar archivos, congelamientos y deuda) y v2.6.0 dejo la app como ventana limpia. Ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 
@@ -157,6 +157,11 @@ Solo detecta unidades removibles. Discos duros externos pueden no aparecer si Wi
 ## Licencia
 
 Este proyecto esta bajo la licencia GPL v3. Ver [LICENSE](LICENSE) para mas detalles.
+
+El `.exe` empaqueta componentes de terceros (entre ellos PyMuPDF/MuPDF bajo
+AGPL-3.0, para "PDF a imagenes"). Ver [NOTICE](NOTICE) para la lista completa y
+sus licencias. El codigo fuente completo esta en este mismo repositorio, como
+exigen la GPL y la AGPL.
 
 ## Roadmap
 
