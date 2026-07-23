@@ -44,7 +44,12 @@ def _list_shadow_copies() -> list[dict]:
                 if len(parts) > 1:
                     current["date"] = parts[1].strip()
             elif "Original Volume" in line or "Volumen original" in line:
-                match = re.search(r"\(([A-Z]):\\\)", line, re.IGNORECASE)
+                # vssadmin emite la unidad como "(C:)\\?\Volume{...}\": el ")"
+                # va PEGADO al ":", el backslash queda FUERA del parentesis.
+                # El patron anterior exigia "(C:\)" (backslash dentro) y por eso
+                # NUNCA matcheaba -> "drive" jamas se seteaba y ningun shadow
+                # copy pasaba la condicion de guardado de abajo (siempre []).
+                match = re.search(r"\(([A-Z]):\)", line, re.IGNORECASE)
                 if match:
                     current["drive"] = match.group(1)
 

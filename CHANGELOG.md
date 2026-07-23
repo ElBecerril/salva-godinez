@@ -2,6 +2,22 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.8.1] - 2026-07-23
+
+### Corregido
+- **Rescate por Shadow Copies (VSS): nunca devolvia resultados.** El parser de
+  `vssadmin list shadows` (`searchers/shadow_copies.py`) extraia la unidad de
+  origen con un regex `\(([A-Z]):\\\)` que exigia el formato `(C:\)`, pero
+  `vssadmin` emite la unidad como `(C:)` (el `)` va pegado al `:`, con el
+  backslash FUERA del parentesis). El regex nunca matcheaba, `current["drive"]`
+  jamas se seteaba y por tanto ningun shadow copy pasaba la condicion de
+  guardado — `search_shadow_copies` devolvia `[]` siempre, en silencio. La
+  etapa "Copia de seguridad de Windows" del rescate completo estaba muerta.
+  Corregido a `\(([A-Z]):\)`; verificado contra salidas reales de `vssadmin` en
+  ingles y espanol. Nota: la verificacion end-to-end (con admin y shadow copies
+  reales) queda para Windows; en desarrollo (Linux) solo se valida el regex.
+  El mismo patron heredado sigue en `legacy/BuscadorExcel.py` (no se toca).
+
 ## [2.8.0] - 2026-07-23
 
 ### Agregado
