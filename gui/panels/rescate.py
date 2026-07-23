@@ -29,6 +29,7 @@ from searchers.full_search import (
     ETAPA_TEMPORALES,
     search_everywhere,
 )
+from searchers.shadow_copies import ultimo_motivo as ultimo_motivo_shadow
 
 
 class PanelRescate(ToolPanel):
@@ -43,6 +44,9 @@ class PanelRescate(ToolPanel):
     def build(self) -> None:
         self._por_iid: dict[str, dict] = {}
         self._siguiente_iid = 0
+        # Etapas que no se pudieron correr en la busqueda en curso (ver
+        # _on_progreso / _on_busqueda_lista).
+        self._avisos: list[str] = []
 
         # --- Fila de busqueda -------------------------------------------------
         entrada = ttk.Frame(self.body, style="Panel.TFrame")
@@ -129,6 +133,7 @@ class PanelRescate(ToolPanel):
             self._tabla.delete(fila)
         self._por_iid.clear()
         self._siguiente_iid = 0
+        self._avisos = []
         self._btn_recuperar.configure(state="disabled")
 
         self._btn_buscar.configure(state="disabled")
@@ -143,13 +148,18 @@ class PanelRescate(ToolPanel):
         self.run_async(trabajo, self._on_busqueda_lista, on_progress=self._on_progreso)
 
     def _on_progreso(self, tipo: str, dato) -> None:
-        # Los dos tipos de aviso que manda _buscar_en_todos_lados, ya en el
-        # hilo de la UI (run_async los saca de la cola via after()): texto de
-        # estado, o una tanda de resultados nuevos de una etapa que termino.
+        # Los tipos de aviso que manda _buscar_en_todos_lados, ya en el hilo de
+        # la UI (run_async los saca de la cola via after()): texto de estado,
+        # una tanda de resultados nuevos de una etapa que termino, o un aviso
+        # de que una etapa no se pudo correr (p.ej. las copias de seguridad de
+        # Windows sin permisos de administrador).
         if tipo == "estado":
             self._estado.info(dato)
         elif tipo == "resultados":
             self._agregar_resultados(dato)
+        elif tipo == "aviso":
+            self._avisos.append(dato)
+            self._estado.alerta(dato)
 
     def _agregar_resultados(self, resultados: list[dict]) -> None:
         """Suma filas a la tabla sin borrar lo que ya habia. `resultados` ya
@@ -194,11 +204,19 @@ class PanelRescate(ToolPanel):
         # ademas tkinter revienta con "Item 0 already exists" si se reusan
         # los mismos iid.
         resultados = resultado
+        # Si alguna etapa no se pudo correr (tipicamente las copias de
+        # seguridad de Windows sin permisos de administrador), el aviso se
+        # arrastra hasta el mensaje final: si no, el "no se encontro nada" se
+        # lee como "no habia respaldo" cuando en realidad ni se reviso.
+        cola = (" " + " ".join(self._avisos)) if self._avisos else ""
+
         if not resultados:
-            self._estado.alerta("No se encontro ningun archivo con ese nombre.")
+            self._estado.alerta(
+                "No se encontro ningun archivo con ese nombre." + cola
+            )
             return
 
-        self._estado.exito(f"Se encontraron {len(resultados)} archivo(s).")
+        self._estado.exito(f"Se encontraron {len(resultados)} archivo(s).{cola}")
 
     # ------------------------------------------------------------------
     # Seleccion y recuperacion
@@ -318,6 +336,15 @@ def _buscar_en_todos_lados(nombre: str, progreso) -> list[dict]:
             progreso("estado", _ETIQUETAS_INICIO.get(etapa, "Buscando..."))
         elif resultados:
             progreso("resultados", resultados)
+        elif etapa == ETAPA_SHADOW and ultimo_motivo_shadow() == "sin_permisos":
+            # Igual que en consola: sin admin no se revisan las copias de
+            # seguridad, y decirlo evita que el usuario crea que no habia.
+            progreso(
+                "aviso",
+                "No se pudieron revisar las copias de seguridad de Windows: "
+                "abre SalvaGodinez como administrador (clic derecho > "
+                "Ejecutar como administrador) para incluirlas.",
+            )
 
     return search_everywhere(
         nombre,

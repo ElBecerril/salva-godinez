@@ -25,7 +25,7 @@ from searchers.recycle_bin import search_recycle_bin
 from searchers.disk_search import search_by_name, search_recent_excel
 from searchers.temp_files import search_temp_files
 from searchers.recent_files import search_recent_files
-from searchers.shadow_copies import search_shadow_copies
+from searchers.shadow_copies import search_shadow_copies, ultimo_motivo as ultimo_motivo_shadow
 from searchers.full_search import (
     search_everywhere,
     ETAPA_PAPELERA,
@@ -425,6 +425,15 @@ def option_full_search() -> None:
                 status.update(f"[bold green]Buscando en {etiqueta}...")
             elif count:
                 console.print(f"  [green]+{count}[/green] encontrado(s) en {etiqueta}")
+            elif etapa == ETAPA_SHADOW and ultimo_motivo_shadow() == "sin_permisos":
+                # Sin admin, vssadmin no lista nada. Callarselo hace que el
+                # usuario concluya "no habia respaldo" cuando en realidad ni
+                # se miro; con archivos que se dan por perdidos eso importa.
+                console.print(
+                    "  [yellow]No se pudieron revisar las copias de seguridad de "
+                    "Windows: hay que abrir SalvaGodinez como administrador "
+                    "(clic derecho > Ejecutar como administrador).[/yellow]"
+                )
 
         all_results = search_everywhere(
             name, progress_callback=progress, stage_callback=on_stage

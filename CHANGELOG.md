@@ -4,6 +4,26 @@ Todos los cambios notables del proyecto se documentan aqui.
 
 ## [2.9.0] - 2026-07-23
 
+### Corregido
+- **Recuperar archivos: la busqueda en Copias de seguridad de Windows seguia
+  muerta en Windows en espanol.** v2.8.1 arreglo la mitad del problema (el
+  regex de la unidad), pero la otra mitad seguia rota y nadie lo vio: el
+  codigo identificaba la linea de la ruta buscando el texto en INGLES
+  ("Shadow Copy Volume"), y en un Windows en espanol esa linea dice "Volumen
+  de instantaneas". Resultado: la ruta nunca se leia, ninguna copia pasaba el
+  filtro y la etapa devolvia cero resultados **en silencio** — justo en el
+  Windows que usa el 100% del publico de esta app. Ahora el analisis se ancla
+  a la ruta del sistema y a la letra de la unidad, que Windows NO traduce, asi
+  que funciona en cualquier idioma. Cazado corriendo `vssadmin` de verdad en
+  una VM con Windows 11 en espanol; ninguna revision de escritorio lo habia
+  detectado en dos intentos.
+- **Deja de decir "no encontre nada" cuando en realidad no pudo buscar.** Las
+  copias de seguridad de Windows requieren permisos de administrador; sin
+  ellos la busqueda no devolvia nada y no explicaba por que, asi que el
+  usuario concluia que no habia respaldo de su archivo. Ahora avisa que hay
+  que abrir SalvaGodinez como administrador para incluirlas, en consola y en
+  la ventana.
+
 ### Agregado
 - **Word, Excel y PowerPoint a PDF.** Convierte un documento de Office a PDF
   usando el Office que ya tienes instalado, asi que el PDF sale con el formato
