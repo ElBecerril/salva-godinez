@@ -2,6 +2,21 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.8.0] - 2026-07-23
+
+### Agregado
+- **PDF a Word.** Extrae el texto de un PDF a un documento Word (`.docx`)
+  editable. Es extraccion de texto simple (parrafos por bloques, en orden de
+  lectura): no reconstruye tablas ni columnas complejas — para eso haria falta
+  pdf2docx + opencv, que agregaria ~55 MB al `.exe`. Reusa el motor PyMuPDF que
+  ya viajaba en el binario y suma `python-docx`. Verificado en Windows real
+  (conversion de un PDF de 2 paginas a .docx). Disponible en la GUI (Editar PDF)
+  y en el menu de texto.
+
+### Cambiado
+- El `.exe` crece ~4.6 MB (de ~42 a ~45 MB) por `python-docx` y sus dependencias.
+- `NOTICE` suma la atribucion de `python-docx` (MIT).
+
 ## [2.7.0] - 2026-07-22
 
 ### Agregado

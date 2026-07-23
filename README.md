@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.7.0
+**by El_Becerril** | v2.8.0
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -88,7 +88,7 @@ programa gratuito recien salido. Para abrirlo:
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 10 funciones. v2.7.0: se activa **PDF a imagenes** (convierte cada pagina de un PDF en PNG/JPG, via PyMuPDF empaquetado). v2.6.1 cerro la segunda ronda de la auditoria (updater atomico + Escritorio OneDrive, rescate sin ocultar archivos, congelamientos y deuda) y v2.6.0 dejo la app como ventana limpia. Ver [CHANGELOG](CHANGELOG.md).
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 11 funciones. v2.8.0: se agrega **PDF a Word** (extrae el texto de un PDF a un .docx editable, via PyMuPDF + python-docx). v2.7.0 activo PDF a imagenes; v2.6.1 cerro la segunda ronda de la auditoria (updater atomico, rescate, congelamientos, deuda) y v2.6.0 dejo la app como ventana limpia. Ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 
