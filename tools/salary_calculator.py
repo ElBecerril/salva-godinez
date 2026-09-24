@@ -3,7 +3,14 @@
 from rich.table import Table
 from rich import box
 
-from config import ISR_MONTHLY_TABLE, IMSS_EMPLOYEE_RATES, UMA_DAILY, AGUINALDO_MIN_DAYS, VACATION_DAYS_TABLE
+from config import (
+    ISR_MONTHLY_TABLE,
+    IMSS_EMPLOYEE_RATES,
+    SALARIO_MINIMO_DAILY,
+    UMA_DAILY,
+    AGUINALDO_MIN_DAYS,
+    VACATION_DAYS_TABLE,
+)
 from tools._fiscal_helpers import DISCLAIMER, ask_float as _ask_float, fmt as _fmt, find_bracket as _find_bracket
 from utils import console
 
@@ -43,6 +50,14 @@ FACTOR_INTEGRACION_SBC_MINIMO = 1 + (AGUINALDO_MIN_DAYS + VACATION_DAYS_TABLE[1]
 SUBSIDIO_EMPLEO_FACTOR_UMA = 0.1502
 SUBSIDIO_EMPLEO_MENSUAL = round(UMA_DAILY * 30.4 * SUBSIDIO_EMPLEO_FACTOR_UMA, 2)
 SUBSIDIO_EMPLEO_LIMITE_INGRESO = 11_492.66
+
+# Mensualizacion del salario minimo (mismo factor 30.4 que el resto del
+# archivo) para detectar a quien gana justo el minimo: Art. 96 LISR (tercer
+# parrafo) exime de retencion de ISR a quien en el mes unicamente percibe un
+# salario minimo general, y el Art. 36 LSS pone la cuota obrero del IMSS a
+# cargo del PATRON para ese mismo caso. +0.01 de tolerancia por redondeo (el
+# bruto capturado puede venir ya redondeado a centavos).
+SALARIO_MINIMO_MONTHLY = SALARIO_MINIMO_DAILY * 30.4
 
 
 def calculate_subsidio_empleo(monthly_gross: float) -> float:
@@ -109,7 +124,65 @@ def calculate_isr(taxable_base: float) -> dict:
     }
 
 
+def calculate_neto(monthly_gross: float) -> dict:
+    """Compone bruto -> IMSS -> ISR -> subsidio -> neto mensual.
+
+    Punto unico de esta composicion: la consola (salary_calculator_menu) y el
+    panel de GUI (gui/panels/sueldo.py) llaman a esta funcion en vez de
+    reimplementarla, para no tener dos calculos que se puedan desincronizar.
+
+    Caso especial salario minimo (Art. 96 LISR 3er parrafo + Art. 36 LSS): a
+    quien en el mes solo percibe un salario minimo general no se le retiene
+    ISR, y la cuota obrero del IMSS la paga el patron. En ese caso el neto es
+    el bruto completo; `salario_minimo=True` le indica a la UI que muestre la
+    nota legal en vez de (o ademas de) el desglose normal.
+    """
+    imss = calculate_imss_deductions(monthly_gross)
+    total_imss = sum(imss.values())
+
+    # Base gravable = bruto (las cuotas obrero IMSS no son deducibles de la
+    # base del ISR de sueldos, Art. 96 LISR; el IMSS solo se resta al
+    # calcular el neto).
+    taxable_base = monthly_gross
+
+    isr = calculate_isr(taxable_base)
+    isr_total = isr.get("isr_total", 0)
+
+    # Subsidio al empleo (beneficia a sueldos bajos, se resta del ISR a cargo
+    # sin poder hacer el ISR negativo; bajo el esquema 2026 de monto unico, si
+    # el subsidio excede el ISR el excedente NO se entrega en efectivo al
+    # trabajador, simplemente el ISR neto queda en cero).
+    subsidio_empleo = calculate_subsidio_empleo(monthly_gross)
+    isr_neto = max(isr_total - subsidio_empleo, 0)
+
+    salario_minimo = monthly_gross <= SALARIO_MINIMO_MONTHLY + 0.01
+    if salario_minimo:
+        total_imss = 0.0  # Art. 36 LSS: la cuota obrero la paga el patron
+        isr_neto = 0.0  # Art. 96 LISR: no hay retencion
+        net_salary = monthly_gross
+    else:
+        net_salary = monthly_gross - total_imss - isr_neto
+
+    return {
+        "imss": imss,
+        "total_imss": total_imss,
+        "taxable_base": taxable_base,
+        "isr": isr,
+        "isr_total": isr_total,
+        "subsidio_empleo": subsidio_empleo,
+        "isr_neto": isr_neto,
+        "net_salary": net_salary,
+        "salario_minimo": salario_minimo,
+    }
+
+
 # --- Interfaz de consola ---
+
+_NOTA_SALARIO_MINIMO = (
+    "Ganas el salario minimo: por ley no se te retiene ISR (Art. 96 LISR) y "
+    "tu cuota del IMSS la paga el patron (Art. 36 LSS)."
+)
+
 
 def salary_calculator_menu() -> None:
     """Calculadora de sueldo neto mensual."""
@@ -119,30 +192,18 @@ def salary_calculator_menu() -> None:
     if not monthly_gross:
         return
 
-    # 1. Calcular IMSS
-    imss = calculate_imss_deductions(monthly_gross)
-    total_imss = sum(imss.values())
-
-    # 2. Base gravable = bruto (las cuotas obrero IMSS no son deducibles de
-    # la base del ISR de sueldos, Art. 96 LISR; el IMSS solo se resta al
-    # calcular el neto, ver punto 4)
-    taxable_base = monthly_gross
-
-    # 3. Calcular ISR
-    isr = calculate_isr(taxable_base)
+    resultado = calculate_neto(monthly_gross)
+    isr = resultado["isr"]
     if "error" in isr:
         console.print(f"[red]No se pudo calcular el ISR: {isr['error']}[/red]")
-    isr_total = isr.get("isr_total", 0)
 
-    # 3b. Subsidio al empleo (beneficia a sueldos bajos, se resta del ISR a cargo
-    # sin poder hacer el ISR negativo; bajo el esquema 2026 de monto unico, si
-    # el subsidio excede el ISR el excedente NO se entrega en efectivo al
-    # trabajador, simplemente el ISR neto queda en cero)
-    subsidio_empleo = calculate_subsidio_empleo(monthly_gross)
-    isr_neto = max(isr_total - subsidio_empleo, 0)
-
-    # 4. Sueldo neto
-    net_salary = monthly_gross - total_imss - isr_neto
+    imss = resultado["imss"]
+    total_imss = resultado["total_imss"]
+    taxable_base = resultado["taxable_base"]
+    isr_total = resultado["isr_total"]
+    subsidio_empleo = resultado["subsidio_empleo"]
+    isr_neto = resultado["isr_neto"]
+    net_salary = resultado["net_salary"]
 
     # Mostrar tabla desglosada
     table = Table(title="Desglose de Sueldo Neto", box=box.SIMPLE_HEAVY)
@@ -152,26 +213,32 @@ def salary_calculator_menu() -> None:
     table.add_row("[bold]Salario bruto[/bold]", f"[bold]{_fmt(monthly_gross)}[/bold]")
     table.add_row("", "")
 
-    # Desglose IMSS
-    table.add_row("[yellow]Deducciones IMSS (SBC integrado)[/yellow]", "")
-    for concept, amount in imss.items():
-        table.add_row(f"  {concept}", f"[red]-{_fmt(amount)}[/red]")
-    table.add_row("  [bold]Total IMSS[/bold]", f"[red]-{_fmt(total_imss)}[/red]")
-    table.add_row("", "")
+    if resultado["salario_minimo"]:
+        console.print(f"[yellow]{_NOTA_SALARIO_MINIMO}[/yellow]\n")
+        table.add_row("  IMSS a cargo del trabajador", f"[red]-{_fmt(0)}[/red]")
+        table.add_row("  ISR a cargo del trabajador", f"[red]-{_fmt(0)}[/red]")
+        table.add_row("", "")
+    else:
+        # Desglose IMSS
+        table.add_row("[yellow]Deducciones IMSS (SBC integrado)[/yellow]", "")
+        for concept, amount in imss.items():
+            table.add_row(f"  {concept}", f"[red]-{_fmt(amount)}[/red]")
+        table.add_row("  [bold]Total IMSS[/bold]", f"[red]-{_fmt(total_imss)}[/red]")
+        table.add_row("", "")
 
-    # Desglose ISR
-    table.add_row("[yellow]ISR Art. 96[/yellow]", "")
-    table.add_row("  Base gravable", _fmt(taxable_base))
-    if "tasa" in isr:
-        table.add_row("  Limite inferior", _fmt(isr["limite_inferior"]))
-        table.add_row("  Excedente", _fmt(isr["excedente"]))
-        table.add_row(f"  Tasa ({isr['tasa']:.2%})", f"[red]-{_fmt(isr['impuesto_marginal'])}[/red]")
-        table.add_row("  Cuota fija", f"[red]-{_fmt(isr['cuota_fija'])}[/red]")
-    table.add_row("  [bold]Total ISR[/bold]", f"[red]-{_fmt(isr_total)}[/red]")
-    if subsidio_empleo:
-        table.add_row("  Subsidio al empleo", f"[green]+{_fmt(subsidio_empleo)}[/green]")
-        table.add_row("  [bold]ISR neto a cargo[/bold]", f"[red]-{_fmt(max(isr_neto, 0))}[/red]")
-    table.add_row("", "")
+        # Desglose ISR
+        table.add_row("[yellow]ISR Art. 96[/yellow]", "")
+        table.add_row("  Base gravable", _fmt(taxable_base))
+        if "tasa" in isr:
+            table.add_row("  Limite inferior", _fmt(isr["limite_inferior"]))
+            table.add_row("  Excedente", _fmt(isr["excedente"]))
+            table.add_row(f"  Tasa ({isr['tasa']:.2%})", f"[red]-{_fmt(isr['impuesto_marginal'])}[/red]")
+            table.add_row("  Cuota fija", f"[red]-{_fmt(isr['cuota_fija'])}[/red]")
+        table.add_row("  [bold]Total ISR[/bold]", f"[red]-{_fmt(isr_total)}[/red]")
+        if subsidio_empleo:
+            table.add_row("  Subsidio al empleo", f"[green]+{_fmt(subsidio_empleo)}[/green]")
+            table.add_row("  [bold]ISR neto a cargo[/bold]", f"[red]-{_fmt(max(isr_neto, 0))}[/red]")
+        table.add_row("", "")
 
     table.add_row(
         "[bold green]Sueldo neto[/bold green]",

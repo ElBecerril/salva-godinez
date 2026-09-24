@@ -2,6 +2,49 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.9.1] - 2026-09-24
+
+### Seguridad
+- **El auto-updater ahora exige que la firma digital sea de la version que se
+  ofrece.** Desde v2.9.0 cada actualizacion debe venir firmada por el autor,
+  pero no se revisaba DE QUE VERSION era la firma. Quien tomara la cuenta de
+  GitHub podia publicar un release "v99" con el `.exe` viejo de una version
+  anterior y su firma legitima: la firma pasaba y el usuario quedaba regresado
+  a una version vieja. Ahora la version que viene dentro de lo firmado tiene
+  que coincidir con la del release; si no, no se instala nada y el Escritorio
+  queda intacto. Trae su propio test (`tests/test_updater_version.py`).
+- El nombre del archivo descargado ya no usa el nombre del release tal cual
+  (se limpian los caracteres raros antes de armar la ruta en el Escritorio).
+
+### Corregido
+- **Finiquito: con menos de un anio de antiguedad daba $0 de vacaciones y $0
+  de prima vacacional.** La ley (Art. 79 LFT) si da vacaciones proporcionales
+  en el primer anio. Ejemplo con salario diario de $500 y 180 dias
+  trabajados: antes $3,698.63, ahora $7,397.26. Afectaba tambien a la
+  liquidacion (el salario integrado usaba 0 dias de vacaciones). Para
+  antiguedades de un anio o mas los resultados no cambian.
+- **Calculadora de sueldo: quien gana el salario minimo ya no ve descuentos de
+  ISR ni IMSS.** Por ley a ese salario no se le retiene ISR (Art. 96 LISR) y
+  su cuota del IMSS la paga el patron (Art. 36 LSS); antes la calculadora le
+  restaba ambos. Ahora el neto es el bruto completo y se explica por que.
+- **Unir varios Excel: ya no truena si el archivo tiene corchetes en el
+  nombre** (p.ej. `Ventas [final].xlsx`). Windows los permite en nombres de
+  archivo, pero Excel no en nombres de hoja, y la union entera se caia.
+- **Unir varios Excel: se conservan las celdas combinadas** de las hojas
+  originales (antes quedaban "desarmadas" sin avisar).
+- **Unir Excel (ventana): un doble clic lanzaba dos uniones a la vez** que
+  escribian el mismo archivo de salida. Ahora el boton se desactiva mientras
+  trabaja.
+- **Recuperar archivos (ventana): una busqueda muy generica ya no congela la
+  ventana.** Se muestran los primeros 500 resultados y se avisa cuantos hubo
+  en total para afinar la busqueda.
+- **Convertir imagenes: ya no deja bloqueado el archivo original** en Windows
+  durante conversiones por lote (las imagenes no se cerraban).
+
+### Cambiado
+- La calculadora de sueldo de consola y la de ventana usan ahora el mismo
+  calculo (antes estaba duplicado y podian desincronizarse).
+
 ## [2.9.0] - 2026-07-23
 
 ### Corregido

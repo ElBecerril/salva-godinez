@@ -31,6 +31,13 @@ from searchers.full_search import (
 )
 from searchers.shadow_copies import ultimo_motivo as ultimo_motivo_shadow
 
+# Tope de filas en la tabla: una busqueda generica en un disco grande puede
+# traer miles de resultados y cada insert() corre en el hilo de UI, asi que
+# sin tope la ventana se congela (mismo problema y mismo criterio que
+# gui/panels/comparar_excel.py). Los resultados por encima del tope no se
+# insertan; el aviso se manda al terminar la busqueda (_on_busqueda_lista).
+TOPE_FILAS = 500
+
 
 class PanelRescate(ToolPanel):
     TITULO = "Recuperar archivos perdidos"
@@ -44,6 +51,10 @@ class PanelRescate(ToolPanel):
     def build(self) -> None:
         self._por_iid: dict[str, dict] = {}
         self._siguiente_iid = 0
+        # Cuantas filas ya se insertaron en la tabla en la busqueda en curso
+        # (contra TOPE_FILAS); se resetea en _buscar(), no aqui, porque
+        # build() solo corre una vez.
+        self._filas_mostradas = 0
         # Etapas que no se pudieron correr en la busqueda en curso (ver
         # _on_progreso / _on_busqueda_lista).
         self._avisos: list[str] = []
@@ -133,6 +144,7 @@ class PanelRescate(ToolPanel):
             self._tabla.delete(fila)
         self._por_iid.clear()
         self._siguiente_iid = 0
+        self._filas_mostradas = 0
         self._avisos = []
         self._btn_recuperar.configure(state="disabled")
 
@@ -165,8 +177,17 @@ class PanelRescate(ToolPanel):
         """Suma filas a la tabla sin borrar lo que ya habia. `resultados` ya
         viene deduplicado (searchers/full_search.py) contra todo lo visto en
         etapas anteriores, asi que aqui no hay que filtrar nada mas.
+
+        Los resultados llegan por etapas (una llamada por cada tanda que
+        termina _buscar_en_todos_lados), asi que _filas_mostradas se
+        acumula ENTRE llamadas contra TOPE_FILAS; no se resetea aqui, solo al
+        iniciar una busqueda nueva (_buscar). Las filas por encima del tope
+        ni se insertan ni se guardan en _por_iid: no hay iid de tabla al que
+        asociarlas.
         """
         for r in resultados:
+            if self._filas_mostradas >= TOPE_FILAS:
+                continue
             iid = str(self._siguiente_iid)
             self._siguiente_iid += 1
             self._por_iid[iid] = r
@@ -180,6 +201,7 @@ class PanelRescate(ToolPanel):
                     r.get("origen", "?"),
                 ),
             )
+            self._filas_mostradas += 1
 
     def _on_busqueda_lista(self, ok: bool, resultado) -> None:
         self._barra.stop()
@@ -215,6 +237,13 @@ class PanelRescate(ToolPanel):
                 "No se encontro ningun archivo con ese nombre." + cola
             )
             return
+
+        if len(resultados) > TOPE_FILAS:
+            cola = (
+                f" Se muestran los primeros {TOPE_FILAS} de {len(resultados)} "
+                "resultados; afina la busqueda con un nombre mas especifico "
+                "para ver el resto."
+            ) + cola
 
         self._estado.exito(f"Se encontraron {len(resultados)} archivo(s).{cola}")
 

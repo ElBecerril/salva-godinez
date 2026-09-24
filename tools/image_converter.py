@@ -87,10 +87,19 @@ def _convert_image(Image, src: str, target_ext: str, output_dir: str) -> dict:
     out_path = _safe_output_path(output_dir, base_name, target_ext)
     multiframe = None
 
+    # img_original es el que abre Image.open(); ImageOps.exif_transpose() y
+    # la conversion RGBA->RGB pueden devolver objetos NUEVOS (o el mismo, si
+    # no habia nada que transformar). `extras` junta solo los objetos nuevos
+    # que de verdad se crearon, para cerrarlos todos en el finally sin
+    # cerrar dos veces el mismo (evita el bloqueo del archivo de origen en
+    # Windows durante conversiones por lote).
+    img_original = None
+    extras: list = []
     try:
         from PIL import ImageOps
 
-        img = Image.open(src)
+        img_original = Image.open(src)
+        img = img_original
 
         # Imagenes multipagina/animadas (GIF, TIFF): solo se convierte el
         # primer frame, avisamos al usuario para que no se sorprenda.
@@ -98,14 +107,21 @@ def _convert_image(Image, src: str, target_ext: str, output_dir: str) -> dict:
             multiframe = img.n_frames
 
         # Respeta la orientacion EXIF (fotos de celular vienen rotadas por
-        # metadata, no por los pixeles reales).
-        img = ImageOps.exif_transpose(img)
+        # metadata, no por los pixeles reales). exif_transpose puede
+        # devolver el mismo objeto (sin rotacion que aplicar) o uno nuevo.
+        transpuesta = ImageOps.exif_transpose(img)
+        if transpuesta is not img:
+            extras.append(transpuesta)
+        img = transpuesta
 
         # RGBA → RGB para formatos que no soportan transparencia
         if target_ext in (".jpg", ".bmp") and img.mode in ("RGBA", "P", "LA"):
             background = Image.new("RGB", img.size, (255, 255, 255))
+            extras.append(background)
             if img.mode == "P":
-                img = img.convert("RGBA")
+                convertida = img.convert("RGBA")
+                extras.append(convertida)
+                img = convertida
             background.paste(img, mask=img.split()[-1] if "A" in img.mode else None)
             img = background
 
@@ -129,6 +145,18 @@ def _convert_image(Image, src: str, target_ext: str, output_dir: str) -> dict:
 
     except Exception as e:
         return {"ok": False, "output": None, "multiframe": multiframe, "error": str(e)}
+
+    finally:
+        # Cierra el original y cada extra creado, sin repetir el mismo
+        # objeto (por identidad) si por alguna razon quedo dos veces.
+        cerrados: set[int] = set()
+        for obj in [img_original, *extras]:
+            if obj is not None and id(obj) not in cerrados:
+                cerrados.add(id(obj))
+                try:
+                    obj.close()
+                except Exception:
+                    pass
 
 
 # --- Interfaz de consola ---

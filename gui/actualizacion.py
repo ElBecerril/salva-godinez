@@ -27,6 +27,7 @@ from tools.updater import (
     get_exe_asset,
     get_sig_asset,
     _extract_sha256,
+    _sanitizar_tag,
 )
 
 
@@ -201,7 +202,7 @@ def _dialogo_actualizacion(root, version: str, remote_tag: str, data: dict) -> N
         expected = _extract_sha256(data.get("body", ""), exe_asset["name"])
         sig_asset = get_sig_asset(data, exe_asset["name"])
         sig_url = sig_asset["browser_download_url"] if sig_asset else None
-        filename = f"SalvaGodinez_{remote_tag}.exe"
+        filename = f"SalvaGodinez_{_sanitizar_tag(remote_tag)}.exe"
 
         # Cambiar la UI a "descargando": fuera los botones, entra la barra.
         for w in botones.winfo_children():
@@ -222,6 +223,7 @@ def _dialogo_actualizacion(root, version: str, remote_tag: str, data: dict) -> N
                 exe_asset["browser_download_url"], filename, expected,
                 progress_callback=lambda w, t: progress(w, t),
                 sig_url=sig_url,
+                expected_version=remote_tag,
             )
 
         def on_progress(written, total):
@@ -292,6 +294,11 @@ def _texto_error(result: dict) -> str:
                 "haber sido alterado. No se instalo nada y tu Escritorio no fue "
                 "modificado. Descarga la version nueva a mano desde el Release "
                 "oficial en GitHub.")
+    if reason == "version_mismatch":
+        return ("La firma digital es del autor, pero corresponde a otra version (no a "
+                "la que se ofrecio). Por seguridad no se instala, podria ser un intento "
+                "de forzar una version vieja. Tu Escritorio no fue modificado. Descarga "
+                "la version nueva a mano desde el Release oficial en GitHub.")
     if reason in ("too_large_header", "too_large_stream"):
         mb = result.get("max_size", 0) // (1024 * 1024)
         return (f"La descarga excede el tamano maximo permitido ({mb} MB). Se aborto "

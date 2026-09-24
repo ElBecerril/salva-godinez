@@ -14,6 +14,25 @@ from utils import get_openpyxl as _get_openpyxl, console
 # --- Logica (sin UI) ---
 
 
+# Caracteres prohibidos por Excel/openpyxl en titulos de hoja (aunque Windows
+# si permite [ ] en nombres de archivo). El apostrofo al inicio/fin tambien
+# esta prohibido y se limpia aparte (no se puede reemplazar por '_' generico
+# porque el problema es su POSICION, no el caracter).
+_CHARS_INVALIDOS_HOJA = '\\/*?:[]'
+
+
+def _sanitize_sheet_name(name: str) -> str:
+    """Limpia un nombre de hoja para que Excel/openpyxl lo acepten.
+
+    Reemplaza los caracteres prohibidos por '_', quita apostrofes al inicio/
+    fin, y evita el nombre vacio (Excel tampoco lo permite).
+    """
+    for ch in _CHARS_INVALIDOS_HOJA:
+        name = name.replace(ch, "_")
+    name = name.strip("'")
+    return name or "_"
+
+
 def _safe_output_path(path: str) -> str:
     """Evita sobrescribir un archivo existente agregando un sufijo numerico.
 
@@ -62,18 +81,25 @@ def _merge_files(paths: list[str], output: str) -> dict:
             continue
         base = os.path.splitext(os.path.basename(path))[0]
 
+        base_sano = _sanitize_sheet_name(base)
+
         for ws in src_wb.worksheets:
-            # Nombre unico para la hoja (max 31 chars, limite de Excel)
-            sheet_name = f"{base}_{ws.title}"[:31]
-            existing = {s.title for s in dest_wb.worksheets}
-            if sheet_name in existing:
+            # Nombre unico para la hoja (max 31 chars, limite de Excel), ya
+            # sanitizado antes de truncar y antes de revisar colisiones.
+            titulo_sano = _sanitize_sheet_name(ws.title)
+            sheet_name = _sanitize_sheet_name(f"{base_sano}_{titulo_sano}"[:31])
+            # Excel compara nombres de hoja sin importar mayusculas/minusculas.
+            existing = {s.title.lower() for s in dest_wb.worksheets}
+            if sheet_name.lower() in existing:
                 # Agregar sufijo numerico si el nombre truncado ya existe
                 # (while garantiza nombre libre sin importar cuantas colisiones haya)
                 n = 2
                 while True:
                     suffix = f"_{n}"
-                    candidate = f"{base}_{ws.title}"[:31 - len(suffix)] + suffix
-                    if candidate not in existing:
+                    candidate = _sanitize_sheet_name(
+                        f"{base_sano}_{titulo_sano}"[:31 - len(suffix)] + suffix
+                    )
+                    if candidate.lower() not in existing:
                         sheet_name = candidate
                         break
                     n += 1
@@ -87,6 +113,12 @@ def _merge_files(paths: list[str], output: str) -> dict:
                         dest_cell.fill = copy(cell.fill)
                         dest_cell.number_format = cell.number_format
                         dest_cell.alignment = copy(cell.alignment)
+
+            # Replicar celdas combinadas DESPUES de copiar valores: las celdas
+            # no-ancla de un rango combinado son MergedCell (solo lectura), y
+            # combinar antes de escribir tumbaria la copia de valores.
+            for rng in ws.merged_cells.ranges:
+                dest_ws.merge_cells(str(rng))
 
             # Copiar anchos de columna
             for col_letter, dim in ws.column_dimensions.items():

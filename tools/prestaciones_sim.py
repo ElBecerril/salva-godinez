@@ -44,6 +44,21 @@ def _get_vacation_days(years: float) -> int:
     return last_days + extra_blocks * 2
 
 
+def _get_vacation_days_proporcional(years: float) -> int:
+    """Dias de vacaciones a prorratear cuando la antiguedad todavia no cumple
+    un ano (0 < years < 1).
+
+    Art. 79 LFT: el derecho proporcional del primer periodo no es cero, es la
+    parte del derecho del primer ano ya cumplido (VACATION_DAYS_TABLE[1] = 12
+    dias). `_get_vacation_days` trunca a `int(years)` y da 0 en ese rango
+    porque esta pensada para anios YA cumplidos; aqui se corrige solo para el
+    calculo proporcional (vacaciones/finiquito/SDI), sin tocar el criterio de
+    `_get_vacation_days` para years >= 1."""
+    if 0 < years < 1:
+        return VACATION_DAYS_TABLE[1]
+    return _get_vacation_days(years)
+
+
 def calculate_aguinaldo(daily_salary: float, days_worked: int) -> dict:
     """Calcula aguinaldo proporcional.
 
@@ -67,7 +82,7 @@ def calculate_vacaciones(daily_salary: float, years: float, days_worked: int) ->
     # infla la prima proporcional por encima del derecho de un anio completo,
     # y contamina finiquito/liquidacion que llaman a esta funcion.
     days_worked = min(days_worked, 365)
-    vac_days = _get_vacation_days(years)
+    vac_days = _get_vacation_days_proporcional(years)
     prop_days = (days_worked / 365) * vac_days
     prima = prop_days * daily_salary * 0.25
     exempt = UMA_DAILY * 15  # 15 dias de UMA exentos
@@ -120,7 +135,7 @@ def calculate_liquidacion(daily_salary: float, years: float, days_worked: int) -
 
     # SDI (Salario Diario Integrado, Art. 89 LFT) con factor de integracion
     # minimo, usado para la indemnizacion (3 meses y 20 dias/ano).
-    sdi = daily_salary * (365 + AGUINALDO_MIN_DAYS + _get_vacation_days(years) * 0.25) / 365
+    sdi = daily_salary * (365 + AGUINALDO_MIN_DAYS + _get_vacation_days_proporcional(years) * 0.25) / 365
 
     # Los 3 meses constitucionales se calculan con SDI, igual que el 20 dias/ano
     # (Art. 89 LFT: las indemnizaciones se pagan con el salario INTEGRADO). Es

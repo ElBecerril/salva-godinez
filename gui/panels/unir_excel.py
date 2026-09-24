@@ -108,10 +108,11 @@ class PanelUnirExcel(ToolPanel):
             fila_salida, text="Elegir...", command=self._elegir_salida_archivos,
         ).pack(side="left")
 
-        ttk.Button(
+        self._btn_unir_archivos = ttk.Button(
             marco, text="Unir archivos", style="Accent.TButton",
             command=self._unir_archivos,
-        ).pack(anchor="w", pady=(12, 0))
+        )
+        self._btn_unir_archivos.pack(anchor="w", pady=(12, 0))
 
         return marco
 
@@ -167,6 +168,7 @@ class PanelUnirExcel(ToolPanel):
         )
         self._barra.pack(fill="x", pady=(4, 6))
         self._barra.start(12)
+        self._btn_unir_archivos.configure(state="disabled")
 
         archivos = list(self._archivos)
         self.run_async(
@@ -176,6 +178,7 @@ class PanelUnirExcel(ToolPanel):
     def _on_union_archivos_lista(self, ok: bool, resultado) -> None:
         self._barra.stop()
         self._barra.pack_forget()
+        self._btn_unir_archivos.configure(state="normal")
 
         if not ok:
             self._estado.alerta("No se pudo completar la union.")
@@ -266,9 +269,10 @@ class PanelUnirExcel(ToolPanel):
             style="Subtitle.TLabel",
         ).pack(anchor="w", pady=(6, 0))
 
-        ttk.Button(
+        self._btn_unir_hojas = ttk.Button(
             marco, text="Unir hojas", style="Accent.TButton", command=self._unir_hojas,
-        ).pack(anchor="w", pady=(12, 0))
+        )
+        self._btn_unir_hojas.pack(anchor="w", pady=(12, 0))
 
         return marco
 
@@ -307,6 +311,7 @@ class PanelUnirExcel(ToolPanel):
         self._estado.info("Uniendo hojas...")
         self._barra.pack(fill="x", pady=(4, 6))
         self._barra.start(12)
+        self._btn_unir_hojas.configure(state="disabled")
 
         archivo = self._archivo_hojas
         con_encabezado = self._var_encabezado.get()
@@ -318,6 +323,7 @@ class PanelUnirExcel(ToolPanel):
     def _on_union_hojas_lista(self, ok: bool, resultado) -> None:
         self._barra.stop()
         self._barra.pack_forget()
+        self._btn_unir_hojas.configure(state="normal")
 
         if not ok:
             self._estado.alerta("No se pudo completar la union.")

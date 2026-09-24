@@ -132,6 +132,39 @@ def _parse_version(tag: str) -> tuple:
     return tuple(int(x) for x in match.group(1).split("."))
 
 
+def _signed_version_matches(trusted_comment: str, remote_tag: str) -> bool:
+    """Compara la version dentro del trusted comment firmado contra el tag remoto.
+
+    El trusted comment SI esta firmado (a diferencia del untrusted comment), asi
+    que es seguro usarlo para atar la firma a una version concreta. Sin esto,
+    quien tome la cuenta de GitHub puede publicar un release con un tag nuevo
+    (p.ej. "v99.0.0") que sirva el .exe VIEJO con su .minisig legitimo: la
+    firma pasa (es real) pero corresponde a otra version -> downgrade/
+    congelamiento silencioso.
+
+    Se espera el formato usado al firmar (`-t "SalvaGodinez vX.Y.Z"`), tolerando
+    espacios extra y que la 'v' venga o no. Si el comentario no trae una version
+    reconocible se rechaza (fail-closed): mejor no actualizar que aceptar una
+    firma sin version verificable.
+    """
+    match = re.search(r"SalvaGodinez\s+v?(\d+(?:\.\d+)*)", trusted_comment or "", re.IGNORECASE)
+    if not match:
+        return False
+    return _parse_version(match.group(1)) == _parse_version(remote_tag)
+
+
+def _sanitizar_tag(tag: str) -> str:
+    """Limpia un tag remoto para usarlo en un nombre de archivo local.
+
+    El tag viene del Release remoto (controlado por quien tenga la cuenta de
+    GitHub) y se usaba crudo en `SalvaGodinez_{tag}.exe`; un tag como
+    "v1/../x" o con caracteres de control podria escaparse del Escritorio o
+    confundir al filesystem. Solo se permiten letras, numeros, punto, guion y
+    guion bajo; todo lo demas se reemplaza por '_'.
+    """
+    return re.sub(r"[^0-9A-Za-z._-]", "_", tag)
+
+
 def _extract_sha256(body: str, filename: str) -> str | None:
     """Extrae hash SHA-256 del body del Release.
 
@@ -245,6 +278,7 @@ def download_update(
     expected_sha256: str | None = None,
     progress_callback=None,
     sig_url: str | None = None,
+    expected_version: str | None = None,
 ) -> dict:
     """Descarga un archivo a una ubicacion temporal, lo verifica y lo instala.
 
@@ -263,6 +297,12 @@ def download_update(
         expected_sha256: hash de referencia extraido del Release, o None.
         progress_callback: opcional, callable(written, total) invocado tras
             cada chunk leido (total puede ser 0 si no se conoce).
+        sig_url: URL del .minisig del asset, o None si el Release no trae uno.
+        expected_version: tag remoto (p.ej. "v2.9.0") contra el que se compara
+            el trusted comment firmado, para que la firma no pueda reusarse en
+            un release con tag distinto (downgrade/congelamiento). Solo aplica
+            cuando MINISIGN_PUBLIC_KEY esta activa; si se omite (None) la
+            actualizacion se rechaza fail-closed igual que sin firma.
 
     Returns:
         dict con al menos "ok" (bool) y "reason" (str, codigo de motivo) y,
@@ -360,6 +400,20 @@ def download_update(
                     "reason": "bad_signature",
                     "sig_error": firma.get("error", ""),
                     "sig_detail": firma.get("detail", ""),
+                }
+
+            # La firma es AUTENTICA pero podria ser la de OTRO release: sin
+            # atarla a la version esperada, quien tome la cuenta de GitHub
+            # puede republicar el .exe viejo bajo un tag nuevo y su .minisig
+            # legitimo pasa igual (downgrade/congelamiento). El trusted
+            # comment SI esta firmado, asi que comparar contra el es seguro.
+            trusted_comment = firma.get("trusted_comment", "")
+            if not expected_version or not _signed_version_matches(trusted_comment, expected_version):
+                return {
+                    "ok": False,
+                    "reason": "version_mismatch",
+                    "signed_version": trusted_comment,
+                    "expected_version": expected_version,
                 }
 
         # Solo ahora, con la descarga ya verificada, es seguro tocar el Escritorio.
@@ -461,7 +515,7 @@ def _check_for_updates(current_version: str) -> None:
     sig_asset = get_sig_asset(data, exe_asset["name"])
     sig_url = sig_asset["browser_download_url"] if sig_asset else None
 
-    filename = f"SalvaGodinez_{remote_tag}.exe"
+    filename = f"SalvaGodinez_{_sanitizar_tag(remote_tag)}.exe"
 
     with Progress(
         "[progress.description]{task.description}",
@@ -482,6 +536,7 @@ def _check_for_updates(current_version: str) -> None:
             expected_hash,
             progress_callback=_on_progress,
             sig_url=sig_url,
+            expected_version=remote_tag,
         )
 
     if result["ok"]:
@@ -537,6 +592,15 @@ def _check_for_updates(current_version: str) -> None:
             "Escritorio no fue modificado.[/red]\n"
             f"[dim]Detalle: {escape(str(result.get('sig_error', '')))} "
             f"{escape(str(result.get('sig_detail', '')))}[/dim]"
+        )
+    elif reason == "version_mismatch":
+        console.print(
+            "[bold red]La firma digital es del autor, pero corresponde a otra "
+            "version.[/bold red]\n"
+            "[red]Por seguridad no se instala (podria ser un intento de forzar una "
+            "version vieja). El Escritorio no fue modificado.[/red]\n"
+            f"[dim]Version firmada: {escape(str(result.get('signed_version', '')))} | "
+            f"version esperada: {escape(str(result.get('expected_version', '')))}[/dim]"
         )
     elif reason == "exception":
         console.print(f"[bold red]Error al descargar la actualizacion: {escape(str(result['error']))}[/bold red]")

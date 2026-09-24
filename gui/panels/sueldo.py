@@ -11,10 +11,14 @@ from tkinter import ttk
 
 from gui.base import EstadoLabel, ToolPanel
 from tools._fiscal_helpers import DISCLAIMER, fmt
-from tools.salary_calculator import (
-    calculate_imss_deductions,
-    calculate_isr,
-    calculate_subsidio_empleo,
+from tools.salary_calculator import calculate_neto
+
+# Misma nota legal que muestra la consola (salary_calculator.py) para el caso
+# de salario minimo: Art. 96 LISR (no se retiene ISR) + Art. 36 LSS (la cuota
+# obrero del IMSS la paga el patron).
+_NOTA_SALARIO_MINIMO = (
+    "Ganas el salario minimo: por ley no se te retiene ISR (Art. 96 LISR) y "
+    "tu cuota del IMSS la paga el patron (Art. 36 LSS)."
 )
 
 # El DISCLAIMER esta escrito con markup de rich (para la consola). Aqui solo
@@ -110,48 +114,48 @@ class PanelSueldo(ToolPanel):
             self._estado.alerta("Escribe un numero, por ejemplo 15000")
             return
 
-        # Mismo flujo que salary_calculator_menu() en tools/salary_calculator.py:
-        # 1. IMSS
-        imss = calculate_imss_deductions(bruto)
-        total_imss = sum(imss.values())
-
-        # 2. Base gravable = bruto (las cuotas IMSS no son deducibles de la
-        # base del ISR de sueldos, Art. 96 LISR)
-        base_gravable = bruto
-
-        # 3. ISR
-        isr = calculate_isr(base_gravable)
+        # Mismo flujo que salary_calculator_menu() en tools/salary_calculator.py,
+        # ahora centralizado en calculate_neto() para que consola y GUI no se
+        # desincronicen.
+        resultado = calculate_neto(bruto)
+        isr = resultado["isr"]
         if "error" in isr:
             self._estado.alerta(
                 f"No se pudo calcular el ISR: {isr['error']}"
             )
             return
-        isr_total = isr.get("isr_total", 0)
 
-        # 3b. Subsidio al empleo: resta del ISR a cargo sin volverlo negativo;
-        # si el subsidio excede el ISR, el excedente no se paga en efectivo.
-        subsidio_empleo = calculate_subsidio_empleo(bruto)
-        isr_neto = max(isr_total - subsidio_empleo, 0)
-
-        # 4. Sueldo neto
-        neto = bruto - total_imss - isr_neto
+        imss = resultado["imss"]
+        total_imss = resultado["total_imss"]
+        base_gravable = resultado["taxable_base"]
+        isr_total = resultado["isr_total"]
+        subsidio_empleo = resultado["subsidio_empleo"]
+        isr_neto = resultado["isr_neto"]
+        neto = resultado["net_salary"]
         total_deducciones = bruto - neto
 
         self._fila("Salario bruto", fmt(bruto), negrita=True)
 
-        self._fila("Deducciones IMSS (SBC integrado)", "")
-        for concepto, monto in imss.items():
-            self._fila(f"  {concepto}", f"-{fmt(monto)}")
-        self._fila("  Total IMSS", f"-{fmt(total_imss)}", negrita=True)
+        if resultado["salario_minimo"]:
+            self._fila("  IMSS a cargo del trabajador", f"-{fmt(0)}")
+            self._fila("  ISR a cargo del trabajador", f"-{fmt(0)}")
+        else:
+            self._fila("Deducciones IMSS (SBC integrado)", "")
+            for concepto, monto in imss.items():
+                self._fila(f"  {concepto}", f"-{fmt(monto)}")
+            self._fila("  Total IMSS", f"-{fmt(total_imss)}", negrita=True)
 
-        self._fila("ISR Art. 96", "")
-        self._fila("  Base gravable", fmt(base_gravable))
-        self._fila("  Total ISR", f"-{fmt(isr_total)}")
-        if subsidio_empleo:
-            self._fila("  Subsidio al empleo", f"+{fmt(subsidio_empleo)}")
-            self._fila("  ISR neto a cargo", f"-{fmt(isr_neto)}", negrita=True)
+            self._fila("ISR Art. 96", "")
+            self._fila("  Base gravable", fmt(base_gravable))
+            self._fila("  Total ISR", f"-{fmt(isr_total)}")
+            if subsidio_empleo:
+                self._fila("  Subsidio al empleo", f"+{fmt(subsidio_empleo)}")
+                self._fila("  ISR neto a cargo", f"-{fmt(isr_neto)}", negrita=True)
 
         self._fila("Total deducciones", f"-{fmt(total_deducciones)}", negrita=True)
 
         self._neto_label.configure(text=f"Sueldo neto: {fmt(neto)}")
-        self._estado.exito("Calculo listo.")
+        if resultado["salario_minimo"]:
+            self._estado.exito(_NOTA_SALARIO_MINIMO)
+        else:
+            self._estado.exito("Calculo listo.")

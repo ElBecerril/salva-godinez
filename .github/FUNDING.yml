@@ -1,0 +1,5 @@
+# Boton "Sponsor" en el repo de GitHub.
+# Cada usuario debe existir antes de que GitHub muestre el boton;
+# una entrada que apunte a una cuenta inexistente se ignora.
+github: [ElBecerril]
+ko_fi: elbecerril

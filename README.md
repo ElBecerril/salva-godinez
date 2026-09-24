@@ -17,7 +17,7 @@
 
 Herramientas para resolver los problemas mas comunes del godinez: archivos perdidos, impresoras trabadas, USBs infectadas, PDFs imposibles y mas.
 
-**by El_Becerril** | v2.9.0
+**by El_Becerril** | v2.9.1
 
 [![GitHub Release](https://img.shields.io/github/v/release/ElBecerril/salva-godinez)](https://github.com/ElBecerril/salva-godinez/releases/latest)
 
@@ -102,7 +102,7 @@ programa gratuito recien salido. Para abrirlo:
 
 ## Estado actual
 
-Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 12 funciones. v2.9.0 corrige que la busqueda en **Copias de seguridad de Windows** seguia sin devolver nada en Windows en espanol (y ahora avisa cuando hace falta abrir la app como administrador), agrega **Word/Excel/PowerPoint a PDF** (usa el Office instalado, asi que el PDF conserva el formato exacto) y prepara el auto-updater para **verificar la firma digital** de cada actualizacion, no solo su SHA-256; ademas, quitar virus de la USB en consola ahora deja elegir los archivos uno por uno. v2.8.2: el **desinfectante de USB** deja de dar un falso "carpetas restauradas" y ahora detecta la USB con **sistema de archivos danado** (no confundir con virus) y avisa que no se formatee. v2.8.1 corrigio el **rescate por Shadow Copies (VSS)**, que nunca devolvia resultados. v2.8.0 agrego **PDF a Word** (extrae el texto de un PDF a un .docx editable, via PyMuPDF + python-docx). v2.7.0 activo PDF a imagenes; v2.6.1 cerro la segunda ronda de la auditoria (updater atomico, rescate, congelamientos, deuda) y v2.6.0 dejo la app como ventana limpia. Ver [CHANGELOG](CHANGELOG.md).
+Fase 3 completada. 23 herramientas funcionales organizadas en 5 categorias + auto-updater. Editor de PDF expandido a 12 funciones. v2.9.1 corrige el **finiquito** (con menos de un anio de antiguedad daba $0 de vacaciones), deja de cobrar ISR e IMSS en la **calculadora de sueldo** a quien gana el salario minimo, y el auto-updater ahora exige que la firma corresponda a la version ofrecida (evita que lo regresen a una version vieja); ademas **unir Excel** ya no truena con corchetes en el nombre y conserva las celdas combinadas. v2.9.0 corrige que la busqueda en **Copias de seguridad de Windows** seguia sin devolver nada en Windows en espanol (y ahora avisa cuando hace falta abrir la app como administrador), agrega **Word/Excel/PowerPoint a PDF** (usa el Office instalado, asi que el PDF conserva el formato exacto) y prepara el auto-updater para **verificar la firma digital** de cada actualizacion, no solo su SHA-256; ademas, quitar virus de la USB en consola ahora deja elegir los archivos uno por uno. v2.8.2: el **desinfectante de USB** deja de dar un falso "carpetas restauradas" y ahora detecta la USB con **sistema de archivos danado** (no confundir con virus) y avisa que no se formatee. v2.8.1 corrigio el **rescate por Shadow Copies (VSS)**, que nunca devolvia resultados. v2.8.0 agrego **PDF a Word** (extrae el texto de un PDF a un .docx editable, via PyMuPDF + python-docx). v2.7.0 activo PDF a imagenes; v2.6.1 cerro la segunda ronda de la auditoria (updater atomico, rescate, congelamientos, deuda) y v2.6.0 dejo la app como ventana limpia. Ver [CHANGELOG](CHANGELOG.md).
 
 ### Uso rapido (desde codigo)
 
@@ -225,6 +225,19 @@ Encontraste un error o quieres pedir una funcionalidad nueva? Dejalo en los come
 
 - [YouTube — @el_becerril](https://www.youtube.com/@el_becerril)
 - [Facebook — El Becerril](https://www.facebook.com/elbecerrilslim)
+
+## Apoyar el proyecto
+
+SalvaGodinez es gratis y de codigo abierto, y va a seguir asi. No tiene
+anuncios, no pide registro y no manda datos a ningun lado.
+
+Lo mantengo yo solo en mis ratos libres. Si te salvo un archivo o te destrabo
+la impresora un lunes por la manana, puedes invitarme un cafe:
+
+- [Ko-fi — elbecerril](https://ko-fi.com/elbecerril)
+- Boton **Sponsor** aqui arriba en GitHub
+
+Es completamente opcional: la herramienta funciona igual con o sin eso.
 
 ## Autor
 
