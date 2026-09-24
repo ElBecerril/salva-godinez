@@ -9,6 +9,7 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from utils import get_openpyxl as _get_openpyxl, console
+from tools._file_helpers import safe_output_path as _safe_output_path
 
 
 # --- Logica (sin UI) ---
@@ -24,20 +25,6 @@ _INVISIBLE = re.compile(
     "\u2060"      # Word joiner
     "]"
 )
-
-
-def _safe_output_path(path: str) -> str:
-    """Evita sobrescribir un archivo existente agregando un sufijo numerico."""
-    if not os.path.exists(path):
-        return path
-
-    base, ext = os.path.splitext(path)
-    counter = 1
-    while True:
-        candidate = f"{base}_{counter}{ext}"
-        if not os.path.exists(candidate):
-            return candidate
-        counter += 1
 
 
 def _clean_cell_value(value: str) -> str:

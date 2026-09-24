@@ -6,7 +6,7 @@ import os
 from rich.markup import escape
 from rich.prompt import Prompt
 from utils import console
-from tools.image_converter import _safe_output_path as _safe_output_path_parts
+from tools._file_helpers import safe_output_path as _safe_output_path
 
 
 # ============================================================
@@ -18,18 +18,6 @@ from tools.image_converter import _safe_output_path as _safe_output_path_parts
 # errores se devuelven como dato ({"ok": False, "error": "..."})
 # o se dejan propagar como excepcion. Pueden tocar disco, eso es
 # trabajo real, no interfaz.
-
-
-def _safe_output_path(path: str) -> str:
-    """Evita sobrescribir un archivo existente agregando un sufijo numerico.
-
-    Reutiliza la logica de image_converter._safe_output_path, adaptando
-    una ruta completa (directorio + nombre + extension) al formato que
-    espera esa funcion (directorio, nombre base, extension).
-    """
-    directory = os.path.dirname(path) or "."
-    base_name, ext = os.path.splitext(os.path.basename(path))
-    return _safe_output_path_parts(directory, base_name, ext)
 
 
 def _import_pypdf():
@@ -504,6 +492,7 @@ def pdf_to_images_do(fitz, path, fmt, dpi, output_dir):
         os.makedirs(output_dir, exist_ok=True)
     except OSError as e:
         return {"ok": False, "error": "write_error", "detail": str(e)}
+    doc = None
     try:
         doc = fitz.open(path)
         base_name = os.path.splitext(os.path.basename(path))[0]
@@ -520,10 +509,12 @@ def pdf_to_images_do(fitz, path, fmt, dpi, output_dir):
             else:
                 pix.save(out_path)
 
-        doc.close()
         return {"ok": True, "output_dir": output_dir, "count": page_count, "dpi": dpi}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+    finally:
+        if doc is not None:
+            doc.close()
 
 
 def unprotect_pdf_do(pypdf, reader, password, base_name):

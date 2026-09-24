@@ -2,6 +2,42 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.9.2] - 2026-09-24
+
+### Corregido
+- **Finiquito y vacaciones: se usa el anio de antiguedad que esta corriendo.**
+  Las vacaciones proporcionales se calculaban con los dias del ultimo anio
+  YA cumplido; ahora se usan los del anio en curso, que es lo que se esta
+  ganando (Art. 79 LFT). Ejemplo: con 2 anios y medio de antiguedad ya
+  cuentan 16 dias (tercer anio), no 14. Salario diario de $500 y 180 dias
+  trabajados: el finiquito pasa de $8,013.70 a $8,630.14. Con antiguedades
+  exactas (1, 2, 20 anios) o menores a un anio los resultados no cambian.
+  Tambien ajusta el salario integrado de la liquidacion.
+- **Recuperar archivos: avisa cuando no pudo leer una unidad completa.** Si
+  Windows no dejaba entrar a una unidad (disco bloqueado, permisos rotos,
+  unidad de red caida), la busqueda en disco decia "no encontre nada" como
+  si hubiera buscado. Ahora dice que unidad no pudo revisar. No avisa por las
+  carpetas de sistema que cualquier Windows sano protege, para no dar
+  alarmas falsas.
+- **PDF a imagenes: si falla a la mitad ya no deja el PDF bloqueado** hasta
+  cerrar la app.
+- Recuperar archivos: la segunda copia de seguridad de Windows de un mismo
+  punto de restauracion ya muestra su fecha (antes salia "?").
+- Recuperar archivos (consola): escribir algo que no es un numero al elegir
+  que restaurar ahora avisa, en vez de salir sin decir nada.
+- Destrabar impresora: la comprobacion de que el servicio de impresion quedo
+  corriendo ya no depende del texto que devuelve Windows (se usa el codigo
+  numerico, igual en cualquier idioma).
+
+### Cambiado
+- La regla para no sobrescribir archivos de salida vivia copiada en cinco
+  herramientas (PDF, Excel e imagenes) con pequenas diferencias; ahora es una
+  sola, con su propio test (`tests/test_safe_output_path.py`).
+- La regla de que temporales NO borra el liberador de espacio (los que
+  Recuperar archivos puede rescatar) ahora vive en un solo lugar.
+- Se quito la carpeta `legacy/` (el buscador viejo, sin uso) y se arreglo
+  `pyproject.toml` (no instalaba). Nada de esto cambia el `.exe`.
+
 ## [2.9.1] - 2026-09-24
 
 ### Seguridad

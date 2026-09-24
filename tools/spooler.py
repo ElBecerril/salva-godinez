@@ -1,6 +1,7 @@
 """Reset de cola de impresion de Windows."""
 
 import os
+import re
 import subprocess
 
 from rich.markup import escape
@@ -43,12 +44,22 @@ def _stop_spooler_service() -> dict:
         already_stopped = False
         if result.returncode != 0:
             # returncode distinto de 0 puede ser porque el servicio ya
-            # estaba detenido, no es error real.
+            # estaba detenido, no es error real. El codigo numerico 3521
+            # (ERROR_SERVICE_NOT_ACTIVE) es el chequeo principal porque no
+            # depende del idioma. Como respaldo, frases COMPLETAS del
+            # mensaje real de 'net stop' en cada idioma ("...is not
+            # started.", "...no se ha iniciado.") — nunca la particula
+            # suelta "ya" (empareja "ya que", "todavia", etc. y genera
+            # falsos positivos) ni "already" a secas (empareja frases sin
+            # relacion, ej. "already in progress"). Esta bandera solo
+            # decide si se imprime una advertencia intermedia; el estado
+            # real del servicio siempre se re-verifica despues con
+            # _check_spooler_running(), que es la fuente de verdad.
             stderr_lower = result.stderr.lower()
             already_stopped = (
                 "3521" in result.stderr
-                or "already" in stderr_lower
-                or "ya" in stderr_lower
+                or "is not started" in stderr_lower
+                or "no se ha iniciado" in stderr_lower
             )
         return {
             "ok": True,
@@ -96,6 +107,22 @@ def _start_spooler_service() -> dict:
         return {"ok": False, "error": str(e)}
 
 
+# Linea de estado de 'sc query': "STATE : 4  RUNNING" en ingles, o
+# "ESTADO : 4  RUNNING" en espanol (la palabra clave del estado -RUNNING,
+# STOPPED, etc.- no se traduce, pero la ETIQUETA STATE/ESTADO si; anclarse a
+# esa etiqueta fue la falla que dejo muerto el rescate por Shadow Copies en
+# Windows en espanol, ver LECCIONES_APRENDIDAS). En vez de la etiqueta,
+# anclamos al CODIGO NUMERICO que siempre es el mismo sin importar idioma:
+# los estados de servicio (SERVICE_STATE) van de 1 a 7
+# (1=STOPPED ... 4=RUNNING ... 7=PAUSED), mientras que TYPE reporta valores
+# de tipo de servicio que son >=16 (ej. WIN32_OWN_PROCESS=0x10=16,
+# INTERACTIVE_PROCESS=0x110=272) y WIN32_EXIT_CODE/SERVICE_EXIT_CODE van
+# seguidos de un valor entre parentesis como "(0x0)", no de una palabra en
+# mayusculas. Por eso ": <digito 1-7> <PALABRA>" identifica la linea de
+# estado sin depender de si dice STATE o ESTADO.
+_STATE_LINE_RE = re.compile(r":\s*([1-7])\s+[A-Z_]+")
+
+
 def _check_spooler_running() -> dict:
     """Verifica el estado real del servicio con 'sc query spooler'.
 
@@ -109,7 +136,26 @@ def _check_spooler_running() -> dict:
             encoding="utf-8", errors="replace",
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
-        running = query.returncode == 0 and "RUNNING" in query.stdout.upper()
+        if query.returncode != 0:
+            return {"running": False}
+
+        match = None
+        for line in query.stdout.splitlines():
+            m = _STATE_LINE_RE.search(line)
+            if m:
+                match = m
+                break
+
+        if match:
+            running = match.group(1) == "4"
+        else:
+            # Fallback conservador si el formato de 'sc query' no coincide
+            # con lo esperado (version de Windows rara, salida truncada,
+            # etc.): cae a la palabra en ingles. No cubre Windows en otros
+            # idiomas, pero es mejor que reportar un falso "no esta
+            # corriendo" por un cambio de formato inesperado.
+            running = "RUNNING" in query.stdout.upper()
+
         return {"running": running}
     except (subprocess.TimeoutExpired, OSError) as e:
         return {"running": False, "error": str(e)}

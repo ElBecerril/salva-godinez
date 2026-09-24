@@ -1,5 +1,7 @@
 """Simulador de prestaciones laborales Mexico."""
 
+import math
+
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
@@ -45,18 +47,24 @@ def _get_vacation_days(years: float) -> int:
 
 
 def _get_vacation_days_proporcional(years: float) -> int:
-    """Dias de vacaciones a prorratear cuando la antiguedad todavia no cumple
-    un ano (0 < years < 1).
+    """Dias de vacaciones del ANO DE ANTIGUEDAD EN CURSO, para prorratear
+    (vacaciones/finiquito/SDI).
 
-    Art. 79 LFT: el derecho proporcional del primer periodo no es cero, es la
-    parte del derecho del primer ano ya cumplido (VACATION_DAYS_TABLE[1] = 12
-    dias). `_get_vacation_days` trunca a `int(years)` y da 0 en ese rango
-    porque esta pensada para anios YA cumplidos; aqui se corrige solo para el
-    calculo proporcional (vacaciones/finiquito/SDI), sin tocar el criterio de
-    `_get_vacation_days` para years >= 1."""
-    if 0 < years < 1:
-        return VACATION_DAYS_TABLE[1]
-    return _get_vacation_days(years)
+    Art. 79 LFT: lo que se paga proporcional es la parte del periodo que esta
+    corriendo, no el derecho ya consolidado de anios cumplidos. Por eso el
+    anio de derecho es el que se esta cursando (ceil(years)), no el ultimo ya
+    completado (int(years), que es lo que usa `_get_vacation_days` para el
+    derecho consolidado a vacaciones NO proporcionales). Ejemplos: 0.5 anos
+    -> anio 1 (12 dias); 2.0 -> anio 2 (14); 2.5 -> anio 3 (16); 20.5 -> anio
+    21 (28).
+
+    Se redondea `years` a 6 decimales antes del ceil para que un acarreo de
+    flotante (2.0000000001) no salte de anio de derecho de mas."""
+    years = round(years, 6)
+    if years <= 0:
+        return 0
+    anio_derecho = math.ceil(years)
+    return _get_vacation_days(anio_derecho)
 
 
 def calculate_aguinaldo(daily_salary: float, days_worked: int) -> dict:

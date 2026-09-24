@@ -15,9 +15,8 @@ from config import (
     DOWNLOADS_PATH,
     OLD_DOWNLOAD_DAYS,
     SECONDS_PER_DAY,
-    TEMP_PREFIXES,
-    RECOVERY_EXTENSIONS,
 )
+from searchers.temp_files import has_temp_signature as _es_rescatable
 from utils import console
 
 
@@ -96,19 +95,6 @@ def _scan_old_downloads(days: int = OLD_DOWNLOAD_DAYS) -> tuple[int, int, list[s
             continue
 
     return total, count, files
-
-
-def _es_rescatable(fname: str) -> bool:
-    """True si el nombre tiene patron de autorecuperado/temporal de Office.
-
-    Mismos patrones que usa el RESCATE (searchers/temp_files._has_temp_signature):
-    prefijos ~$/~ o una extension de config.RECOVERY_EXTENSIONS. Se comparte la
-    fuente de verdad para que la limpieza no borre lo que el rescate recupera.
-    """
-    lower = fname.lower()
-    if any(lower.startswith(p) for p in TEMP_PREFIXES):
-        return True
-    return os.path.splitext(lower)[1] in RECOVERY_EXTENSIONS
 
 
 def _clean_dir(path: str, proteger_rescatables: bool = False) -> tuple[int, int]:

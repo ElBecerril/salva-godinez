@@ -60,6 +60,14 @@ def _list_shadow_copies() -> list[dict]:
 
         shadows = []
         current = {}
+        # La fecha se imprime UNA vez por "conjunto de instantaneas", pero un
+        # conjunto puede contener varias copias (una por volumen incluido en
+        # ese Checkpoint-Computer). Como `current` se resetea tras cada
+        # copia completa (path+drive), la 2a+ copia del mismo conjunto no
+        # trae su propia linea de fecha y quedaba con "?". Se guarda la
+        # ultima fecha vista FUERA de `current` (no se resetea con el) y se
+        # usa como respaldo para cualquier copia que no traiga la suya.
+        ultima_fecha_vista = None
         for line in result.stdout.splitlines():
             line = line.strip()
             # El parseo se ancla al CONTENIDO, no a las etiquetas: vssadmin
@@ -93,10 +101,13 @@ def _list_shadow_copies() -> list[dict]:
                 # ES: "Contenia N instantaneas en el momento de su creacion: <fecha>"
                 parts = line.split(":", 1)
                 if len(parts) > 1:
-                    current["date"] = parts[1].strip()
+                    ultima_fecha_vista = parts[1].strip()
+                    current["date"] = ultima_fecha_vista
 
             # Cuando tenemos un shadow copy completo, guardarlo
             if "path" in current and "drive" in current:
+                if "date" not in current and ultima_fecha_vista:
+                    current["date"] = ultima_fecha_vista
                 shadows.append(current)
                 current = {}
 

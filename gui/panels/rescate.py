@@ -29,6 +29,10 @@ from searchers.full_search import (
     ETAPA_TEMPORALES,
     search_everywhere,
 )
+from searchers.disk_search import (
+    ultimo_motivo as ultimo_motivo_disco,
+    unidades_sin_acceso as unidades_sin_acceso_disco,
+)
 from searchers.shadow_copies import ultimo_motivo as ultimo_motivo_shadow
 
 # Tope de filas en la tabla: una busqueda generica en un disco grande puede
@@ -373,6 +377,18 @@ def _buscar_en_todos_lados(nombre: str, progreso) -> list[dict]:
                 "No se pudieron revisar las copias de seguridad de Windows: "
                 "abre SalvaGodinez como administrador (clic derecho > "
                 "Ejecutar como administrador) para incluirlas.",
+            )
+        elif etapa == ETAPA_DISCO and ultimo_motivo_disco() == "sin_permisos":
+            # Solo dispara si una unidad ENTERA no se pudo listar desde su
+            # raiz (BitLocker bloqueado, disco con permisos rotos, unidad de
+            # red caida) — no por las carpetas de sistema que cualquier
+            # disco sano deniega. Ver el comentario grande en disk_search.py.
+            unidades = ", ".join(unidades_sin_acceso_disco())
+            progreso(
+                "aviso",
+                f"No se pudo revisar la(s) unidad(es) {unidades} (Windows no "
+                "dejo leerlas). Si tu archivo estaba ahi, revisa que esten "
+                "desbloqueadas y abre SalvaGodinez como administrador.",
             )
 
     return search_everywhere(

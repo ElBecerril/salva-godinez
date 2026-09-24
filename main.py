@@ -6,7 +6,7 @@ Toolkit multi-modulo para rescate de archivos, mantenimiento
 de impresoras, diagnostico del sistema y mas.
 """
 
-__version__ = "2.9.1"
+__version__ = "2.9.2"
 
 import sys
 import os
@@ -22,7 +22,12 @@ from rich import box
 
 # Searchers (modulo de rescate de archivos Office)
 from searchers.recycle_bin import search_recycle_bin
-from searchers.disk_search import search_by_name, search_recent_excel
+from searchers.disk_search import (
+    search_by_name,
+    search_recent_excel,
+    ultimo_motivo as ultimo_motivo_disco,
+    unidades_sin_acceso as unidades_sin_acceso_disco,
+)
 from searchers.temp_files import search_temp_files
 from searchers.recent_files import search_recent_files
 from searchers.shadow_copies import search_shadow_copies, ultimo_motivo as ultimo_motivo_shadow
@@ -350,6 +355,21 @@ def option_recent_office() -> None:
             status.update(f"[bold green]Escaneando:[/bold green] {escape(display)}")
         results = search_recent_excel(progress_callback=progress)
 
+    if ultimo_motivo_disco() == "sin_permisos":
+        # Solo se llega aqui si no se pudo listar la RAIZ de una unidad
+        # completa (BitLocker bloqueado, disco con permisos rotos, unidad de
+        # red caida) — no por las decenas de carpetas de sistema/otros
+        # perfiles que cualquier disco sano deniega (ver el comentario
+        # grande en searchers/disk_search.py). Ahi si aplica avisar, porque
+        # "no se encontro nada" seria "no pude ver" en vez de "no habia".
+        unidades = ", ".join(escape(u) for u in unidades_sin_acceso_disco())
+        console.print(
+            f"[yellow]No pude revisar la(s) unidad(es) {unidades} (Windows "
+            "no dejo leerlas). Si tu archivo estaba ahi, revisa que la "
+            "unidad este desbloqueada y abre SalvaGodinez como "
+            "administrador.[/yellow]"
+        )
+
     show_results(results, title="Archivos Office recientes (ultimos 30 dias)")
     offer_restore(results)
 
@@ -433,6 +453,17 @@ def option_full_search() -> None:
                     "  [yellow]No se pudieron revisar las copias de seguridad de "
                     "Windows: hay que abrir SalvaGodinez como administrador "
                     "(clic derecho > Ejecutar como administrador).[/yellow]"
+                )
+            elif etapa == ETAPA_DISCO and ultimo_motivo_disco() == "sin_permisos":
+                # Solo dispara si una unidad ENTERA no se pudo listar desde
+                # su raiz (BitLocker bloqueado, disco con permisos rotos,
+                # unidad de red caida) — no por las carpetas de sistema que
+                # cualquier disco sano deniega. Ver disk_search.py.
+                unidades = ", ".join(escape(u) for u in unidades_sin_acceso_disco())
+                console.print(
+                    f"  [yellow]No se pudo revisar la(s) unidad(es) {unidades} "
+                    "(Windows no dejo leerlas): revisa que esten desbloqueadas "
+                    "y abre SalvaGodinez como administrador.[/yellow]"
                 )
 
         all_results = search_everywhere(

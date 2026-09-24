@@ -16,9 +16,18 @@ from utils import format_size as _format_size
 _GENERIC_TEMP_DIR = os.path.normcase(os.path.normpath(os.environ.get("TEMP", "")))
 
 
-def _has_temp_signature(filename: str) -> bool:
+def has_temp_signature(filename: str) -> bool:
     """Detecta si el nombre tiene el PATRON de un temporal/autorecuperado
-    (sin importar el tipo de archivo original que representa)."""
+    (sin importar el tipo de archivo original que representa).
+
+    Fuente de verdad UNICA de este patron: antes vivia duplicada aqui y en
+    tools/disk_cleaner.py (como `_es_rescatable`, con el mismo cuerpo). Se
+    unifico aca porque disk_cleaner BORRA archivos de %TEMP% usando este
+    mismo criterio para decidir que NO borrar (lo que el rescate promete
+    poder recuperar); mantener dos copias significaba que un cambio en una
+    y no en la otra podia hacer que la limpieza borrara justo lo que el
+    rescate dice que puede salvar.
+    """
     lower = filename.lower()
     # Prefijo de lock/temporal de Office: ~$libro.xlsx, ~$reporte.zip, etc.
     # Cualquier extension cuenta ahora: el prefijo ya es la senal fuerte.
@@ -30,6 +39,11 @@ def _has_temp_signature(filename: str) -> bool:
     # PROTEGE al limpiar %TEMP%).
     ext = os.path.splitext(lower)[1]
     return ext in RECOVERY_EXTENSIONS
+
+
+# Alias retrocompatible: el nombre viejo (privado) segui existiendo por si
+# algo mas dentro de este modulo o pruebas viejas lo importa con ese nombre.
+_has_temp_signature = has_temp_signature
 
 
 def _is_recoverable(filename: str, base_path: str) -> bool:
@@ -50,7 +64,7 @@ def _is_recoverable(filename: str, base_path: str) -> bool:
     ahi.
     """
     if os.path.normcase(os.path.normpath(base_path)) == _GENERIC_TEMP_DIR and _GENERIC_TEMP_DIR:
-        return _has_temp_signature(filename)
+        return has_temp_signature(filename)
     return True
 
 

@@ -121,9 +121,17 @@ def offer_restore(results: list[dict]) -> None:
     try:
         idx = int(choice)
     except ValueError:
+        console.print(f"[red]Entrada invalida:[/red] {escape(str(choice))}")
         return
 
+    if idx == 0:
+        return  # "0 para omitir": salida silenciosa, es la opcion valida de cancelar.
+
     if idx < 1 or idx > len(results):
+        console.print(
+            f"[red]Numero fuera de rango.[/red] Escribe un numero entre 1 y "
+            f"{len(results)} (o 0 para omitir)."
+        )
         return
 
     selected = results[idx - 1]

@@ -9,6 +9,7 @@ from rich.panel import Panel
 from rich import box
 
 from utils import get_openpyxl as _get_openpyxl, console
+from tools._file_helpers import safe_output_path as _safe_output_path
 
 
 # --- Logica (sin UI) ---
@@ -31,25 +32,6 @@ def _sanitize_sheet_name(name: str) -> str:
         name = name.replace(ch, "_")
     name = name.strip("'")
     return name or "_"
-
-
-def _safe_output_path(path: str) -> str:
-    """Evita sobrescribir un archivo existente agregando un sufijo numerico.
-
-    Normaliza los separadores: el nombre de salida suele armarse uniendo un
-    directorio de dialogo (barras /) con un nombre por os.path.join (barra \\),
-    y la ruta cruda queda mezclada. normpath la deja en un solo estilo.
-    """
-    if not os.path.exists(path):
-        return os.path.normpath(path)
-
-    base, ext = os.path.splitext(path)
-    counter = 1
-    while True:
-        candidate = f"{base}_{counter}{ext}"
-        if not os.path.exists(candidate):
-            return os.path.normpath(candidate)
-        counter += 1
 
 
 def _merge_files(paths: list[str], output: str) -> dict:

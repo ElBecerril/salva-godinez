@@ -301,10 +301,10 @@ def usb_health_menu() -> None:
     table.add_column("Propiedad", style="bold")
     table.add_column("Valor")
     table.add_row("Etiqueta", escape(info["label"]))
-    table.add_row("Sistema de archivos", info["filesystem"])
+    table.add_row("Sistema de archivos", escape(info["filesystem"]))
     table.add_row("Tamano total", format_size(info["size"]))
     table.add_row("Espacio libre", format_size(info["free"]))
-    table.add_row("Estado de salud", info["health"])
+    table.add_row("Estado de salud", escape(info["health"]))
     console.print(table)
 
     # Diagnosticos opcionales

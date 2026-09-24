@@ -156,6 +156,43 @@ check("otro error -> motivo error", sc.ultimo_motivo() == "error", sc.ultimo_mot
 dos = SALIDA_ES + SALIDA_ES.replace("ShadowCopy1", "ShadowCopy2")
 check("dos instantaneas -> dos resultados", len(correr(dos)) == 2)
 
+# --- Un mismo CONJUNTO con dos copias (una sola linea de fecha) ---
+# vssadmin imprime "...en el momento de su creacion: <fecha>" UNA vez por
+# conjunto de instantaneas, pero el conjunto puede abarcar dos volumenes
+# (p.ej. C: y D: en el mismo Checkpoint-Computer) y por lo tanto dos
+# "Id. de instantaneas" dentro del mismo bloque. Antes del fix, `current` se
+# reseteaba tras la 1a copia y la 2a se quedaba con date="?".
+SET_DOS_COPIAS_ES = """vssadmin 1.1 - Herramienta administrativa de linea de comandos del Servicio de instantaneas de volumen.
+(C) Copyright 2001-2013 Microsoft Corp.
+
+Contenido de  id. de conjunto de instantaneas: {a0bde5cf-4c52-4fcb-918e-0dd9aee2ba7b}
+   Contenia 2 instantaneas en el momento de su creacion: 23/07/2026 04:52:46 p. m.
+      Id. de instantaneas: {504ff6e8-2833-438d-97cf-37bbc36c374a}
+         Volumen original: (C:)\\\\?\\Volume{05297703-1946-467b-999f-110a13bacc94}\\
+         Volumen de instantaneas: \\\\?\\GLOBALROOT\\Device\\HarddiskVolumeShadowCopy1
+         Equipo de origen: SALVA-PRUEBAS
+         Equipo de servicio: SALVA-PRUEBAS
+         Proveedor: 'Microsoft Software Shadow Copy provider 1.0'
+         Tipo: ClientAccessibleWriters
+         Atributos: Persistente, Accesible para el cliente, Sin liberacion automatica, Diferencial, Recuperado automaticamente
+      Id. de instantaneas: {a1b2c3d4-2833-438d-97cf-37bbc36c374a}
+         Volumen original: (D:)\\\\?\\Volume{aaaaaaaa-1946-467b-999f-110a13bacc94}\\
+         Volumen de instantaneas: \\\\?\\GLOBALROOT\\Device\\HarddiskVolumeShadowCopy2
+         Equipo de origen: SALVA-PRUEBAS
+         Equipo de servicio: SALVA-PRUEBAS
+         Proveedor: 'Microsoft Software Shadow Copy provider 1.0'
+         Tipo: ClientAccessibleWriters
+         Atributos: Persistente, Accesible para el cliente, Sin liberacion automatica, Diferencial, Recuperado automaticamente
+"""
+
+shadows = correr(SET_DOS_COPIAS_ES)
+check("conjunto con 2 copias -> dos resultados", len(shadows) == 2, shadows)
+if len(shadows) == 2:
+    check("conjunto con 2 copias -> la 1a trae fecha",
+          "23/07/2026" in shadows[0].get("date", "?"), shadows[0])
+    check("conjunto con 2 copias -> la 2a TAMBIEN trae fecha (antes quedaba '?')",
+          "23/07/2026" in shadows[1].get("date", "?"), shadows[1])
+
 # --- Basura no revienta ---
 for basura in ("", "ni idea de que es esto", "(C:)\n(D:)\n"):
     try:
