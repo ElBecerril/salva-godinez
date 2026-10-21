@@ -2,6 +2,50 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.9.3] - 2026-10-21
+
+### Corregido
+- **Editar PDF: elegir un PDF cifrado ya no "no hace nada".** Con un PDF
+  cifrado en AES-256 (por ejemplo, guardado con contrasena desde Word), al
+  elegir el archivo en Dividir, Eliminar, Rotar, Reordenar, Extraer texto y
+  otras operaciones no pasaba nada: ni se elegia el archivo ni salia un
+  mensaje (la excepcion se perdia en la ventana). Ahora se abre, o dice
+  claramente por que no. Ademas, los PDF cifrados con clave de usuario vacia
+  (protegidos solo contra edicion o copiado) se rechazaban como "protegido con
+  contrasena" aunque se podian abrir; ahora se abren.
+- **Ver contrasenas Wi-Fi (Windows en espanol):** la columna Seguridad salia
+  vacia siempre, y las redes con acentos o n con tilde en el nombre perdian su
+  contrasena (netsh escribe con otra pagina de codigos que la que se leia).
+- **Expulsar USB:** una memoria expulsada con exito se reportaba como "sigue en
+  el sistema, no la retires todavia". Ahora confirma "expulsada correctamente".
+  Verificado con una USB real.
+- **Revisar estado de la USB:** la velocidad de lectura mostraba ~1000 MB/s
+  porque leia de la memoria cache de Windows; ahora mide la USB de verdad (en la
+  USB de prueba: ~35 MB/s). Y el chequeo del sistema de archivos ya detecta
+  errores cuando Windows esta en ingles ("Errors found" se leia como disco sano).
+- **Respaldo a USB:** si la USB se llena, es de solo lectura o se retira a media
+  copia, el respaldo ya no se aborta sin avisar; termina con el resumen de lo que
+  si se copio y lo que fallo.
+- **Carpetas de red:** una carpeta compartida con espacios en el nombre (por
+  ejemplo \\NAS\Carpeta Compartida) se mostraba cortada; ahora completa.
+- **Pantallas con la ventana al tamano minimo:** ya no se cortan textos ni botones
+  (Convertir imagenes, Finiquito, Sueldo neto, Retenciones, Editar PDF y Revisar
+  estado de la USB).
+- **Calculadoras:** escribir "nan" o "inf" en Retenciones o Finiquito mostraba
+  "$nan" con "Calculo listo"; ahora pide un numero valido.
+
+### Seguridad
+- Dependencias actualizadas para cerrar vulnerabilidades conocidas: pypdf 6.6.0
+  a 6.21.2, Pillow 12.1.0 a 13.0.0 y certifi 2026.7.22 a 2026.10.19. Se agrega
+  cryptography (necesaria para abrir PDFs con cifrado AES); el .exe pesa unos
+  3 MB mas.
+
+### Por dentro
+- 11 scripts de prueba nuevos (de 4 a 15): herramientas que borran o cierran
+  procesos (limpieza de disco, desinfectante de USB, desbloquear archivo,
+  expulsar y respaldar USB, carpetas de red, Wi-Fi), apertura de PDF y la GUI
+  real (23 pantallas a tamano normal y minimo, y las calculadoras).
+
 ## [2.9.2] - 2026-09-24
 
 ### Corregido
