@@ -1,5 +1,6 @@
 """Mapeo de unidades de red: ver, conectar y desconectar."""
 
+import re
 import subprocess
 
 from rich.markup import escape
@@ -86,6 +87,16 @@ def _parse_net_use_output() -> list[dict]:
                 for j in range(i + 1, len(parts)):
                     if parts[j].startswith("\\\\"):
                         remote_path = parts[j]
+                        # Una carpeta compartida SI puede llevar espacios
+                        # (\\NAS\Carpeta Compartida): el token solo la cortaba.
+                        # net use separa las columnas con 2+ espacios, asi que
+                        # la ruta llega hasta el primer hueco de 2+ espacios.
+                        # Si la ruta es tan larga que no deja hueco, se queda
+                        # con el primer token (lo de antes).
+                        inicio = stripped.index(parts[j], stripped.index(part))
+                        trozos = re.split(r"\s{2,}", stripped[inicio:], maxsplit=1)
+                        if len(trozos) == 2:
+                            remote_path = trozos[0].strip()
                         break
                 break
 

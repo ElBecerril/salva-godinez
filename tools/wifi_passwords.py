@@ -1,6 +1,8 @@
 """Recuperador de contrasenas WiFi guardadas en Windows."""
 
+import ctypes
 import subprocess
+import unicodedata
 
 from rich.markup import escape
 from rich.prompt import Prompt
@@ -19,25 +21,59 @@ def _mask(password: str) -> str:
     return "*" * 8
 
 
+def _oem_encoding() -> str:
+    """Pagina de codigos con la que netsh escribe su salida (cp850 en Windows
+    en espanol, cp437 en ingles...). NO es UTF-8: decodificarla como UTF-8
+    convertia 'Autenticacion' (con tilde) en 'Autenticaci?n' y los nombres de
+    red con n con tilde o acentos quedaban corruptos."""
+    try:
+        return f"cp{ctypes.windll.kernel32.GetOEMCP()}"
+    except (AttributeError, OSError):
+        return "utf-8"
+
+
+def _plain(texto: str) -> str:
+    """Minusculas y sin acentos, para comparar etiquetas de netsh en cualquier
+    idioma ('Autenticacion' y 'Autenticacion' con tilde son lo mismo)."""
+    sin_acentos = unicodedata.normalize("NFKD", texto)
+    return "".join(c for c in sin_acentos if not unicodedata.combining(c)).lower()
+
+
+def _run_netsh(args: list[str]):
+    """Corre netsh y devuelve un objeto con returncode y stdout YA decodificado
+    con la pagina de codigos del sistema."""
+    crudo = subprocess.run(
+        ["netsh"] + args,
+        capture_output=True, timeout=10,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    try:
+        texto = (crudo.stdout or b"").decode(_oem_encoding(), errors="replace")
+    except LookupError:
+        texto = (crudo.stdout or b"").decode("utf-8", errors="replace")
+
+    class _Salida:
+        returncode = crudo.returncode
+        stdout = texto
+
+    return _Salida
+
+
 def get_wifi_passwords() -> list[dict]:
     """Obtiene las redes WiFi guardadas y sus contrasenas."""
     results = []
 
     try:
         # Listar perfiles WiFi
-        output = subprocess.run(
-            ["netsh", "wlan", "show", "profiles"],
-            capture_output=True, text=True, timeout=10,
-            encoding="utf-8", errors="replace",
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        )
+        output = _run_netsh(["wlan", "show", "profiles"])
         if output.returncode != 0:
             return results
 
         profiles = []
         for line in output.stdout.splitlines():
             # Soporte espanol e ingles
-            if "All User Profile" in line or "Perfil de todos los usuarios" in line:
+            etiqueta = _plain(line)
+            if "all user profile" in etiqueta or "perfil de todos los usuarios" in etiqueta:
                 parts = line.split(":", 1)
                 if len(parts) > 1:
                     profiles.append(parts[1].strip())
@@ -45,22 +81,18 @@ def get_wifi_passwords() -> list[dict]:
         for profile in profiles:
             info = {"red": profile, "contrasena": "", "seguridad": ""}
             try:
-                detail = subprocess.run(
-                    ["netsh", "wlan", "show", "profile", profile, "key=clear"],
-                    capture_output=True, text=True, timeout=10,
-                    encoding="utf-8", errors="replace",
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
+                detail = _run_netsh(["wlan", "show", "profile", profile, "key=clear"])
                 for line in detail.stdout.splitlines():
                     line_stripped = line.strip()
+                    etiqueta = _plain(line_stripped)
                     # Contrasena (espanol / ingles)
-                    if "Key Content" in line_stripped or "Contenido de la clave" in line_stripped:
+                    if "key content" in etiqueta or "contenido de la clave" in etiqueta:
                         parts = line_stripped.split(":", 1)
                         if len(parts) > 1:
                             info["contrasena"] = parts[1].strip()
                     # Tipo de seguridad
-                    if ("Authentication" in line_stripped and "open" not in line_stripped.lower()) or \
-                       "Autenticacion" in line_stripped:
+                    if ("authentication" in etiqueta and "open" not in etiqueta) or \
+                       "autenticacion" in etiqueta:
                         parts = line_stripped.split(":", 1)
                         if len(parts) > 1 and not info["seguridad"]:
                             info["seguridad"] = parts[1].strip()

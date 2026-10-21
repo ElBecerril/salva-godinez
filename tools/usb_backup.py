@@ -69,7 +69,18 @@ def _copy_files(
         for dirpath, _, filenames in os.walk(source):
             rel_dir = os.path.relpath(dirpath, source)
             dest_dir = os.path.join(dest_base, source_name, rel_dir)
-            os.makedirs(dest_dir, exist_ok=True)
+            try:
+                os.makedirs(dest_dir, exist_ok=True)
+            except OSError as e:
+                # USB llena, de solo lectura o retirada a media copia: antes la
+                # excepcion se escapaba y tumbaba TODO el respaldo, sin el
+                # resumen de lo que si se copio. Se registran los archivos de
+                # esta carpeta como fallidos y se sigue con las demas.
+                for fname in filenames:
+                    failed.append((os.path.join(dirpath, fname), str(e)))
+                    if progress_callback:
+                        progress_callback(0)
+                continue
 
             for fname in filenames:
                 src_file = os.path.join(dirpath, fname)
