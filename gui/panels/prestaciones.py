@@ -5,6 +5,7 @@ calculos (aguinaldo, vacaciones/prima, finiquito, liquidacion) NO se
 reimplementan aqui. Ver ese modulo para el detalle legal de cada formula.
 """
 
+import math
 import re
 import tkinter as tk
 from tkinter import ttk
@@ -150,7 +151,7 @@ class PanelPrestaciones(ToolPanel):
             valor = float(texto)
         except ValueError:
             return None
-        if valor <= 0:
+        if not math.isfinite(valor) or valor <= 0:
             return None
         return valor
 
@@ -172,7 +173,7 @@ class PanelPrestaciones(ToolPanel):
             valor = float(texto)
         except ValueError:
             return None
-        if valor < 0:
+        if not math.isfinite(valor) or valor < 0:
             return None
         return valor
 

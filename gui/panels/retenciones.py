@@ -5,6 +5,7 @@ calculos (IVA, retencion ISR/IVA, tasa fija RESICO) NO se reimplementan aqui.
 Ver ese modulo para el detalle legal de cada formula.
 """
 
+import math
 import re
 import tkinter as tk
 from tkinter import ttk
@@ -117,7 +118,9 @@ class PanelRetenciones(ToolPanel):
             self._estado.alerta("Escribe un numero, por ejemplo 15000")
             return
 
-        if monto <= 0:
+        # float() acepta "nan" e "inf": no son montos y llegaban a la tabla como
+        # "$nan"/"$inf" con el cartel de "Calculo listo".
+        if not math.isfinite(monto) or monto <= 0:
             self._estado.alerta("Escribe un numero, por ejemplo 15000")
             return
 
