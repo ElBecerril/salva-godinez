@@ -51,6 +51,13 @@ class PanelImagenes(ToolPanel):
         opciones = ttk.Frame(self.body, style="Panel.TFrame")
         opciones.pack(fill="x", pady=(14, 0))
 
+        # El boton se empaqueta PRIMERO (a la derecha): en tkinter el ultimo
+        # widget empaquetado es el que se aplasta cuando falta ancho, y era este
+        # boton ("Elegir..." quedaba en "Ele"). Ahora el que cede es el campo.
+        ttk.Button(
+            opciones, text="Elegir...", command=self._elegir_destino,
+        ).pack(side="right")
+
         ttk.Label(opciones, text="Formato destino:", style="Panel.TLabel").pack(side="left")
         self._var_formato = tk.StringVar(value=next(iter(SUPPORTED_FORMATS)))
         combo = ttk.Combobox(
@@ -62,11 +69,8 @@ class PanelImagenes(ToolPanel):
         ttk.Label(opciones, text="Carpeta de salida:", style="Panel.TLabel").pack(side="left")
         self._var_destino = tk.StringVar()
         ttk.Entry(opciones, textvariable=self._var_destino, width=30).pack(
-            side="left", padx=(10, 6)
+            side="left", padx=(10, 6), fill="x", expand=True
         )
-        ttk.Button(
-            opciones, text="Elegir...", command=self._elegir_destino,
-        ).pack(side="left")
 
         acciones = ttk.Frame(self.body, style="Panel.TFrame")
         acciones.pack(fill="x", pady=(14, 0))

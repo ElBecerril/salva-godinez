@@ -5,11 +5,12 @@ calculos (IVA, retencion ISR/IVA, tasa fija RESICO) NO se reimplementan aqui.
 Ver ese modulo para el detalle legal de cada formula.
 """
 
+import math
 import re
 import tkinter as tk
 from tkinter import ttk
 
-from gui.base import EstadoLabel, ToolPanel
+from gui.base import EstadoLabel, ToolPanel, ajustar_wraplength
 from tools._fiscal_helpers import DISCLAIMER, fmt
 from tools.retention_calculator import calculate_honorarios, calculate_resico
 
@@ -67,10 +68,12 @@ class PanelRetenciones(ToolPanel):
         self._total_label.pack(anchor="w", pady=(14, 4))
 
         # El disclaimer se ancla ABAJO y se empaqueta ANTES que la tabla.
-        ttk.Label(
+        aviso = ttk.Label(
             self.body, text=_DISCLAIMER_TEXTO, style="Subtitle.TLabel",
             wraplength=820, justify="left",
-        ).pack(side="bottom", anchor="w", pady=(10, 0))
+        )
+        aviso.pack(side="bottom", anchor="w", pady=(10, 0))
+        ajustar_wraplength(aviso, self.body)
 
         tabla_frame = ttk.Frame(self.body, style="Panel.TFrame")
         tabla_frame.pack(fill="both", expand=True, pady=(4, 0))
@@ -115,7 +118,9 @@ class PanelRetenciones(ToolPanel):
             self._estado.alerta("Escribe un numero, por ejemplo 15000")
             return
 
-        if monto <= 0:
+        # float() acepta "nan" e "inf": no son montos y llegaban a la tabla como
+        # "$nan"/"$inf" con el cartel de "Calculo listo".
+        if not math.isfinite(monto) or monto <= 0:
             self._estado.alerta("Escribe un numero, por ejemplo 15000")
             return
 

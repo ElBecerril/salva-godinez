@@ -5,11 +5,12 @@ calculos (aguinaldo, vacaciones/prima, finiquito, liquidacion) NO se
 reimplementan aqui. Ver ese modulo para el detalle legal de cada formula.
 """
 
+import math
 import re
 import tkinter as tk
 from tkinter import ttk
 
-from gui.base import EstadoLabel, ToolPanel
+from gui.base import EstadoLabel, ToolPanel, ajustar_wraplength
 from tools._fiscal_helpers import DISCLAIMER, fmt
 from tools.prestaciones_sim import (
     calculate_aguinaldo,
@@ -44,14 +45,18 @@ class PanelPrestaciones(ToolPanel):
         opciones = ttk.Frame(self.body, style="Panel.TFrame")
         opciones.pack(fill="x")
 
-        ttk.Label(opciones, text="Calculo:", style="Panel.TLabel").pack(side="left")
+        ttk.Label(opciones, text="Calculo:", style="Panel.TLabel").pack(anchor="w")
 
+        # Los 4 radios van en su propia fila: con la etiqueta "Calculo:" al lado
+        # no caben en la ventana al tamano minimo y el ultimo se cortaba.
+        radios = ttk.Frame(opciones, style="Panel.TFrame")
+        radios.pack(anchor="w", pady=(4, 0))
         self._var_calculo = tk.StringVar(value=_OPCIONES[0][0])
-        for valor, etiqueta in _OPCIONES:
+        for i, (valor, etiqueta) in enumerate(_OPCIONES):
             ttk.Radiobutton(
-                opciones, text=etiqueta, value=valor, variable=self._var_calculo,
+                radios, text=etiqueta, value=valor, variable=self._var_calculo,
                 command=self._actualizar_campos,
-            ).pack(side="left", padx=(10, 0))
+            ).pack(side="left", padx=(0 if i == 0 else 10, 0))
 
         # --- Campos de entrada ---
         entrada = ttk.Frame(self.body, style="Panel.TFrame")
@@ -91,10 +96,12 @@ class PanelPrestaciones(ToolPanel):
 
         # El disclaimer se ancla ABAJO y se empaqueta ANTES que la tabla: si
         # va despues, la tabla (expand=True) lo empuja fuera de la ventana.
-        ttk.Label(
+        aviso = ttk.Label(
             self.body, text=_DISCLAIMER_TEXTO, style="Subtitle.TLabel",
             wraplength=820, justify="left",
-        ).pack(side="bottom", anchor="w", pady=(10, 0))
+        )
+        aviso.pack(side="bottom", anchor="w", pady=(10, 0))
+        ajustar_wraplength(aviso, self.body)
 
         tabla_frame = ttk.Frame(self.body, style="Panel.TFrame")
         tabla_frame.pack(fill="both", expand=True, pady=(4, 0))
@@ -144,7 +151,7 @@ class PanelPrestaciones(ToolPanel):
             valor = float(texto)
         except ValueError:
             return None
-        if valor <= 0:
+        if not math.isfinite(valor) or valor <= 0:
             return None
         return valor
 
@@ -166,7 +173,7 @@ class PanelPrestaciones(ToolPanel):
             valor = float(texto)
         except ValueError:
             return None
-        if valor < 0:
+        if not math.isfinite(valor) or valor < 0:
             return None
         return valor
 

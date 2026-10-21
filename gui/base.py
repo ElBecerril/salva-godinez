@@ -12,6 +12,21 @@ from tkinter import ttk, messagebox
 from gui import theme
 
 
+def ajustar_wraplength(etiqueta: ttk.Label, contenedor: tk.Misc, margen: int = 0) -> None:
+    """Hace que el texto de `etiqueta` se parta al ANCHO REAL de `contenedor`.
+
+    wraplength en tkinter es un ancho fijo en pixeles: un numero a ojo (820, 520)
+    deja el texto cortado por el borde cuando la ventana es mas angosta, que es
+    justo el caso del tamano minimo (900x560). Se recalcula en cada resize.
+    """
+    def _reajustar(evento) -> None:
+        ancho = max(evento.width - margen, 200)
+        if str(etiqueta.cget("wraplength")) != str(ancho):
+            etiqueta.configure(wraplength=ancho)
+
+    contenedor.bind("<Configure>", _reajustar, add="+")
+
+
 class ToolPanel(ttk.Frame):
     """Base de cada pantalla de herramienta.
 
@@ -200,6 +215,7 @@ class EstadoLabel(ttk.Label):
 
     def __init__(self, master: tk.Misc) -> None:
         super().__init__(master, text="", style="Panel.TLabel", wraplength=760, justify="left")
+        ajustar_wraplength(self, master)
 
     def info(self, texto: str) -> None:
         self.configure(text=texto, foreground=theme.FG_SOFT)
