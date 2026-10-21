@@ -21,6 +21,7 @@ from tkinter import filedialog, ttk
 from gui import theme
 from gui.base import EstadoLabel, ToolPanel, ajustar_wraplength
 from tools.pdf_tools import (
+    MENSAJE_NO_CRYPTO,
     _import_docx,
     _import_pillow,
     _import_pymupdf,
@@ -70,7 +71,7 @@ def _imagenes(n: int) -> str:
 # cuando el problema esta en ABRIR el archivo (no en guardar el resultado).
 _CODIGOS_APERTURA = {
     "no_pypdf", "not_found", "corrupt", "read_error", "encrypted",
-    "wrong_password", "wrong_password_or_corrupt",
+    "wrong_password", "wrong_password_or_corrupt", "no_crypto",
 }
 
 _MENSAJES_APERTURA = {
@@ -82,6 +83,7 @@ _MENSAJES_APERTURA = {
         "Este PDF esta protegido con contrasena. Usa primero la operacion "
         "'Proteger / Desproteger PDF' para quitarle la proteccion."
     ),
+    "no_crypto": MENSAJE_NO_CRYPTO,
     "wrong_password": "La contrasena no es correcta.",
     "wrong_password_or_corrupt": "La contrasena no es correcta, o el archivo esta danado.",
 }
@@ -1364,12 +1366,24 @@ class PanelPdf(ToolPanel):
             if not resultado["ok"]:
                 self.error("No se pudo abrir el PDF", self._texto_error_apertura(resultado))
                 return
-            estado_local["path"] = path
             reader = resultado["reader"]
-            total = len(reader.pages)
+            # Leer paginas y metadatos descifra cadenas del PDF: con un PDF AES y
+            # sin `cryptography` lanza DependencyError aqui, dentro del callback
+            # del boton, donde en el .exe de ventana se pierde sin avisar nada.
+            try:
+                total = len(reader.pages)
+                campos = get_pdf_metadata_fields(reader.metadata) if reader.metadata else []
+            except Exception as e:  # noqa: BLE001
+                falta_crypto = type(e).__name__ == "DependencyError"
+                self.error(
+                    "No se pudo leer el PDF",
+                    MENSAJE_NO_CRYPTO if falta_crypto
+                    else "El archivo esta danado o no es un PDF valido.",
+                )
+                return
+            estado_local["path"] = path
             archivo_lbl.configure(text=f"{os.path.basename(path)} ({total} paginas)")
 
-            campos = get_pdf_metadata_fields(reader.metadata) if reader.metadata else []
             if campos:
                 info_lbl.configure(
                     text="\n".join(f"{etiqueta}: {valor}" for etiqueta, valor in campos)

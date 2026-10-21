@@ -111,6 +111,49 @@ def pdf_to_word_do(fitz, Document, path, output, overwrite=False):
         doc.close()
 
 
+MENSAJE_NO_CRYPTO = (
+    "Este PDF usa cifrado AES y a esta version le falta el componente para "
+    "leerlo. Descarga la version mas reciente de SalvaGodinez."
+)
+
+
+def _abrir_reader(pypdf, path):
+    """Crea el PdfReader y lo deja LEIBLE (descifra con password vacio).
+
+    Retorna (reader, None) si se puede leer, o (None, dict_de_error) con el
+    mismo formato que usan open_pdf/read_pdf_total:
+      "no_crypto"  -> el PDF usa AES y falta `cryptography` en esta instalacion
+      "corrupt"    -> no se pudo parsear (pypdf lanza de todo con PDFs raros)
+      "encrypted"  -> exige una contrasena que no es la vacia
+
+    Dos trampas de pypdf que antes dejaban la herramienta muda o mentirosa:
+      - PdfReader() lanza DependencyError (no PdfReadError) con un PDF AES si
+        falta `cryptography`; sin atraparla, el clic en "Elegir PDF" no hacia
+        NADA en la GUI (la excepcion se perdia en el callback de tkinter).
+      - `reader.is_encrypted` sigue en True aunque decrypt("") haya funcionado,
+        asi que usarlo para decidir rechazaba todo PDF cifrado con clave de
+        usuario vacia (muy comun: PDFs "protegidos" solo contra edicion).
+        Lo que dice si se pudo abrir es el valor que devuelve decrypt().
+    """
+    try:
+        reader = pypdf.PdfReader(path)
+    except pypdf.errors.DependencyError as e:
+        return None, {"ok": False, "error": "no_crypto", "detail": str(e)}
+    except Exception as e:  # noqa: BLE001 - pypdf lanza de todo con PDFs danados
+        return None, {"ok": False, "error": "corrupt", "detail": str(e)}
+
+    if reader.is_encrypted:
+        try:
+            abierto = bool(reader.decrypt(""))
+        except pypdf.errors.DependencyError as e:
+            return None, {"ok": False, "error": "no_crypto", "detail": str(e)}
+        except Exception:  # noqa: BLE001 - clave vacia no valida
+            abierto = False
+        if not abierto:
+            return None, {"ok": False, "error": "encrypted"}
+    return reader, None
+
+
 def open_pdf(path):
     """Abre un PdfReader manejando corrupcion y cifrado (password vacio).
 
@@ -123,21 +166,12 @@ def open_pdf(path):
         return {"ok": False, "error": "no_pypdf"}
     if not os.path.isfile(path):
         return {"ok": False, "error": "not_found"}
-    try:
-        reader = pypdf.PdfReader(path)
-    except (pypdf.errors.PdfReadError, pypdf.errors.PdfStreamError, OSError) as e:
-        return {"ok": False, "error": "corrupt", "detail": str(e)}
-
     # Un PDF cifrado no falla al abrir con PdfReader, pero tumba la app al
-    # acceder a .pages. Intentamos descifrar con password vacio (comun en
-    # PDFs "protegidos" solo para edicion) y si sigue cifrado, abortamos.
-    if reader.is_encrypted:
-        try:
-            reader.decrypt("")
-        except Exception:
-            pass
-        if reader.is_encrypted:
-            return {"ok": False, "error": "encrypted"}
+    # acceder a .pages: _abrir_reader lo descifra con password vacio (comun en
+    # PDFs "protegidos" solo para edicion) o reporta por que no se pudo.
+    reader, error = _abrir_reader(pypdf, path)
+    if error:
+        return error
 
     return {"ok": True, "pypdf": pypdf, "reader": reader}
 
@@ -146,28 +180,18 @@ def read_pdf_total(path):
     """Abre un PDF y retorna su total de paginas (maneja cifrado como open_pdf).
 
     Retorna dict {"ok": True, "pypdf", "reader", "total"} o
-    {"ok": False, "error": "no_pypdf"|"not_found"|"corrupt"|"encrypted", "detail": opcional}.
+    {"ok": False, "error": "no_pypdf"|"not_found"|"corrupt"|"encrypted"|"no_crypto", "detail": opcional}.
     """
     pypdf = _import_pypdf()
     if not pypdf:
         return {"ok": False, "error": "no_pypdf"}
     if not os.path.isfile(path):
         return {"ok": False, "error": "not_found"}
-    try:
-        reader = pypdf.PdfReader(path)
-    except (pypdf.errors.PdfReadError, pypdf.errors.PdfStreamError, OSError) as e:
-        return {"ok": False, "error": "corrupt", "detail": str(e)}
-
     # Igual que open_pdf: un PDF cifrado no falla al abrir con PdfReader, pero
-    # tumba len(reader.pages) con FileNotDecryptedError. Intentamos descifrar
-    # con password vacio antes de reportar "corrupto" (mensaje falso).
-    if reader.is_encrypted:
-        try:
-            reader.decrypt("")
-        except Exception:
-            pass
-        if reader.is_encrypted:
-            return {"ok": False, "error": "encrypted"}
+    # tumba len(reader.pages) con FileNotDecryptedError.
+    reader, error = _abrir_reader(pypdf, path)
+    if error:
+        return error
 
     try:
         total = len(reader.pages)
@@ -189,7 +213,9 @@ def read_pdf_for_protect(path):
         return {"ok": False, "error": "not_found"}
     try:
         reader = pypdf.PdfReader(path)
-    except (pypdf.errors.PdfReadError, pypdf.errors.PdfStreamError, OSError) as e:
+    except pypdf.errors.DependencyError as e:
+        return {"ok": False, "error": "no_crypto", "detail": str(e)}
+    except Exception as e:  # noqa: BLE001 - pypdf lanza de todo con PDFs danados
         return {"ok": False, "error": "read_error", "detail": str(e)}
     return {"ok": True, "pypdf": pypdf, "reader": reader}
 
@@ -647,6 +673,10 @@ def _open_pdf_reader(prompt_text="[bold]Ruta del PDF[/bold]"):
             console.print(f"[red]Error al leer PDF (archivo corrupto o invalido): {escape(str(result['detail']))}[/red]")
         elif result["error"] == "encrypted":
             console.print("[red]El PDF esta protegido con contrasena y no se puede procesar.[/red]")
+        elif result["error"] == "no_crypto":
+            console.print(f"[red]{MENSAJE_NO_CRYPTO}[/red]")
+        else:
+            console.print("[red]No se pudo abrir el PDF.[/red]")
         return None
 
     return result["pypdf"], result["reader"], path
@@ -723,6 +753,10 @@ def split_pdf() -> None:
                 "[red]El PDF esta protegido con contrasena. Usa primero la opcion "
                 "'Proteger/Desproteger PDF' para quitarle la proteccion.[/red]"
             )
+        elif open_result["error"] == "no_crypto":
+            console.print(f"[red]{MENSAJE_NO_CRYPTO}[/red]")
+        else:
+            console.print("[red]No se pudo abrir el PDF.[/red]")
         return
 
     pypdf, reader, total = open_result["pypdf"], open_result["reader"], open_result["total"]
@@ -1051,7 +1085,10 @@ def protect_pdf() -> None:
 
     open_result = read_pdf_for_protect(path)
     if not open_result["ok"]:
-        console.print(f"[red]Error al leer PDF: {escape(str(open_result.get('detail', '')))}[/red]")
+        if open_result["error"] == "no_crypto":
+            console.print(f"[red]{MENSAJE_NO_CRYPTO}[/red]")
+        else:
+            console.print(f"[red]Error al leer PDF: {escape(str(open_result.get('detail', '')))}[/red]")
         return
     pypdf, reader = open_result["pypdf"], open_result["reader"]
 
