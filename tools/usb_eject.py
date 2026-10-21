@@ -12,18 +12,46 @@ from utils import console
 # --- Logica (sin UI) ---
 
 
+def _media_present(letter: str) -> bool:
+    """True si la unidad tiene un medio listo (se puede consultar su espacio).
+
+    Una memoria USB expulsada bien NO pierde su letra: queda como unidad
+    removible SIN medio (Get-Disk: "No Media"). Por eso GetDriveType no sirve
+    para saber si ya se solto. SEM_FAILCRITICALERRORS evita el dialogo "Inserte
+    un disco en la unidad D:" al consultar una unidad sin medio.
+    """
+    kernel32 = ctypes.windll.kernel32
+    SEM_FAILCRITICALERRORS = 0x0001
+    anterior = kernel32.SetErrorMode(SEM_FAILCRITICALERRORS)
+    try:
+        libre = ctypes.c_ulonglong(0)
+        total = ctypes.c_ulonglong(0)
+        total_libre = ctypes.c_ulonglong(0)
+        return bool(kernel32.GetDiskFreeSpaceExW(
+            letter, ctypes.byref(libre), ctypes.byref(total), ctypes.byref(total_libre),
+        ))
+    finally:
+        kernel32.SetErrorMode(anterior)
+
+
 def _drive_still_present(drive: str) -> bool | None:
-    """Verifica si la unidad sigue presente en el sistema.
+    """Verifica si la unidad sigue presente en el sistema CON su medio.
 
     Returns:
-        True si sigue apareciendo como unidad removible, False si ya no esta
-        presente, None si no se pudo determinar (p. ej. no disponible en esta
-        plataforma).
+        True si sigue como unidad removible y con medio, False si ya no esta o
+        quedo sin medio (expulsada), None si no se pudo determinar (p. ej. no
+        disponible en esta plataforma).
+
+    Antes solo miraba el tipo de unidad: en una memoria USB expulsada con
+    exito la letra sigue ahi (tipo removible, sin medio), asi que SIEMPRE
+    contestaba "sigue presente" y la app decia "no la retires todavia" despues
+    de haberla expulsado bien.
     """
     try:
         letter = drive.rstrip("\\") + "\\"
-        drive_type = ctypes.windll.kernel32.GetDriveTypeW(letter)
-        return drive_type == 2  # DRIVE_REMOVABLE
+        if ctypes.windll.kernel32.GetDriveTypeW(letter) != 2:  # DRIVE_REMOVABLE
+            return False
+        return _media_present(letter)
     except (AttributeError, OSError):
         return None
 
