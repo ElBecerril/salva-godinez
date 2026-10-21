@@ -55,13 +55,16 @@ class _CreateFileW:
 
 
 class _Kernel32:
-    def __init__(self, handle=1234, lock_ok=True, drive_types=(2, 1)):
+    def __init__(self, handle=1234, lock_ok=True, drive_types=(2, 1), media=(True,)):
         self.CreateFileW = _CreateFileW(handle)
         self.llamadas = []          # codigos IOCTL en orden
         self.cerrados = []          # handles cerrados
         self._lock_ok = lock_ok
         self._tipos = list(drive_types)
+        self._media = list(media)   # hay medio listo en cada consulta (se repite el ultimo)
         self.consultas = 0
+        self.consultas_media = 0
+        self.error_modes = []
 
     def DeviceIoControl(self, handle, codigo, *a):
         self.llamadas.append(NOMBRES.get(codigo, hex(codigo)))
@@ -76,6 +79,15 @@ class _Kernel32:
         self.consultas += 1
         i = min(self.consultas - 1, len(self._tipos) - 1)
         return self._tipos[i]
+
+    def SetErrorMode(self, modo):
+        self.error_modes.append(modo)
+        return 0
+
+    def GetDiskFreeSpaceExW(self, ruta, *a):
+        self.consultas_media += 1
+        i = min(self.consultas_media - 1, len(self._media) - 1)
+        return 1 if self._media[i] else 0
 
 
 class _Windll:
@@ -111,6 +123,17 @@ try:
     check("cierra el handle", k.cerrados == [1234], k.cerrados)
     check("la letra se normaliza ('G:\\\\' -> 'G:')", r["drive"] == "G:")
 
+    # --- USB real expulsada: la letra SIGUE ahi, pero SIN medio ---------------
+    # (Get-Disk: "No Media"). Antes se miraba solo el tipo de unidad, asi que
+    # esto salia como "still_present" y la app decia "no la retires todavia"
+    # despues de haberla expulsado bien. Medido con una memoria USB real.
+    k = _Kernel32(drive_types=(2,), media=(True, True, False))
+    r = eject(k)
+    check("letra removible que queda SIN medio -> 'ejected' (no 'still_present')",
+          r == {"status": "ejected", "drive": "G:"}, r)
+    check("la consulta de medio evita el dialogo 'inserte un disco' (SEM_FAILCRITICALERRORS)",
+          k.error_modes and k.error_modes[0] == 0x0001 and k.error_modes[-1] == 0, k.error_modes)
+
     # --- unidad en uso: NO desmonta ni expulsa ------------------------------
     k = _Kernel32(lock_ok=False)
     r = eject(k)
@@ -127,7 +150,7 @@ try:
               r["status"] == "access_denied" and k.llamadas == [] and k.cerrados == [], (r, k.llamadas))
 
     # --- se mando expulsar pero la unidad sigue ahi --------------------------
-    k = _Kernel32(drive_types=(2,))        # siempre removible = sigue presente
+    k = _Kernel32(drive_types=(2,), media=(True,))   # removible y CON medio = sigue montada
     r = eject(k)
     check("la unidad no desaparece -> 'still_present' (NO dice 'expulsada')",
           r == {"status": "still_present", "drive": "G:"}, r)
@@ -167,9 +190,12 @@ try:
     check("sin kernel32 -> 'no_windows'", r == {"status": "no_windows", "drive": "G:"}, r)
 
     # --- _drive_still_present --------------------------------------------------
-    ctypes.windll = _Windll(_Kernel32(drive_types=(2,)))
+    ctypes.windll = _Windll(_Kernel32(drive_types=(2,), media=(True,)))
     try:
-        check("_drive_still_present: removible -> True", ue._drive_still_present("G:") is True)
+        check("_drive_still_present: removible con medio -> True", ue._drive_still_present("G:") is True)
+        ctypes.windll = _Windll(_Kernel32(drive_types=(2,), media=(False,)))
+        check("_drive_still_present: removible SIN medio (expulsada) -> False",
+              ue._drive_still_present("G:") is False)
         ctypes.windll = _Windll(_Kernel32(drive_types=(1,)))
         check("_drive_still_present: ya no existe -> False", ue._drive_still_present("G:") is False)
         ctypes.windll = _Windll(_Kernel32(drive_types=(3,)))
