@@ -67,7 +67,7 @@ class PanelUsbEstado(ToolPanel):
         self._btn_diag.pack(side="left")
 
         self._btn_chkdsk = ttk.Button(
-            acciones, text="Revisar errores del sistema de archivos (mas lento)",
+            acciones, text="Revisar errores de la USB (mas lento)",
             command=self._chkdsk, state="disabled",
         )
         self._btn_chkdsk.pack(side="left", padx=(10, 0))

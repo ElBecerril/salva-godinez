@@ -19,7 +19,7 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 
 from gui import theme
-from gui.base import EstadoLabel, ToolPanel
+from gui.base import EstadoLabel, ToolPanel, ajustar_wraplength
 from tools.pdf_tools import (
     _import_docx,
     _import_pillow,
@@ -240,10 +240,12 @@ class PanelPdf(ToolPanel):
 
     def _seccion(self, frame, titulo: str, descripcion: str) -> None:
         ttk.Label(frame, text=titulo, style="Section.TLabel").pack(anchor="w")
-        ttk.Label(
+        desc = ttk.Label(
             frame, text=descripcion, style="Subtitle.TLabel",
             wraplength=520, justify="left",
-        ).pack(anchor="w", pady=(2, 12))
+        )
+        desc.pack(anchor="w", pady=(2, 12))
+        ajustar_wraplength(desc, frame)
 
     def _boton_accion(self, frame, texto: str) -> ttk.Button:
         acciones = ttk.Frame(frame, style="Panel.TFrame")
@@ -1350,6 +1352,7 @@ class PanelPdf(ToolPanel):
             frame, text="", style="Panel.TLabel", justify="left", wraplength=520,
         )
         info_lbl.pack(anchor="w")
+        ajustar_wraplength(info_lbl, frame)
 
         def _elegir() -> None:
             path = filedialog.askopenfilename(
