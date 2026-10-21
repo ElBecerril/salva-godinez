@@ -1,5 +1,6 @@
 """Verificador de USB: diagnostico de estado, velocidad y autenticidad."""
 
+import ctypes
 import errno
 import json
 import os
@@ -61,7 +62,12 @@ _BAD_SECTORS_RE = re.compile(
 )
 
 
-_PROBLEM_KEYWORD_RE = re.compile(r"\b(errores?|corrupt\w*|problemas?|incorrecto\w*)\b")
+# OJO: "errores?" significa "errore" + "s" opcional, asi que NO coincidia con
+# "error" ni con el ingles "errors": un chkdsk en ingles con "Errors found." se
+# leia como disco sano (falso negativo en una herramienta de salud).
+_PROBLEM_KEYWORD_RE = re.compile(
+    r"\b(error(?:es|s)?|corrupt\w*|problem(?:as?|s)?|incorrect\w*)\b"
+)
 
 # El mensaje de un disco SANO tipicamente incluye la propia palabra clave en
 # forma NEGADA (ej. "no encontro problemas", "no errors found"), asi que
@@ -105,6 +111,66 @@ def _check_filesystem(drive: str) -> dict:
         return {"ok": False, "output": str(e), "returncode": -1}
 
 
+def _read_uncached(path: str, chunk: int = 1024 * 1024):
+    """Lee `path` completo SALTANDOSE la cache de Windows (FILE_FLAG_NO_BUFFERING).
+
+    Una lectura normal justo despues de escribir sale de la RAM, no de la USB:
+    en una memoria que escribe a ~20 MB/s la "velocidad de lectura" medida asi
+    daba ~1000 MB/s, un numero falso que la pantalla mostraba como real.
+
+    Retorna (bytes_leidos, segundos), o None si no se pudo abrir sin cache (no es
+    Windows, o el sistema de archivos no lo admite): el llamador cae a la lectura
+    normal. Con NO_BUFFERING el buffer y los tamanos de lectura deben estar
+    alineados al sector: se alinea a 4096, que sirve para sectores de 512 y 4K.
+    """
+    try:
+        kernel32 = ctypes.windll.kernel32
+        kernel32.CreateFileW.restype = ctypes.c_void_p
+        kernel32.CreateFileW.argtypes = [
+            ctypes.c_wchar_p, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p,
+            ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p,
+        ]
+        kernel32.ReadFile.argtypes = [
+            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32), ctypes.c_void_p,
+        ]
+        kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+    except (AttributeError, OSError):
+        return None
+
+    GENERIC_READ = 0x80000000
+    FILE_SHARE_READ = 0x1
+    OPEN_EXISTING = 3
+    FILE_FLAG_NO_BUFFERING = 0x20000000
+    FILE_FLAG_SEQUENTIAL_SCAN = 0x08000000
+    invalid = ctypes.c_void_p(-1).value
+
+    handle = kernel32.CreateFileW(
+        path, GENERIC_READ, FILE_SHARE_READ, None, OPEN_EXISTING,
+        FILE_FLAG_NO_BUFFERING | FILE_FLAG_SEQUENTIAL_SCAN, None,
+    )
+    if not handle or handle == invalid:
+        return None
+
+    try:
+        crudo = ctypes.create_string_buffer(chunk + 4096)
+        alineado = (ctypes.addressof(crudo) + 4095) & ~4095
+        leido = ctypes.c_uint32(0)
+        total = 0
+        inicio = time.perf_counter()
+        while True:
+            ok = kernel32.ReadFile(handle, ctypes.c_void_p(alineado), chunk,
+                                   ctypes.byref(leido), None)
+            if not ok:
+                return None
+            if leido.value == 0:
+                break
+            total += leido.value
+        return total, time.perf_counter() - inicio
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def _speed_test(drive: str, size_mb: int = 10) -> dict:
     """Prueba de velocidad: escribe y lee un archivo de prueba.
 
@@ -123,16 +189,22 @@ def _speed_test(drive: str, size_mb: int = 10) -> dict:
             os.fsync(f.fileno())
         write_time = time.perf_counter() - start
 
-        # Lectura
-        start = time.perf_counter()
-        with open(test_file, "rb") as f:
-            _ = f.read()
-        read_time = time.perf_counter() - start
+        # Lectura SIN cache; si el sistema no lo permite, lectura normal (que
+        # puede salir de la RAM y quedar inflada: se avisa en "read_cached").
+        sin_cache = _read_uncached(test_file)
+        if sin_cache is not None and sin_cache[0] == len(data):
+            read_time, read_cached = sin_cache[1], False
+        else:
+            start = time.perf_counter()
+            with open(test_file, "rb") as f:
+                _ = f.read()
+            read_time, read_cached = time.perf_counter() - start, True
 
         write_mbps = size_mb / write_time if write_time > 0 else 0
         read_mbps = size_mb / read_time if read_time > 0 else 0
 
-        return {"write_mbps": write_mbps, "read_mbps": read_mbps}
+        return {"write_mbps": write_mbps, "read_mbps": read_mbps,
+                "read_cached": read_cached}
     except OSError as e:
         return {"write_mbps": 0, "read_mbps": 0, "error": str(e)}
     finally:
