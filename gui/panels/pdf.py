@@ -240,6 +240,33 @@ class PanelPdf(ToolPanel):
 
         self.run_async(trabajo, _done)
 
+    def _abrir_pdf(self, boton_elegir: ttk.Button, lector, al_abrir,
+                   texto_error=None) -> None:
+        """Abre el PDF recien elegido en segundo plano.
+
+        Abrir un PDF grande (o en una unidad de red) tarda segundos; hecho en
+        el hilo de la UI congela la ventana ("No responde"). `lector` corre en
+        otro hilo y debe devolver un dict con "ok" y SOLO datos ya calculados:
+        contar paginas o leer metadatos tambien toca el archivo, asi que va
+        dentro de `lector`, no en `al_abrir`. `al_abrir(resultado)` corre en el
+        hilo de la UI solo si abrio bien. `texto_error(resultado)` traduce el
+        fallo; por default, el de apertura.
+        """
+        def al_terminar(resultado) -> None:
+            # Si el usuario cambio de operacion mientras abria, el formulario
+            # ya no existe: no hay donde pintar el resultado.
+            if not boton_elegir.winfo_exists():
+                return
+            self._estado.limpiar()
+            if not resultado.get("ok"):
+                traducir = texto_error or self._texto_error_apertura
+                self.error("No se pudo abrir el PDF", traducir(resultado))
+                return
+            al_abrir(resultado)
+
+        self._ejecutar(boton_elegir, lector, al_terminar)
+        self._estado.info("Abriendo el PDF...")
+
     def _seccion(self, frame, titulo: str, descripcion: str) -> None:
         ttk.Label(frame, text=titulo, style="Section.TLabel").pack(anchor="w")
         desc = ttk.Label(
@@ -383,18 +410,18 @@ class PanelPdf(ToolPanel):
             )
             if not path:
                 return
-            resultado = read_pdf_total(path)
-            if not resultado["ok"]:
-                self.error("No se pudo abrir el PDF", self._texto_error_apertura(resultado))
-                return
-            estado_local["path"] = path
-            estado_local["total"] = resultado["total"]
-            archivo_lbl.configure(
-                text=f"{os.path.basename(path)} ({resultado['total']} paginas)"
-            )
-            self._estado.limpiar()
 
-        ttk.Button(frame, text="Elegir PDF...", command=_elegir).pack(anchor="w")
+            def al_abrir(resultado) -> None:
+                estado_local["path"] = path
+                estado_local["total"] = resultado["total"]
+                archivo_lbl.configure(
+                    text=f"{os.path.basename(path)} ({resultado['total']} paginas)"
+                )
+
+            self._abrir_pdf(elegir_btn, lambda: read_pdf_total(path), al_abrir)
+
+        elegir_btn = ttk.Button(frame, text="Elegir PDF...", command=_elegir)
+        elegir_btn.pack(anchor="w")
 
         modo_var = tk.StringVar(value="individual")
         ttk.Radiobutton(
@@ -495,18 +522,18 @@ class PanelPdf(ToolPanel):
             )
             if not path:
                 return
-            resultado = open_pdf(path)
-            if not resultado["ok"]:
-                self.error("No se pudo abrir el PDF", self._texto_error_apertura(resultado))
-                return
-            estado_local["path"] = path
-            estado_local["total"] = len(resultado["reader"].pages)
-            archivo_lbl.configure(
-                text=f"{os.path.basename(path)} ({estado_local['total']} paginas)"
-            )
-            self._estado.limpiar()
 
-        ttk.Button(frame, text="Elegir PDF...", command=_elegir).pack(anchor="w")
+            def al_abrir(resultado) -> None:
+                estado_local["path"] = path
+                estado_local["total"] = resultado["total"]
+                archivo_lbl.configure(
+                    text=f"{os.path.basename(path)} ({estado_local['total']} paginas)"
+                )
+
+            self._abrir_pdf(elegir_btn, lambda: read_pdf_total(path), al_abrir)
+
+        elegir_btn = ttk.Button(frame, text="Elegir PDF...", command=_elegir)
+        elegir_btn.pack(anchor="w")
 
         angulo_var = tk.StringVar(value="90")
         angulo_frame = ttk.Frame(frame, style="Panel.TFrame")
@@ -594,18 +621,18 @@ class PanelPdf(ToolPanel):
             )
             if not path:
                 return
-            resultado = open_pdf(path)
-            if not resultado["ok"]:
-                self.error("No se pudo abrir el PDF", self._texto_error_apertura(resultado))
-                return
-            estado_local["path"] = path
-            estado_local["total"] = len(resultado["reader"].pages)
-            archivo_lbl.configure(
-                text=f"{os.path.basename(path)} ({estado_local['total']} paginas)"
-            )
-            self._estado.limpiar()
 
-        ttk.Button(frame, text="Elegir PDF...", command=_elegir).pack(anchor="w")
+            def al_abrir(resultado) -> None:
+                estado_local["path"] = path
+                estado_local["total"] = resultado["total"]
+                archivo_lbl.configure(
+                    text=f"{os.path.basename(path)} ({estado_local['total']} paginas)"
+                )
+
+            self._abrir_pdf(elegir_btn, lambda: read_pdf_total(path), al_abrir)
+
+        elegir_btn = ttk.Button(frame, text="Elegir PDF...", command=_elegir)
+        elegir_btn.pack(anchor="w")
 
         seleccion_frame = ttk.Frame(frame, style="Panel.TFrame")
         seleccion_frame.pack(anchor="w", pady=(12, 0))
@@ -680,20 +707,20 @@ class PanelPdf(ToolPanel):
             )
             if not path:
                 return
-            resultado = open_pdf(path)
-            if not resultado["ok"]:
-                self.error("No se pudo abrir el PDF", self._texto_error_apertura(resultado))
-                return
-            estado_local["path"] = path
-            estado_local["total"] = len(resultado["reader"].pages)
-            orden_actual = ",".join(str(i) for i in range(1, estado_local["total"] + 1))
-            archivo_lbl.configure(
-                text=f"{os.path.basename(path)} ({estado_local['total']} paginas). "
-                     f"Orden actual: {orden_actual}"
-            )
-            self._estado.limpiar()
 
-        ttk.Button(frame, text="Elegir PDF...", command=_elegir).pack(anchor="w")
+            def al_abrir(resultado) -> None:
+                estado_local["path"] = path
+                estado_local["total"] = resultado["total"]
+                orden_actual = ",".join(str(i) for i in range(1, estado_local["total"] + 1))
+                archivo_lbl.configure(
+                    text=f"{os.path.basename(path)} ({estado_local['total']} paginas). "
+                         f"Orden actual: {orden_actual}"
+                )
+
+            self._abrir_pdf(elegir_btn, lambda: read_pdf_total(path), al_abrir)
+
+        elegir_btn = ttk.Button(frame, text="Elegir PDF...", command=_elegir)
+        elegir_btn.pack(anchor="w")
 
         orden_frame = ttk.Frame(frame, style="Panel.TFrame")
         orden_frame.pack(anchor="w", fill="x", pady=(12, 0))
@@ -757,16 +784,17 @@ class PanelPdf(ToolPanel):
             )
             if not path:
                 return
-            resultado = open_pdf(path)
-            if not resultado["ok"]:
-                self.error("No se pudo abrir el PDF", self._texto_error_apertura(resultado))
-                return
-            estado_local["path"] = path
-            total = len(resultado["reader"].pages)
-            archivo_lbl.configure(text=f"{os.path.basename(path)} ({total} paginas)")
-            self._estado.limpiar()
 
-        ttk.Button(frame, text="Elegir PDF...", command=_elegir).pack(anchor="w")
+            def al_abrir(resultado) -> None:
+                estado_local["path"] = path
+                archivo_lbl.configure(
+                    text=f"{os.path.basename(path)} ({resultado['total']} paginas)"
+                )
+
+            self._abrir_pdf(elegir_btn, lambda: read_pdf_total(path), al_abrir)
+
+        elegir_btn = ttk.Button(frame, text="Elegir PDF...", command=_elegir)
+        elegir_btn.pack(anchor="w")
 
         def _extraer() -> None:
             if not estado_local["path"]:
@@ -1318,18 +1346,21 @@ class PanelPdf(ToolPanel):
             )
             if not path:
                 return
-            resultado = read_pdf_for_protect(path)
-            if not resultado["ok"]:
-                self.error("No se pudo abrir el PDF", self._texto_error(resultado, "No se pudo leer el archivo."))
-                return
-            estado_local["path"] = path
-            estado_local["encriptado"] = resultado["reader"].is_encrypted
-            estado_texto = "protegido con contrasena" if estado_local["encriptado"] else "sin proteccion"
-            archivo_lbl.configure(text=f"{os.path.basename(path)} — {estado_texto}")
-            _actualizar_subform()
-            self._estado.limpiar()
 
-        ttk.Button(frame, text="Elegir PDF...", command=_elegir).pack(anchor="w")
+            def al_abrir(resultado) -> None:
+                estado_local["path"] = path
+                estado_local["encriptado"] = resultado["reader"].is_encrypted
+                estado_texto = "protegido con contrasena" if estado_local["encriptado"] else "sin proteccion"
+                archivo_lbl.configure(text=f"{os.path.basename(path)} — {estado_texto}")
+                _actualizar_subform()
+
+            self._abrir_pdf(
+                elegir_btn, lambda: read_pdf_for_protect(path), al_abrir,
+                lambda r: self._texto_error(r, "No se pudo leer el archivo."),
+            )
+
+        elegir_btn = ttk.Button(frame, text="Elegir PDF...", command=_elegir)
+        elegir_btn.pack(anchor="w")
         subform.pack(anchor="w", fill="x", pady=(12, 0))
 
     # ------------------------------------------------------------------
@@ -1362,39 +1393,40 @@ class PanelPdf(ToolPanel):
             )
             if not path:
                 return
-            resultado = open_pdf(path)
-            if not resultado["ok"]:
-                self.error("No se pudo abrir el PDF", self._texto_error_apertura(resultado))
-                return
-            reader = resultado["reader"]
-            # Leer paginas y metadatos descifra cadenas del PDF: con un PDF AES y
-            # sin `cryptography` lanza DependencyError aqui, dentro del callback
-            # del boton, donde en el .exe de ventana se pierde sin avisar nada.
-            try:
-                total = len(reader.pages)
-                campos = get_pdf_metadata_fields(reader.metadata) if reader.metadata else []
-            except Exception as e:  # noqa: BLE001
-                falta_crypto = type(e).__name__ == "DependencyError"
-                self.error(
-                    "No se pudo leer el PDF",
-                    MENSAJE_NO_CRYPTO if falta_crypto
-                    else "El archivo esta danado o no es un PDF valido.",
+
+            def lector():
+                # Leer .metadata tambien toca el archivo: va en el hilo de trabajo.
+                apertura = read_pdf_total(path)
+                if apertura["ok"]:
+                    # Con un PDF AES y sin `cryptography`, leer los metadatos
+                    # lanza DependencyError: se traduce a error de apertura.
+                    try:
+                        meta = apertura["reader"].metadata
+                        apertura["campos"] = get_pdf_metadata_fields(meta) if meta else []
+                    except Exception as e:  # noqa: BLE001
+                        falta_crypto = type(e).__name__ == "DependencyError"
+                        return {"ok": False,
+                                "error": "no_crypto" if falta_crypto else "corrupt"}
+                return apertura
+
+            def al_abrir(resultado) -> None:
+                estado_local["path"] = path
+                archivo_lbl.configure(
+                    text=f"{os.path.basename(path)} ({resultado['total']} paginas)"
                 )
-                return
-            estado_local["path"] = path
-            archivo_lbl.configure(text=f"{os.path.basename(path)} ({total} paginas)")
+                campos = resultado["campos"]
+                if campos:
+                    info_lbl.configure(
+                        text="\n".join(f"{etiqueta}: {valor}" for etiqueta, valor in campos)
+                    )
+                else:
+                    info_lbl.configure(text="Este PDF no tiene metadatos adicionales.")
+                btn.configure(state="normal")
 
-            if campos:
-                info_lbl.configure(
-                    text="\n".join(f"{etiqueta}: {valor}" for etiqueta, valor in campos)
-                )
-            else:
-                info_lbl.configure(text="Este PDF no tiene metadatos adicionales.")
+            self._abrir_pdf(elegir_btn, lector, al_abrir)
 
-            btn.configure(state="normal")
-            self._estado.limpiar()
-
-        ttk.Button(frame, text="Elegir PDF...", command=_elegir).pack(anchor="w")
+        elegir_btn = ttk.Button(frame, text="Elegir PDF...", command=_elegir)
+        elegir_btn.pack(anchor="w")
 
         def _limpiar() -> None:
             path = estado_local["path"]
