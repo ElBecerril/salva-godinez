@@ -1065,8 +1065,9 @@ class PanelPdf(ToolPanel):
     def _form_pdf_a_word(self, frame) -> None:
         self._seccion(
             frame, "PDF a Word",
-            "Extrae el texto del PDF a un documento Word (.docx) editable. Es "
-            "texto simple: no reconstruye tablas ni columnas complejas.",
+            "Convierte el PDF a un documento Word (.docx) editable, conservando "
+            "imagenes, tablas y formato. Si un PDF no se puede convertir asi, "
+            "se extrae solo su texto.",
         )
 
         if not self._word_ok:
@@ -1152,6 +1153,9 @@ class PanelPdf(ToolPanel):
                     self._estado.exito(f"Word creado: {resultado['output']}")
                 extra = ("\n\nOjo: el PDF no tenia texto seleccionable, el Word "
                          "quedo vacio." if resultado.get("empty") else "")
+                if resultado.get("modo") == "texto":
+                    extra += ("\n\nSe extrajo solo el texto (sin imagenes ni "
+                              "tablas): este PDF no se pudo convertir con formato.")
                 self.aviso(
                     "Conversion lista",
                     f"Se guardo en:\n\n{resultado['output']}\n\n"

@@ -13,17 +13,23 @@ pymupdf_datas, pymupdf_binaries, pymupdf_hidden = collect_all('pymupdf')
 # collect_all, "PDF a Word" fallaria en runtime al crear el Document.
 docx_datas, docx_binaries, docx_hidden = collect_all('docx')
 
+# pdf2docx (conversion fiel de PDF a Word) importa numpy, cv2 y fontTools de
+# forma perezosa; collect_all arrastra sus binarios (.pyd/DLL de opencv) y datos.
+p2d_datas, p2d_binaries, p2d_hidden = collect_all('pdf2docx')
+cv2_datas, cv2_binaries, cv2_hidden = collect_all('cv2')
+
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=pymupdf_binaries + docx_binaries,
+    binaries=pymupdf_binaries + docx_binaries + p2d_binaries + cv2_binaries,
     # El cacert.pem de certifi: el auto-updater lo usa para verificar el HTTPS
     # de api.github.com desde el .exe (el ssl del binario congelado no ve los
     # CA del sistema). PyInstaller ya trae un hook para certifi, pero se
     # empaqueta explicito para no depender de que el hook siga vigente.
     # A eso se suman los datos de PyMuPDF (fuentes) y las plantillas de docx.
-    datas=collect_data_files('certifi') + pymupdf_datas + docx_datas,
+    datas=(collect_data_files('certifi') + pymupdf_datas + docx_datas
+           + p2d_datas + cv2_datas),
     # main.py importa la GUI de forma perezosa (solo con --gui), asi que el
     # analisis estatico de PyInstaller podria no arrastrar el paquete entero.
     # Se recolecta TODO `gui` en vez de listar pantalla por pantalla: son 23 y
@@ -36,7 +42,8 @@ a = Analysis(
     # fallo aparece recien en la calle y justo en el peor momento: al
     # verificar una actualizacion.
     hiddenimports=(collect_submodules('gui') + collect_submodules('tools')
-                   + pymupdf_hidden + docx_hidden + ['fitz']),
+                   + pymupdf_hidden + docx_hidden + p2d_hidden + cv2_hidden
+                   + ['fitz', 'fire']),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

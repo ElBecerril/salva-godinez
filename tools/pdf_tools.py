@@ -1,6 +1,7 @@
 """Herramientas PDF: unir, dividir, rotar, eliminar, reordenar, extraer texto, convertir y mas."""
 
 import getpass
+import logging
 import os
 
 from rich.markup import escape
@@ -56,19 +57,44 @@ def _import_docx():
         return None
 
 
-def pdf_to_word_do(fitz, Document, path, output, overwrite=False):
-    """Convierte un PDF a Word (.docx) extrayendo el texto por bloques.
+def _import_pdf2docx():
+    """Import lazy de pdf2docx (conversion fiel). Retorna Converter o None."""
+    nivel = logging.getLogger().level
+    try:
+        from pdf2docx import Converter
+        return Converter
+    except ImportError:
+        return None
+    finally:
+        # pdf2docx llama a logging.basicConfig(INFO) al importarse y deja el
+        # logger raiz en INFO: se restaura para no llenar la consola de avisos.
+        logging.getLogger().setLevel(nivel)
 
-    Es extraccion de TEXTO simple (parrafos editables): NO reconstruye tablas ni
-    columnas complejas (eso requeriria pdf2docx + opencv, que pesa mucho). Cada
-    bloque de texto del PDF se agrega como un parrafo, en orden de lectura, con
-    un salto de pagina entre paginas.
+
+def _pdf_to_word_fiel(Converter, path, output):
+    """Convierte con pdf2docx: conserva imagenes, tablas, columnas y formato."""
+    cv = Converter(path)
+    try:
+        cv.convert(output)
+    finally:
+        cv.close()
+
+
+def pdf_to_word_do(fitz, Document, path, output, overwrite=False):
+    """Convierte un PDF a Word (.docx).
+
+    Con pdf2docx disponible la conversion es FIEL: conserva imagenes, tablas,
+    columnas y formato (fuentes, negritas, colores). Si pdf2docx no esta, o
+    falla con este PDF, cae a extraccion de TEXTO simple (parrafos editables,
+    sin imagenes ni tablas): cada bloque de texto del PDF se agrega como un
+    parrafo, en orden de lectura, con un salto de pagina entre paginas. El
+    resultado trae "modo": "fiel" o "texto" para que la interfaz lo diga.
 
     Si overwrite=True (la interfaz ya confirmo reemplazar, p.ej. el dialogo
     nativo), se escribe en la ruta exacta; si no, se evita sobrescribir con un
     sufijo (_safe_output_path).
 
-    Retorna dict {"ok": True, "output", "pages", "empty"(bool)} o
+    Retorna dict {"ok": True, "output", "pages", "empty"(bool), "modo"} o
     {"ok": False, "error": "open_error"|"encrypted"|"convert_error", "detail"}.
     """
     try:
@@ -80,6 +106,22 @@ def pdf_to_word_do(fitz, Document, path, output, overwrite=False):
     if doc.is_encrypted and not doc.authenticate(""):
         doc.close()
         return {"ok": False, "error": "encrypted"}
+
+    Converter = _import_pdf2docx()
+    if Converter is not None:
+        try:
+            n_pages = doc.page_count
+            # Un escaneo (solo imagenes) tambien sale con contenido en modo fiel.
+            vacio = not any(
+                doc.load_page(i).get_text().strip() or doc.load_page(i).get_images()
+                for i in range(n_pages)
+            )
+            destino = output if overwrite else _safe_output_path(output)
+            _pdf_to_word_fiel(Converter, path, destino)
+            return {"ok": True, "output": destino, "pages": n_pages,
+                    "empty": vacio, "modo": "fiel"}
+        except Exception:  # noqa: BLE001 - pdf2docx falla con PDFs raros: se usa el modo texto
+            pass
 
     try:
         word = Document()
@@ -104,7 +146,8 @@ def pdf_to_word_do(fitz, Document, path, output, overwrite=False):
         if not overwrite:
             output = _safe_output_path(output)
         word.save(output)
-        return {"ok": True, "output": output, "pages": n_pages, "empty": not con_texto}
+        return {"ok": True, "output": output, "pages": n_pages,
+                "empty": not con_texto, "modo": "texto"}
     except Exception as e:  # noqa: BLE001 - error al leer paginas o guardar
         return {"ok": False, "error": "convert_error", "detail": str(e)}
     finally:
@@ -1016,7 +1059,7 @@ def pdf_to_images() -> None:
 
 
 def pdf_to_word() -> None:
-    """Convierte un PDF a Word (.docx) extrayendo su texto."""
+    """Convierte un PDF a Word (.docx), conservando imagenes y tablas si se puede."""
     fitz = _get_pymupdf()
     if not fitz:
         return
@@ -1030,8 +1073,8 @@ def pdf_to_word() -> None:
 
     console.print("\n[bold cyan]PDF a Word[/bold cyan]")
     console.print(
-        "[dim]Extrae el texto del PDF a un .docx editable. Es texto simple: no "
-        "reconstruye tablas ni columnas complejas.[/dim]"
+        "[dim]Convierte el PDF a un .docx editable, con imagenes, tablas y "
+        "formato. Si el PDF no se puede convertir asi, extrae solo el texto.[/dim]"
     )
 
     path = Prompt.ask("[bold]Ruta del PDF[/bold]").strip().strip('"')
