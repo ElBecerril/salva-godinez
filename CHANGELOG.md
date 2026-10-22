@@ -2,6 +2,19 @@
 
 Todos los cambios notables del proyecto se documentan aqui.
 
+## [2.9.4] - 2026-10-22
+
+### Corregido
+- **Editar PDF: la ventana ya no se congela al elegir un PDF.** Con un PDF
+  grande, o guardado en una unidad de red, la ventana se quedaba en "No
+  responde" varios segundos al elegir el archivo en Dividir, Rotar, Eliminar,
+  Reordenar, Extraer texto, Proteger y Ver/limpiar metadatos. Ahora el PDF se
+  abre en segundo plano y la ventana sigue respondiendo; si cambias de operacion
+  mientras abre, el resultado se descarta.
+- Un PDF que abre pero falla al contar sus paginas ahora muestra el aviso de
+  archivo danado (o el de falta de cifrado AES) en vez de una excepcion sin
+  atrapar.
+
 ## [2.9.3] - 2026-10-21
 
 ### Corregido
